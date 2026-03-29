@@ -1,0 +1,94 @@
+name: "publish"
+
+on:
+  workflow_dispatch:
+
+env:
+  APP_CARGO_TOML: apps/desktop/src-tauri/Cargo.toml
+
+jobs:
+  build:
+    permissions:
+      contents: write
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        settings:
+          - target: x86_64-apple-darwin
+            runner: macos-latest-xlarge
+          - target: aarch64-apple-darwin
+            runner: macos-latest-xlarge
+    env:
+      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+      TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+    runs-on: ${{ matrix.settings.runner }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Read version number
+        uses: SebRollen/toml-action@v1.0.2
+        id: read_version
+        with:
+          file: ${{ env.APP_CARGO_TOML }}
+          field: "package.version"
+
+      - name: Create API Key File
+        run: echo "${{ secrets.APPLE_API_KEY_FILE }}" > api.p8
+
+      - uses: apple-actions/import-codesign-certs@v2
+        with:
+          p12-file-base64: ${{ secrets.APPLE_CERTIFICATE }}
+          p12-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+
+      - name: Verify certificate
+        run: security find-identity -v -p codesigning ${{ runner.temp }}/build.keychain
+
+      - name: Rust setup
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.settings.target }}
+
+      - uses: ./.github/actions/setup-rust-cache
+        with:
+          target: ${{ matrix.settings.target }}
+
+      - uses: ./.github/actions/setup-js
+
+      - name: Create .env file in root
+        run: |
+          echo "appVersion=${{ steps.read_version.outputs.value }}" >> .env
+          echo "VITE_ENVIRONMENT=production" >> .env
+          echo "NEXT_PUBLIC_WEB_URL=${{ secrets.NEXT_PUBLIC_WEB_URL }}" >> .env
+          echo 'NEXTAUTH_URL=${{ secrets.NEXT_PUBLIC_WEB_URL }}' >> .env
+          echo 'VITE_POSTHOG_KEY=${{ secrets.VITE_POSTHOG_KEY }}' >> .env
+          echo 'VITE_POSTHOG_HOST=${{ secrets.VITE_POSTHOG_HOST }}' >> .env
+          echo 'VITE_SERVER_URL=${{ secrets.NEXT_PUBLIC_WEB_URL }}' >> .env
+          echo 'RUST_TARGET_TRIPLE=${{ matrix.settings.target }}' >> .env
+
+      - name: Build app
+        working-directory: apps/desktop
+        run: |
+          pnpm -w cap-setup
+          pnpm build:tauri --target ${{ matrix.settings.target }} --config src-tauri/tauri.prod.conf.json
+        env:
+          CI: false
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_PATH: ${{ github.workspace }}/api.p8
+          APPLE_KEYCHAIN: ${{ runner.temp }}/build.keychain
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
+      - name: Upload DMG to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.read_version.outputs.value }}
+          name: v${{ steps.read_version.outputs.value }}
+          draft: false
+          files: target/${{ matrix.settings.target }}/release/bundle/dmg/*.dmg

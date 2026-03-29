@@ -1,0 +1,106 @@
+name: cap-china-deployment
+
+# Cap 国内部署配置
+# 优化：使用国内镜像源 + MinIO 本地存储
+
+services:
+  cap-web:
+    container_name: cap-web
+    image: ghcr.io/capsoftware/cap-web:latest
+    restart: unless-stopped
+    depends_on:
+      - ps-mysql
+      - minio
+    environment:
+      # 1. 基础配置 - 改成你的域名
+      DATABASE_URL: 'mysql://root:YourStrongPassword@ps-mysql:3306/cap?ssl={"rejectUnauthorized":false}'
+      WEB_URL: https://你的域名.com
+      NEXTAUTH_URL: https://你的域名.com
+
+      # 2. 安全密钥 - 务必修改！运行: openssl rand -hex 32
+      DATABASE_ENCRYPTION_KEY: 请用openssl生成64位十六进制字符串
+      NEXTAUTH_SECRET: 请用openssl生成另一个64位十六进制字符串
+
+      # 3. MinIO 本地存储配置
+      CAP_AWS_ACCESS_KEY: cap-admin
+      CAP_AWS_SECRET_KEY: cap-admin-password-2024
+      CAP_AWS_BUCKET: cap-videos
+      CAP_AWS_REGION: us-east-1
+      # 内部访问（容器间）
+      S3_INTERNAL_ENDPOINT: http://minio:9000
+      # 外部访问（用户下载视频）- 改成你的域名或 IP
+      S3_PUBLIC_ENDPOINT: https://你的域名.com:9000
+      # 或者如果用子域名：
+      # S3_PUBLIC_ENDPOINT: https://storage.你的域名.com
+
+      # 4. 可选：邮件登录（推荐配置）
+      # RESEND_API_KEY: re_xxxxxxxxx
+      # RESEND_FROM_DOMAIN: 你的域名.com
+
+      # 5. 可选：AI 功能（国内可用 Groq，比 OpenAI 快且便宜）
+      # GROQ_API_KEY: gsk_xxxxxxxxxxxxx
+      # OPENAI_API_KEY: sk-xxxxxxxxxxxxxx  # 备用
+
+      # 6. 可选：CDN 加速（如果配置了阿里云/腾讯云 CDN）
+      # CAP_AWS_BUCKET_URL: https://cdn.你的域名.com
+
+    ports:
+      - "3000:3000"
+    networks:
+      - cap-network
+
+  ps-mysql:
+    container_name: cap-mysql
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: YourStrongPassword  # 务必修改！
+      MYSQL_DATABASE: cap
+      MYSQL_ROOT_HOST: "%"
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --max_connections=1000
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - cap-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pYourStrongPassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    container_name: cap-minio
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: cap-admin
+      MINIO_ROOT_PASSWORD: cap-admin-password-2024  # 务必修改！
+    ports:
+      - "9000:9000"  # API 端口（S3 协议）
+      - "9001:9001"  # Web 控制台
+    volumes:
+      - minio-data:/data
+    networks:
+      - cap-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+volumes:
+  mysql-data:
+    driver: local
+  minio-data:
+    driver: local
+
+networks:
+  cap-network:
+    driver: bridge
