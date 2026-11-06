@@ -2246,11 +2246,6 @@ pub async fn run(recording_logging_handle: LoggingHandle, logs_dir: PathBuf) {
                 async move {
                     if !permissions.screen_recording.permitted()
                         || !permissions.accessibility.permitted()
-                        || GeneralSettingsStore::get(&app)
-                            .ok()
-                            .flatten()
-                            .map(|s| !s.has_completed_startup)
-                            .unwrap_or(false)
                     {
                         let _ = ShowCapWindow::Setup.show(&app).await;
                     } else {
