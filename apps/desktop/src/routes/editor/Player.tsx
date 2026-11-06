@@ -2,7 +2,7 @@ import { ToggleButton as KToggleButton } from "@kobalte/core/toggle-button";
 import { createElementBounds } from "@solid-primitives/bounds";
 import { cx } from "cva";
 import { createEffect, createSignal, onMount, Show } from "solid-js";
-
+import { produce } from "solid-js/store";
 import Tooltip from "~/components/Tooltip";
 import { captionsStore } from "~/store/captions";
 import { L } from "~/utils/i18n";
@@ -12,7 +12,6 @@ import { FPS, OUTPUT_SIZE, useEditorContext } from "./context";
 import { EditorButton, Slider } from "./ui";
 import { useEditorShortcuts } from "./useEditorShortcuts";
 import { formatTime } from "./utils";
-import { produce } from "solid-js/store";
 
 export function Player() {
 	const {

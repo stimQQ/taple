@@ -161,24 +161,25 @@ impl ClickRingLayer {
             if click.down {
                 let click_age = current_time_ms - click.time_ms;
 
-                if click_age >= 0.0 && click_age <= duration_ms {
-                    if let Some(cursor_pos) = find_cursor_position_at_time(cursor, click.time_ms) {
-                        let position = Coord::<crate::RawDisplayUVSpace>::new(cursor_pos)
-                            .to_frame_space(&constants.options, &uniforms.project, resolution_base);
+                if click_age >= 0.0
+                    && click_age <= duration_ms
+                    && let Some(cursor_pos) = find_cursor_position_at_time(cursor, click.time_ms)
+                {
+                    let position = Coord::<crate::RawDisplayUVSpace>::new(cursor_pos)
+                        .to_frame_space(&constants.options, &uniforms.project, resolution_base);
 
-                        let zoomed_position = position.to_zoomed_frame_space(
-                            &constants.options,
-                            &uniforms.project,
-                            resolution_base,
-                            zoom,
-                        );
+                    let zoomed_position = position.to_zoomed_frame_space(
+                        &constants.options,
+                        &uniforms.project,
+                        resolution_base,
+                        zoom,
+                    );
 
-                        self.active_clicks.push(ActiveClick {
-                            position: Coord::new(XY::new(zoomed_position.x, zoomed_position.y)),
-                            start_time_ms: click.time_ms,
-                            duration_ms,
-                        });
-                    }
+                    self.active_clicks.push(ActiveClick {
+                        position: Coord::new(XY::new(zoomed_position.x, zoomed_position.y)),
+                        start_time_ms: click.time_ms,
+                        duration_ms,
+                    });
                 }
             }
         }

@@ -8,11 +8,11 @@ import {
 } from "@tanstack/solid-query";
 import { Channel } from "@tauri-apps/api/core";
 import { CheckMenuItem, Menu } from "@tauri-apps/api/menu";
+import { desktopDir, homeDir } from "@tauri-apps/api/path";
 import {
-	save as saveDialog,
 	open as openDialog,
+	save as saveDialog,
 } from "@tauri-apps/plugin-dialog";
-import { homeDir, desktopDir } from "@tauri-apps/api/path";
 import { cx } from "cva";
 import {
 	createEffect,

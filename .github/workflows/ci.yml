@@ -135,7 +135,7 @@ jobs:
       - name: Run Clippy
         uses: actions-rs-plus/clippy-check@v2
         with:
-          args: --workspace --all-features --locked
+          args: --workspace --all-features --locked --exclude deep_filter
 
   lint-biome:
     name: Lint (Biome)

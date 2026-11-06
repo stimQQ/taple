@@ -1,13 +1,13 @@
+import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
+import { Store } from "@tauri-apps/plugin-store";
 import {
-	For,
-	Show,
 	createEffect,
 	createSignal,
+	For,
 	onCleanup,
 	onMount,
+	Show,
 } from "solid-js";
-import { Store } from "@tauri-apps/plugin-store";
-import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
 import { L } from "~/utils/i18n";
 import IconLucideHistory from "~icons/lucide/history";
 import IconLucidePencil from "~icons/lucide/pencil";

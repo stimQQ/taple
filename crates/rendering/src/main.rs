@@ -68,10 +68,7 @@ async fn main() -> Result<()> {
 
     let recording_meta = RecordingMeta::load_for_project(&args.project_path)
         .map_err(|e| anyhow::anyhow!("Failed to load recording metadata: {}", e))?;
-    let studio_meta = recording_meta
-        .studio_meta()
-        .context("Project is not a studio recording")?
-        .clone();
+    let studio_meta = recording_meta.studio_meta().clone();
 
     let recordings = Arc::new(
         ProjectRecordingsMeta::new(&recording_meta.project_path, &studio_meta)

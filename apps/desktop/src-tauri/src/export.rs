@@ -100,13 +100,14 @@ pub async fn export_video(
 
     info!("Exported to {} completed", output_path.display());
 
-    if let Some(captions) = &project_config.captions {
-        if captions.settings.export_with_subtitles && !captions.segments.is_empty() {
-            let vtt_path = output_path.with_extension("vtt");
-            let vtt_content = segments_to_vtt(&captions.segments);
-            std::fs::write(&vtt_path, vtt_content).map_err(|e| e.to_string())?;
-            info!("Exported subtitles to {}", vtt_path.display());
-        }
+    if let Some(captions) = &project_config.captions
+        && captions.settings.export_with_subtitles
+        && !captions.segments.is_empty()
+    {
+        let vtt_path = output_path.with_extension("vtt");
+        let vtt_content = segments_to_vtt(&captions.segments);
+        std::fs::write(&vtt_path, vtt_content).map_err(|e| e.to_string())?;
+        info!("Exported subtitles to {}", vtt_path.display());
     }
 
     Ok(output_path)
