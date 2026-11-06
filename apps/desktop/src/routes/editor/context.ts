@@ -19,7 +19,6 @@ import {
 import { createStore, produce, reconcile, unwrap } from "solid-js/store";
 
 import { createPresets } from "~/utils/createPresets";
-import { createCustomDomainQuery } from "~/utils/queries";
 import { createImageDataWS, createLazySignal } from "~/utils/socket";
 import {
 	commands,
@@ -55,11 +54,6 @@ export const MAX_ZOOM_IN = 3;
 export type RenderState =
 	| { type: "starting" }
 	| { type: "rendering"; progress: FramesRendered };
-
-export type CustomDomainResponse = {
-	custom_domain: string | null;
-	domain_verified: boolean | null;
-};
 
 export const [EditorContextProvider, useEditorContext] = createContextProvider(
 	(props: {
@@ -231,11 +225,6 @@ export const [EditorContextProvider, useEditorContext] = createContextProvider(
 							| { type: "copying" }
 							| { type: "done" }
 					  ))
-					| ({ action: "upload" } & (
-							| RenderState
-							| { type: "uploading"; progress: number }
-							| { type: "done" }
-					  ))
 			  )
 		>({ type: "idle" });
 
@@ -343,14 +332,12 @@ export const [EditorContextProvider, useEditorContext] = createContextProvider(
 		const [systemAudioWaveforms] = createResource(() =>
 			commands.getSystemAudioWaveforms(),
 		);
-		const customDomain = createCustomDomainQuery();
 
 		return {
 			...editorInstanceContext,
 			meta() {
 				return props.meta();
 			},
-			customDomain,
 			refetchMeta: () => props.refetchMeta(),
 			editorInstance: props.editorInstance,
 			dialog,

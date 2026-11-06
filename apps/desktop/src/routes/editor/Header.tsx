@@ -12,7 +12,6 @@ import {
 	createSignal,
 	onCleanup,
 	onMount,
-	Show,
 } from "solid-js";
 import Tooltip from "~/components/Tooltip";
 import CaptionControlsWindows11 from "~/components/titlebar/controls/CaptionControlsWindows11";
@@ -22,7 +21,6 @@ import { commands, events } from "~/utils/tauri";
 import { initializeTitlebar } from "~/utils/titlebar-state";
 import { useEditorContext } from "./context";
 import PresetsDropdown from "./PresetsDropdown";
-import ShareButton from "./ShareButton";
 import { EditorButton } from "./ui";
 
 export type ResolutionOption = {
@@ -51,7 +49,6 @@ export function Header() {
 		meta,
 		exportState,
 		setExportState,
-		customDomain,
 		editorState,
 		setEditorState,
 	} = useEditorContext();
@@ -122,9 +119,6 @@ export function Header() {
 					ostype() !== "windows" && "pr-2",
 				)}
 			>
-				<Show when={customDomain.data}>
-					<ShareButton />
-				</Show>
 				<PresetsDropdown />
 				<Button
 					variant="dark"

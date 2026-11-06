@@ -1,6 +1,4 @@
-import { Button } from "@cap/ui-solid";
 import { createMutation, useQuery } from "@tanstack/solid-query";
-import { listen } from "@tauri-apps/api/event";
 import {
 	getAllWebviewWindows,
 	WebviewWindow,
@@ -18,21 +16,17 @@ import {
 	createEffect,
 	createMemo,
 	createSignal,
-	ErrorBoundary,
 	onCleanup,
 	onMount,
 	Show,
-	Suspense,
 } from "solid-js";
 import { reconcile } from "solid-js/store";
 import Tooltip from "~/components/Tooltip";
 import { Input } from "~/routes/editor/ui";
-import { createSignInMutation } from "~/utils/auth";
 import { L } from "~/utils/i18n";
 import {
 	createCameraMutation,
 	createCurrentRecordingQuery,
-	createLicenseQuery,
 	getPermissions,
 	listAudioDevices,
 	listDisplaysWithThumbnails,
@@ -380,8 +374,6 @@ function Page() {
 			currentWindow.setSize(new LogicalSize(270, getHeight()));
 		});
 
-		commands.updateAuthPlan();
-
 		onCleanup(async () => {
 			(await unlistenFocus)?.();
 			(await unlistenResize)?.();
@@ -563,28 +555,6 @@ function Page() {
 		}
 	});
 
-	const license = createLicenseQuery();
-
-	const signIn = createSignInMutation();
-
-	const startSignInCleanup = listen("start-sign-in", async () => {
-		const abort = new AbortController();
-		for (const win of await getAllWebviewWindows()) {
-			if (win.label.startsWith("target-select-overlay")) {
-				await win.hide();
-			}
-		}
-
-		await signIn.mutateAsync(abort).catch(() => {});
-
-		for (const win of await getAllWebviewWindows()) {
-			if (win.label.startsWith("target-select-overlay")) {
-				await win.show();
-			}
-		}
-	});
-	onCleanup(() => startSignInCleanup.then((cb) => cb()));
-
 	const openTeleprompter = async () => {
 		const wins = await getAllWebviewWindows();
 		const existing = wins.find((w) => w.label === "teleprompter");
@@ -654,213 +624,167 @@ function Page() {
 					{ostype() === "macos" && (
 						<div class="flex-1" data-tauri-drag-region />
 					)}
-					<ErrorBoundary fallback={<></>}>
-						<Suspense>
-							<span
-								onClick={async () => {
-									if (license.data?.type !== "pro") {
-										await commands.showWindow("Upgrade");
-									}
-								}}
-								class={cx(
-									"text-[0.6rem] ml-2 rounded-full px-1.5 py-0.5",
-									license.data?.type === "pro"
-										? "bg-[--blue-300] text-gray-1 dark:text-gray-12"
-										: "bg-gray-4 cursor-pointer hover:bg-gray-5",
-									ostype() === "windows" && "ml-2",
-								)}
-							>
-								{license.data?.type === "commercial"
-									? L("商业版", "Commercial")
-									: license.data?.type === "pro"
-										? L("专业版", "Pro")
-										: L("个人版", "Personal")}
-							</span>
-						</Suspense>
-					</ErrorBoundary>
 				</div>
 			</WindowChromeHeader>
-			<Show when={signIn.isPending}>
-				<div class="flex absolute inset-0 justify-center items-center bg-gray-1 animate-in fade-in">
-					<div class="flex flex-col gap-4 justify-center items-center">
-						<span>{L("登录中...", "Signing in...")}</span>
-
-						<Button
-							onClick={() => {
-								signIn.variables?.abort();
-								signIn.reset();
-							}}
-							variant="gray"
-							class="w-full"
-						>
-							{L("取消登录", "Cancel Sign In")}
-						</Button>
-					</div>
+			<div class="flex flex-col gap-2 w-full">
+				<div class="space-y-2">
+					<CameraSelect
+						disabled={cameras.isPending}
+						options={cameras.data ?? []}
+						value={options.camera() ?? null}
+						onChange={(c) => {
+							if (!c) setCamera.mutate(null);
+							else if (c.model_id) setCamera.mutate({ ModelID: c.model_id });
+							else setCamera.mutate({ DeviceID: c.device_id });
+						}}
+					/>
+					<MicrophoneSelect
+						disabled={mics.isPending}
+						options={mics.isPending ? [] : (mics.data ?? [])}
+						value={
+							mics.isPending ? rawOptions.micName : (options.micName() ?? null)
+						}
+						onChange={(v) => setMicInput.mutate(v)}
+					/>
+					<SystemAudio />
 				</div>
-			</Show>
-			<Show when={!signIn.isPending}>
-				<div class="flex flex-col gap-2 w-full">
-					<div class="space-y-2">
-						<CameraSelect
-							disabled={cameras.isPending}
-							options={cameras.data ?? []}
-							value={options.camera() ?? null}
-							onChange={(c) => {
-								if (!c) setCamera.mutate(null);
-								else if (c.model_id) setCamera.mutate({ ModelID: c.model_id });
-								else setCamera.mutate({ DeviceID: c.device_id });
-							}}
-						/>
-						<MicrophoneSelect
-							disabled={mics.isPending}
-							options={mics.isPending ? [] : (mics.data ?? [])}
-							value={
-								mics.isPending
-									? rawOptions.micName
-									: (options.micName() ?? null)
+				<div class="flex flex-row gap-2 items-stretch w-full text-xs text-gray-11">
+					<TargetTypeButton
+						selected={rawOptions.targetMode === "display"}
+						Component={IconMdiMonitor}
+						disabled={isRecording()}
+						onClick={() => {
+							if (isRecording()) return;
+							setWindowMenuOpen(false);
+							const screenList = screens.data ?? [];
+							if (screenList.length <= 1) {
+								const screen = screenList[0];
+								if (screen) {
+									setOptions(
+										"captureTarget",
+										reconcile({ variant: "display", id: screen.id }),
+									);
+									setOptions("targetMode", "display");
+									commands.openTargetSelectOverlays(rawOptions.captureTarget);
+								}
+							} else {
+								setDisplayMenuOpen((prev) => {
+									const next = !prev;
+									if (next) setHasOpenedDisplayMenu(true);
+									return next;
+								});
 							}
-							onChange={(v) => setMicInput.mutate(v)}
-						/>
-						<SystemAudio />
-					</div>
-					<div class="flex flex-row gap-2 items-stretch w-full text-xs text-gray-11">
-						<TargetTypeButton
-							selected={rawOptions.targetMode === "display"}
-							Component={IconMdiMonitor}
-							disabled={isRecording()}
-							onClick={() => {
-								if (isRecording()) return;
-								setWindowMenuOpen(false);
-								const screenList = screens.data ?? [];
-								if (screenList.length <= 1) {
-									const screen = screenList[0];
-									if (screen) {
-										setOptions(
-											"captureTarget",
-											reconcile({ variant: "display", id: screen.id }),
-										);
-										setOptions("targetMode", "display");
-										commands.openTargetSelectOverlays(rawOptions.captureTarget);
-									}
-								} else {
-									setDisplayMenuOpen((prev) => {
-										const next = !prev;
-										if (next) setHasOpenedDisplayMenu(true);
-										return next;
-									});
+						}}
+						name={L("全屏录制", "Display")}
+						class={cx(
+							"flex-1",
+							(rawOptions.targetMode === "display" || displayMenuOpen()) &&
+								"ring-2 ring-blue-9 ring-offset-2 ring-offset-gray-1",
+						)}
+					/>
+					<TargetTypeButton
+						selected={rawOptions.targetMode === "window"}
+						Component={IconLucideAppWindowMac}
+						disabled={isRecording()}
+						onClick={() => {
+							if (isRecording()) return;
+							setDisplayMenuOpen(false);
+							const windowList = windows.data ?? [];
+							if (windowList.length <= 1) {
+								const win = windowList[0];
+								if (win) {
+									setOptions(
+										"captureTarget",
+										reconcile({ variant: "window", id: win.id }),
+									);
+									setOptions("targetMode", "window");
+									commands.openTargetSelectOverlays(rawOptions.captureTarget);
+									commands.focusWindow(win.id).catch(console.error);
 								}
-							}}
-							name={L("全屏录制", "Display")}
-							class={cx(
-								"flex-1",
-								(rawOptions.targetMode === "display" || displayMenuOpen()) &&
-									"ring-2 ring-blue-9 ring-offset-2 ring-offset-gray-1",
-							)}
-						/>
-						<TargetTypeButton
-							selected={rawOptions.targetMode === "window"}
-							Component={IconLucideAppWindowMac}
-							disabled={isRecording()}
-							onClick={() => {
-								if (isRecording()) return;
-								setDisplayMenuOpen(false);
-								const windowList = windows.data ?? [];
-								if (windowList.length <= 1) {
-									const win = windowList[0];
-									if (win) {
-										setOptions(
-											"captureTarget",
-											reconcile({ variant: "window", id: win.id }),
-										);
-										setOptions("targetMode", "window");
-										commands.openTargetSelectOverlays(rawOptions.captureTarget);
-										commands.focusWindow(win.id).catch(console.error);
-									}
-								} else {
-									setWindowMenuOpen((prev) => {
-										const next = !prev;
-										if (next) setHasOpenedWindowMenu(true);
-										return next;
-									});
-								}
-							}}
-							name={L("窗口录制", "Window")}
-							class={cx(
-								"flex-1",
-								(rawOptions.targetMode === "window" || windowMenuOpen()) &&
-									"ring-2 ring-blue-9 ring-offset-2 ring-offset-gray-1",
-							)}
-						/>
-						<TargetTypeButton
-							selected={rawOptions.targetMode === "area"}
-							Component={IconMaterialSymbolsScreenshotFrame2Rounded}
-							disabled={isRecording()}
-							onClick={() => {
-								if (isRecording()) return;
-								setDisplayMenuOpen(false);
-								setWindowMenuOpen(false);
-								setOptions("targetMode", (v) => (v === "area" ? null : "area"));
-								if (rawOptions.targetMode)
-									commands.openTargetSelectOverlays(null);
-								else commands.closeTargetSelectOverlays();
-							}}
-							name={L("区域录制", "Area")}
-							class={cx(
-								"flex-1",
-								rawOptions.targetMode === "area" &&
-									"ring-2 ring-blue-9 ring-offset-2 ring-offset-gray-1",
-							)}
-						/>
-					</div>
-					<div class="flex flex-row gap-2">
-						<button
-							type="button"
-							onClick={async () => {
-								await commands.showWindow({ Settings: { page: "recordings" } });
-								getCurrentWindow().hide();
-							}}
-							class="flex flex-1 flex-row gap-2 items-center px-2 h-9 rounded-lg transition-colors bg-gray-3 hover:bg-gray-4 text-gray-12"
-						>
-							<IconLucideSquarePlay class="text-gray-10 size-4" />
-							<p class="flex-1 text-xs text-left">
-								{L("历史录制", "Recordings")}
-							</p>
-						</button>
-						<button
-							type="button"
-							onClick={openTeleprompter}
-							class="flex flex-1 flex-row gap-2 items-center px-2 h-9 rounded-lg transition-colors bg-gray-3 hover:bg-gray-4 text-gray-12"
-						>
-							<IconLucideScrollText class="text-gray-10 size-4" />
-							<p class="flex-1 text-xs text-left">
-								{L("提词器", "Teleprompter")}
-							</p>
-						</button>
-					</div>
-					<Show when={displayMenuOpen()}>
-						<InlinePanel
-							variant="display"
-							targets={displayTargetsData()}
-							isLoading={displayMenuLoading()}
-							errorMessage={displayErrorMessage()}
-							onSelect={selectDisplayTarget}
-							disabled={isRecording()}
-							selectedId={selectedDisplayId()}
-						/>
-					</Show>
-					<Show when={windowMenuOpen()}>
-						<InlinePanel
-							variant="window"
-							targets={windowTargetsData()}
-							isLoading={windowMenuLoading()}
-							errorMessage={windowErrorMessage()}
-							onSelect={selectWindowTarget}
-							disabled={isRecording()}
-							selectedId={selectedWindowId()}
-						/>
-					</Show>
+							} else {
+								setWindowMenuOpen((prev) => {
+									const next = !prev;
+									if (next) setHasOpenedWindowMenu(true);
+									return next;
+								});
+							}
+						}}
+						name={L("窗口录制", "Window")}
+						class={cx(
+							"flex-1",
+							(rawOptions.targetMode === "window" || windowMenuOpen()) &&
+								"ring-2 ring-blue-9 ring-offset-2 ring-offset-gray-1",
+						)}
+					/>
+					<TargetTypeButton
+						selected={rawOptions.targetMode === "area"}
+						Component={IconMaterialSymbolsScreenshotFrame2Rounded}
+						disabled={isRecording()}
+						onClick={() => {
+							if (isRecording()) return;
+							setDisplayMenuOpen(false);
+							setWindowMenuOpen(false);
+							setOptions("targetMode", (v) => (v === "area" ? null : "area"));
+							if (rawOptions.targetMode)
+								commands.openTargetSelectOverlays(null);
+							else commands.closeTargetSelectOverlays();
+						}}
+						name={L("区域录制", "Area")}
+						class={cx(
+							"flex-1",
+							rawOptions.targetMode === "area" &&
+								"ring-2 ring-blue-9 ring-offset-2 ring-offset-gray-1",
+						)}
+					/>
 				</div>
-			</Show>
+				<div class="flex flex-row gap-2">
+					<button
+						type="button"
+						onClick={async () => {
+							await commands.showWindow({ Settings: { page: "recordings" } });
+							getCurrentWindow().hide();
+						}}
+						class="flex flex-1 flex-row gap-2 items-center px-2 h-9 rounded-lg transition-colors bg-gray-3 hover:bg-gray-4 text-gray-12"
+					>
+						<IconLucideSquarePlay class="text-gray-10 size-4" />
+						<p class="flex-1 text-xs text-left">
+							{L("历史录制", "Recordings")}
+						</p>
+					</button>
+					<button
+						type="button"
+						onClick={openTeleprompter}
+						class="flex flex-1 flex-row gap-2 items-center px-2 h-9 rounded-lg transition-colors bg-gray-3 hover:bg-gray-4 text-gray-12"
+					>
+						<IconLucideScrollText class="text-gray-10 size-4" />
+						<p class="flex-1 text-xs text-left">
+							{L("提词器", "Teleprompter")}
+						</p>
+					</button>
+				</div>
+				<Show when={displayMenuOpen()}>
+					<InlinePanel
+						variant="display"
+						targets={displayTargetsData()}
+						isLoading={displayMenuLoading()}
+						errorMessage={displayErrorMessage()}
+						onSelect={selectDisplayTarget}
+						disabled={isRecording()}
+						selectedId={selectedDisplayId()}
+					/>
+				</Show>
+				<Show when={windowMenuOpen()}>
+					<InlinePanel
+						variant="window"
+						targets={windowTargetsData()}
+						isLoading={windowMenuLoading()}
+						errorMessage={windowErrorMessage()}
+						onSelect={selectWindowTarget}
+						disabled={isRecording()}
+						selectedId={selectedWindowId()}
+					/>
+				</Show>
+			</div>
 		</div>
 	);
 }

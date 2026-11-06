@@ -6,7 +6,6 @@ import {
 	createQuery,
 	keepPreviousData,
 } from "@tanstack/solid-query";
-import { Channel } from "@tauri-apps/api/core";
 import { CheckMenuItem, Menu } from "@tauri-apps/api/menu";
 import { desktopDir, homeDir } from "@tauri-apps/api/path";
 import {
@@ -30,20 +29,15 @@ import {
 } from "solid-js";
 import { createStore, produce, reconcile } from "solid-js/store";
 import toast from "solid-toast";
-import { SignInButton } from "~/components/SignInButton";
 import Tooltip from "~/components/Tooltip";
-import { authStore } from "~/store";
 import { trackEvent } from "~/utils/analytics";
-import { createSignInMutation } from "~/utils/auth";
 import { exportVideo } from "~/utils/export";
 import { L } from "~/utils/i18n";
-import { createOrganizationsQuery } from "~/utils/queries";
 import {
 	commands,
 	type ExportCompression,
 	type ExportSettings,
 	type FramesRendered,
-	type UploadProgress,
 } from "~/utils/tauri";
 import { type RenderState, useEditorContext } from "./context";
 import { RESOLUTION_OPTIONS } from "./Header";
@@ -55,8 +49,6 @@ import {
 	PopperContent,
 	topSlideAnimateClasses,
 } from "./ui";
-
-class SilentError extends Error {}
 
 export const COMPRESSION_OPTIONS: Array<{
 	label: string;
@@ -82,7 +74,7 @@ export const GIF_FPS_OPTIONS = [
 	{ label: "30 FPS", value: 30 },
 ] satisfies Array<{ label: string; value: number }>;
 
-type ExportToOption = "file" | "clipboard" | "link";
+type ExportToOption = "file" | "clipboard";
 
 export const EXPORT_TO_OPTIONS: {
 	label: string;
@@ -99,11 +91,6 @@ export const EXPORT_TO_OPTIONS: {
 		value: "clipboard",
 		icon: <IconCapCopy class="text-gray-12 size-3.5" />,
 	},
-	// {
-	// 	label: "分享链接",
-	// 	value: "link",
-	// 	icon: <IconCapLink class="text-gray-12 size-3.5" />,
-	// },
 ];
 
 type ExportFormat = ExportSettings["format"];
@@ -119,7 +106,6 @@ interface Settings {
 	exportTo: ExportToOption;
 	resolution: { label: string; value: string; width: number; height: number };
 	compression: ExportCompression;
-	organizationId?: string | null;
 	saveDirectory?: string;
 }
 export function ExportDialog() {
@@ -130,11 +116,7 @@ export function ExportDialog() {
 		setExportState,
 		exportState,
 		meta,
-		refetchMeta,
 	} = useEditorContext();
-
-	const auth = authStore.createQuery();
-	const organisations = createOrganizationsQuery();
 
 	const hasTransparentBackground = () => {
 		const backgroundSource =
@@ -161,19 +143,12 @@ export function ExportDialog() {
 		const ret: Partial<Settings> = {};
 		if (hasTransparentBackground() && _settings.format === "Mp4")
 			ret.format = "Gif";
-		// Ensure GIF is not selected when exportTo is "link"
-		else if (_settings.format === "Gif" && _settings.exportTo === "link")
-			ret.format = "Mp4";
 		else if (!["Mp4", "Gif"].includes(_settings.format)) ret.format = "Mp4";
 
-		Object.defineProperty(ret, "organizationId", {
-			get() {
-				if (!_settings.organizationId && organisations().length > 0)
-					return organisations()[0].id;
-
-				return _settings.organizationId;
-			},
-		});
+		if (
+			!EXPORT_TO_OPTIONS.some((option) => option.value === _settings.exportTo)
+		)
+			ret.exportTo = "file";
 
 		return ret;
 	});
@@ -239,12 +214,6 @@ export function ExportDialog() {
 		queryFn: ({ queryKey: [_, { resolution, fps }] }) =>
 			commands.getExportEstimates(projectPath, resolution, fps),
 	}));
-
-	const exportButtonIcon: Record<"file" | "clipboard" | "link", JSX.Element> = {
-		file: <IconCapFile class="text-gray-1 size-3.5" />,
-		clipboard: <IconCapCopy class="text-gray-1 size-3.5" />,
-		link: <IconCapLink class="text-gray-1 size-3.5" />,
-	};
 
 	const copy = createMutation(() => ({
 		mutationFn: async () => {
@@ -352,110 +321,6 @@ export function ExportDialog() {
 		},
 	}));
 
-	const upload = createMutation(() => ({
-		mutationFn: async () => {
-			if (exportState.type !== "idle") return;
-			setExportState(reconcile({ action: "upload", type: "starting" }));
-
-			// Check authentication first
-			const existingAuth = await authStore.get();
-			if (!existingAuth) createSignInMutation();
-			trackEvent("create_shareable_link_clicked", {
-				resolution: settings.resolution,
-				fps: settings.fps,
-				has_existing_auth: !!existingAuth,
-			});
-
-			const metadata = await commands.getVideoMetadata(projectPath);
-			const plan = await commands.checkUpgradedAndUpdate();
-			const canShare = {
-				allowed: plan || metadata.duration < 300,
-				reason: !plan && metadata.duration >= 300 ? "upgrade_required" : null,
-			};
-
-			if (!canShare.allowed) {
-				if (canShare.reason === "upgrade_required") {
-					await commands.showWindow("Upgrade");
-					// The window takes a little to show and this prevents the user seeing it glitch
-					await new Promise((resolve) => setTimeout(resolve, 1000));
-					throw new SilentError();
-				}
-			}
-
-			const uploadChannel = new Channel<UploadProgress>((progress) => {
-				console.log("Upload progress:", progress);
-				setExportState(
-					produce((state) => {
-						if (state.type !== "uploading") return;
-
-						state.progress = Math.round(progress.progress * 100);
-					}),
-				);
-			});
-
-			await exportWithSettings((progress) =>
-				setExportState({ type: "rendering", progress }),
-			);
-
-			setExportState({ type: "uploading", progress: 0 });
-
-			console.log({ organizationId: settings.organizationId });
-
-			// Now proceed with upload
-			const result = meta().sharing
-				? await commands.uploadExportedVideo(
-						projectPath,
-						"Reupload",
-						uploadChannel,
-						settings.organizationId ?? null,
-					)
-				: await commands.uploadExportedVideo(
-						projectPath,
-						{ Initial: { pre_created_video: null } },
-						uploadChannel,
-						settings.organizationId ?? null,
-					);
-
-			if (result === "NotAuthenticated")
-				throw new Error(
-					L(
-						"你需要登录才能分享录制",
-						"You need to sign in to share recordings",
-					),
-				);
-			else if (result === "PlanCheckFailed")
-				throw new Error(
-					L("验证订阅状态失败", "Failed to verify subscription status"),
-				);
-			else if (result === "UpgradeRequired")
-				throw new Error(
-					L("此功能需要升级订阅", "This feature requires an upgraded plan"),
-				);
-		},
-		onSuccess: async () => {
-			const d = dialog();
-			if ("type" in d && d.type === "export") setDialog({ ...d, open: true });
-
-			await refetchMeta();
-
-			console.log(meta().sharing);
-
-			setExportState({ type: "done" });
-		},
-		onError: (error) => {
-			console.error(error);
-			if (!(error instanceof SilentError)) {
-				commands.globalMessageDialog(
-					error instanceof Error
-						? error.message
-						: L("上传录制失败", "Failed to upload recording"),
-				);
-			}
-
-			setExportState(reconcile({ type: "idle" }));
-		},
-	}));
-
 	return (
 		<>
 			<Show when={exportState.type === "idle"}>
@@ -463,26 +328,16 @@ export function ExportDialog() {
 					title={L("导出 Taple", "Export Taple")}
 					onClose={() => setDialog((d) => ({ ...d, open: false }))}
 					confirm={
-						settings.exportTo === "link" && !auth.data ? (
-							<SignInButton>
-								{exportButtonIcon[settings.exportTo]}
-								<span class="ml-1.5">
-									{L("登录以分享", "Sign In to Share")}
-								</span>
-							</SignInButton>
-						) : (
-							<Button
-								class="flex gap-1.5 items-center"
-								variant="dark"
-								onClick={() => {
-									if (settings.exportTo === "file") save.mutate();
-									else if (settings.exportTo === "link") upload.mutate();
-									else copy.mutate();
-								}}
-							>
-								{L("导出", "Export")}
-							</Button>
-						)
+						<Button
+							class="flex gap-1.5 items-center"
+							variant="dark"
+							onClick={() => {
+								if (settings.exportTo === "file") save.mutate();
+								else copy.mutate();
+							}}
+						>
+							{L("导出", "Export")}
+						</Button>
 					}
 					leftFooterContent={
 						<div
@@ -581,19 +436,7 @@ export function ExportDialog() {
 								<For each={EXPORT_TO_OPTIONS}>
 									{(option) => (
 										<Button
-											onClick={() => {
-												setSettings(
-													produce((newSettings) => {
-														newSettings.exportTo = option.value;
-														if (
-															option.value === "link" &&
-															settings.format === "Gif"
-														) {
-															newSettings.format = "Mp4";
-														}
-													}),
-												);
-											}}
+											onClick={() => setSettings("exportTo", option.value)}
 											data-selected={settings.exportTo === option.value}
 											class="flex gap-1.5 items-center text-nowrap px-2.5 py-1.5 text-xs"
 											variant="gray"
@@ -689,14 +532,6 @@ export function ExportDialog() {
 													return L(
 														"MP4 格式不支持透明背景",
 														"MP4 doesn't support transparent backgrounds",
-													);
-												if (
-													option.value === "Gif" &&
-													settings.exportTo === "link"
-												)
-													return L(
-														"无法从 GIF 创建分享链接",
-														"Shareable links can't be created from GIFs",
 													);
 											};
 
@@ -819,7 +654,6 @@ export function ExportDialog() {
 			</Show>
 			<Show when={exportState.type !== "idle" && exportState} keyed>
 				{(exportState) => {
-					const [copyPressed, setCopyPressed] = createSignal(false);
 					const [clipboardCopyPressed, setClipboardCopyPressed] =
 						createSignal(false);
 					const [showCompletionScreen, setShowCompletionScreen] = createSignal(
@@ -959,114 +793,10 @@ export function ExportDialog() {
 												</div>
 											)}
 										</Match>
-										<Match
-											when={exportState.action === "upload" && exportState}
-											keyed
-										>
-											{(uploadState) => (
-												<Switch>
-													<Match
-														when={uploadState.type !== "done" && uploadState}
-														keyed
-													>
-														{(uploadState) => (
-															<div class="flex flex-col gap-4 justify-center items-center">
-																<h1 class="text-lg font-medium text-center text-gray-12">
-																	{L("正在上传...", "Uploading...")}
-																</h1>
-																<Switch>
-																	<Match
-																		when={
-																			uploadState.type === "uploading" &&
-																			uploadState
-																		}
-																		keyed
-																	>
-																		{(uploadState) => (
-																			<ProgressView
-																				amount={uploadState.progress}
-																				label={L(
-																					`正在上传 - ${Math.floor(uploadState.progress)}%`,
-																					`Uploading - ${Math.floor(uploadState.progress)}%`,
-																				)}
-																			/>
-																		)}
-																	</Match>
-																	<Match
-																		when={
-																			uploadState.type !== "uploading" &&
-																			uploadState
-																		}
-																		keyed
-																	>
-																		{(renderState) => (
-																			<RenderProgress
-																				state={renderState}
-																				format={settings.format}
-																			/>
-																		)}
-																	</Match>
-																</Switch>
-															</div>
-														)}
-													</Match>
-													<Match when={uploadState.type === "done"}>
-														<div class="flex flex-col gap-5 justify-center items-center">
-															<div class="flex flex-col gap-1 items-center">
-																<h1 class="mx-auto text-lg font-medium text-center text-gray-12">
-																	{L("上传完成", "Upload Complete")}
-																</h1>
-																<p class="text-sm text-gray-11">
-																	{L(
-																		"你的视频已成功上传",
-																		"Your video has been uploaded",
-																	)}
-																</p>
-															</div>
-														</div>
-													</Match>
-												</Switch>
-											)}
-										</Match>
 									</Switch>
 								</div>
 							</Dialog.Content>
 							<Dialog.Footer>
-								<Show
-									when={
-										exportState.action === "upload" &&
-										exportState.type === "done"
-									}
-								>
-									<div class="relative">
-										<a
-											href={meta().sharing?.link}
-											target="_blank"
-											rel="noreferrer"
-											class="block"
-										>
-											<Button
-												onClick={() => {
-													setCopyPressed(true);
-													setTimeout(() => {
-														setCopyPressed(false);
-													}, 2000);
-													navigator.clipboard.writeText(meta().sharing?.link!);
-												}}
-												variant="dark"
-												class="flex gap-2 justify-center items-center"
-											>
-												{!copyPressed() ? (
-													<IconCapCopy class="transition-colors duration-200 text-gray-1 size-4 group-hover:text-gray-12" />
-												) : (
-													<IconLucideCheck class="transition-colors duration-200 text-gray-1 size-4 svgpathanimation group-hover:text-gray-12" />
-												)}
-												<p>{L("打开链接", "Open Link")}</p>
-											</Button>
-										</a>
-									</div>
-								</Show>
-
 								<Show
 									when={
 										exportState.action === "save" && exportState.type === "done"

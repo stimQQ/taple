@@ -1,30 +1,22 @@
-import { Button } from "@cap/ui-solid";
 import { A, type RouteSectionProps } from "@solidjs/router";
 import { getVersion } from "@tauri-apps/api/app";
 import {
 	getAllWebviewWindows,
 	WebviewWindow,
 } from "@tauri-apps/api/webviewWindow";
-import { LogicalSize, primaryMonitor } from "@tauri-apps/api/window";
+import { primaryMonitor } from "@tauri-apps/api/window";
+import * as shell from "@tauri-apps/plugin-shell";
 import "@total-typescript/ts-reset/filter-boolean";
 import { createResource, For, Show, Suspense } from "solid-js";
 import { CapErrorBoundary } from "~/components/CapErrorBoundary";
-import { SignInButton } from "~/components/SignInButton";
-
-import { authStore } from "~/store";
-import { trackEvent } from "~/utils/analytics";
 import { L } from "~/utils/i18n";
+import IconLucideArrowUpRight from "~icons/lucide/arrow-up-right";
+
+const ISSUES_URL = "https://github.com/stimQQ/taple/issues";
+const RELEASES_URL = "https://github.com/stimQQ/taple/releases";
 
 export default function Settings(props: RouteSectionProps) {
-	const auth = authStore.createQuery();
 	const [version] = createResource(() => getVersion());
-
-	const handleAuth = async () => {
-		if (auth.data) {
-			trackEvent("user_signed_out", { platform: "desktop" });
-			authStore.set(undefined);
-		}
-	};
 
 	return (
 		<div class="flex-1 flex flex-row divide-x divide-gray-3 text-[0.875rem] leading-[1.25rem] overflow-y-hidden">
@@ -47,16 +39,6 @@ export default function Settings(props: RouteSectionProps) {
 								name: L("快捷键", "Shortcuts"),
 								icon: IconCapHotkeys,
 							},
-							{
-								href: "feedback",
-								name: L("反馈", "Feedback"),
-								icon: IconLucideMessageSquarePlus,
-							},
-							{
-								href: "changelog",
-								name: L("更新日志", "Changelog"),
-								icon: IconLucideBell,
-							},
 						].filter(Boolean)}
 					>
 						{(item) => (
@@ -69,6 +51,34 @@ export default function Settings(props: RouteSectionProps) {
 									<item.icon class="opacity-60 size-4" />
 									<span>{item.name}</span>
 								</A>
+							</li>
+						)}
+					</For>
+					<For
+						each={[
+							{
+								url: ISSUES_URL,
+								name: L("反馈问题", "Report an Issue"),
+								icon: IconLucideMessageSquarePlus,
+							},
+							{
+								url: RELEASES_URL,
+								name: L("更新日志", "Changelog"),
+								icon: IconLucideBell,
+							},
+						]}
+					>
+						{(item) => (
+							<li>
+								<button
+									type="button"
+									onClick={() => shell.open(item.url)}
+									class="w-full rounded-lg h-[2rem] hover:bg-gray-3 text-[13px] px-2 flex flex-row items-center gap-[0.375rem] transition-colors"
+								>
+									<item.icon class="opacity-60 size-4" />
+									<span>{item.name}</span>
+									<IconLucideArrowUpRight class="ml-auto opacity-40 size-3.5" />
+								</button>
 							</li>
 						)}
 					</For>

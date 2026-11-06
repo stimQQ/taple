@@ -1,4 +1,3 @@
-import { ProgressCircle } from "@cap/ui-solid";
 import Tooltip from "@corvu/tooltip";
 import {
 	createQuery,
@@ -13,7 +12,6 @@ import {
 } from "@tauri-apps/plugin-dialog";
 import { remove } from "@tauri-apps/plugin-fs";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
-import * as shell from "@tauri-apps/plugin-shell";
 import { cx } from "cva";
 import {
 	createMemo,
@@ -22,7 +20,7 @@ import {
 	type ParentProps,
 	Show,
 } from "solid-js";
-import { createStore, produce, reconcile } from "solid-js/store";
+import { reconcile } from "solid-js/store";
 import CapTooltip from "~/components/Tooltip";
 import { trackEvent } from "~/utils/analytics";
 import { createTauriEventListener } from "~/utils/createEventListener";
@@ -31,7 +29,6 @@ import {
 	commands,
 	events,
 	type RecordingMetaWithMetadata,
-	type UploadProgress,
 } from "~/utils/tauri";
 
 type Recording = {
@@ -62,27 +59,13 @@ const recordingsQuery = queryOptions({
 		return recordings;
 	},
 	reconcile: (old, n) => reconcile(n)(old),
-	// This will ensure any changes to the upload status in the project meta are reflected.
 	refetchInterval: 2000,
 });
 
 export default function Recordings() {
-	const [uploadProgress, setUploadProgress] = createStore<
-		Record</* video_id */ string, number>
-	>({});
 	const [isImporting, setIsImporting] = createSignal(false);
 	const recordings = createQuery(() => recordingsQuery);
 	const queryClient = useQueryClient();
-
-	createTauriEventListener(events.uploadProgressEvent, (e) => {
-		setUploadProgress(e.video_id, (Number(e.uploaded) / Number(e.total)) * 100);
-		if (e.uploaded === e.total)
-			setUploadProgress(
-				produce((s) => {
-					delete s[e.video_id];
-				}),
-			);
-	});
 
 	createTauriEventListener(events.recordingDeleted, () => recordings.refetch());
 
@@ -198,12 +181,6 @@ export default function Recordings() {
 									onCopyVideoToClipboard={() =>
 										handleCopyVideoToClipboard(recording.path)
 									}
-									uploadProgress={
-										recording.meta.upload &&
-										recording.meta.upload.state === "SinglePartUpload"
-											? uploadProgress[recording.meta.upload.video_id]
-											: undefined
-									}
 								/>
 							)}
 						</For>
@@ -220,7 +197,6 @@ function RecordingItem(props: {
 	onOpenFolder: () => void;
 	onOpenEditor: () => void;
 	onCopyVideoToClipboard: () => void;
-	uploadProgress: number | undefined;
 }) {
 	const [imageExists, setImageExists] = createSignal(true);
 
@@ -291,25 +267,6 @@ function RecordingItem(props: {
 				</div>
 			</div>
 			<div class="flex gap-2 items-center">
-				<Show when={props.uploadProgress}>
-					<CapTooltip content={`${(props.uploadProgress || 0).toFixed(2)}%`}>
-						<ProgressCircle
-							variant="primary"
-							progress={props.uploadProgress || 0}
-							size="sm"
-						/>
-					</CapTooltip>
-				</Show>
-				<Show when={props.recording.meta.sharing}>
-					{(sharing) => (
-						<TooltipIconButton
-							tooltipText={L("打开链接", "Open link")}
-							onClick={() => shell.open(sharing().link)}
-						>
-							<IconCapLink class="size-4" />
-						</TooltipIconButton>
-					)}
-				</Show>
 				<TooltipIconButton
 					tooltipText={L("编辑", "Edit")}
 					onClick={async () => {

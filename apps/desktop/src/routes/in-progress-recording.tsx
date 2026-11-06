@@ -13,7 +13,6 @@ import {
 } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 import createPresence from "solid-presence";
-import { authStore } from "~/store";
 import { createTauriEventListener } from "~/utils/createEventListener";
 import { L } from "~/utils/i18n";
 import {
@@ -35,8 +34,6 @@ declare global {
 	}
 }
 
-const MAX_RECORDING_FOR_FREE = 5 * 60 * 1000;
-
 export default function () {
 	const [state, setState] = createSignal<State>(
 		window.COUNTDOWN === 0
@@ -51,7 +48,6 @@ export default function () {
 	const [time, setTime] = createSignal(Date.now());
 	const currentRecording = createCurrentRecordingQuery();
 	const optionsQuery = createOptionsQuery();
-	const auth = authStore.createQuery();
 
 	const audioLevel = createAudioInputLevel();
 

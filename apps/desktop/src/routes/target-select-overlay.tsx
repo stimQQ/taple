@@ -18,7 +18,6 @@ import {
 	For,
 	type JSX,
 	Match,
-	mergeProps,
 	onCleanup,
 	onMount,
 	Show,
@@ -28,7 +27,7 @@ import {
 import { createStore, reconcile } from "solid-js/store";
 import { generalSettingsStore } from "~/store";
 import { L } from "~/utils/i18n";
-import { createOptionsQuery, createOrganizationsQuery } from "~/utils/queries";
+import { createOptionsQuery } from "~/utils/queries";
 import { handleRecordingResult } from "~/utils/recording";
 import {
 	commands,
@@ -68,24 +67,9 @@ export default function () {
 }
 
 function useOptions() {
-	const { rawOptions: _rawOptions, setOptions } = createOptionsQuery();
+	const { rawOptions, setOptions } = createOptionsQuery();
 
-	const organizations = createOrganizationsQuery();
-	const options = mergeProps(_rawOptions, () => {
-		const ret: Partial<typeof _rawOptions> = {};
-
-		if (
-			(!_rawOptions.organizationId && organizations().length > 0) ||
-			(_rawOptions.organizationId &&
-				organizations().every((o) => o.id !== _rawOptions.organizationId) &&
-				organizations().length > 0)
-		)
-			ret.organizationId = organizations()[0]?.id;
-
-		return ret;
-	});
-
-	return [options, setOptions] as const;
+	return [rawOptions, setOptions] as const;
 }
 
 function Inner() {
@@ -952,53 +936,6 @@ function RecordingControls(props: {
 					<IconCapGear class="will-change-transform size-5" />
 				</div>
 			</div>
-			<OrganizationSelect />
-		</Show>
-	);
-}
-
-function OrganizationSelect(props: { showBackground?: boolean }) {
-	const organisations = createOrganizationsQuery();
-	const [options, setOptions] = useOptions();
-
-	return (
-		<Show when={organisations().length > 1}>
-			<button
-				class="flex gap-1 items-center mb-5 group hover:opacity-60 transition-opacity duration-200"
-				classList={{
-					"bg-black/40 p-2 rounded-lg backdrop-blur-sm border border-white/10":
-						props.showBackground,
-				}}
-				onClick={async () => {
-					const menu = await Menu.new({
-						items: await Promise.all(
-							organisations().map((org) =>
-								CheckMenuItem.new({
-									text: org.name,
-									action: () => {
-										setOptions("organizationId", org.id);
-									},
-									checked: options.organizationId === org.id,
-								}),
-							),
-						),
-					});
-					menu.popup();
-				}}
-			>
-				<div class="text-sm text-white flex flex-row">
-					<span class="opacity-70">{L("组织：", "Organization:")}</span>
-					<span class="ml-1 flex flex-row ">
-						{
-							(
-								organisations().find((o) => o.id === options.organizationId) ??
-								organisations()[0]
-							)?.name
-						}
-						<IconCapChevronDown />
-					</span>
-				</div>
-			</button>
 		</Show>
 	);
 }

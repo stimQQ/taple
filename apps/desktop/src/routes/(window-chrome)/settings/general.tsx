@@ -1,5 +1,4 @@
 import { Button } from "@cap/ui-solid";
-import { createWritableMemo } from "@solid-primitives/memo";
 import {
 	isPermissionGranted,
 	requestPermission,
@@ -7,7 +6,6 @@ import {
 import { type OsType, type } from "@tauri-apps/plugin-os";
 import "@total-typescript/ts-reset/filter-boolean";
 import { CheckMenuItem, Menu, MenuItem } from "@tauri-apps/api/menu";
-import { confirm } from "@tauri-apps/plugin-dialog";
 import { cx } from "cva";
 import {
 	createEffect,
@@ -18,8 +16,7 @@ import {
 	Show,
 } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
-import { Input } from "~/routes/editor/ui";
-import { authStore, generalSettingsStore } from "~/store";
+import { generalSettingsStore } from "~/store";
 import { L } from "~/utils/i18n";
 import {
 	type CaptureWindow,
@@ -280,18 +277,6 @@ function Inner(props: { initialStore: GeneralSettingsStore | null }) {
 	return (
 		<div class="flex flex-col h-full custom-scroll">
 			<div class="p-4 space-y-6">
-				{/* <SettingGroup
-					title="Taple Pro"
-					titleStyling="bg-blue-500 py-1.5 mb-4 text-gray-1 dark:text-gray-1 text-xs px-2 rounded-lg"
-				>
-					<ToggleSettingItem
-						label="自动打开分享链接"
-						description="是否自动在浏览器中打开即时录制的分享链接"
-						value={!settings.disableAutoOpenLinks}
-						onChange={(v) => handleChange("disableAutoOpenLinks", !v)}
-					/>
-				</SettingGroup> */}
-
 				{ostype === "macos" && (
 					<SettingGroup title={L("应用", "App")}>
 						<ToggleSettingItem
@@ -425,25 +410,6 @@ function Inner(props: { initialStore: GeneralSettingsStore | null }) {
 					isLoading={windows.loading}
 					isWindows={ostype === "windows"}
 				/>
-
-				{/* <ServerURLSetting
-					value={settings.serverUrl ?? "https://taple.app"}
-					onChange={async (v) => {
-						const url = new URL(v);
-						const origin = url.origin;
-
-						if (
-							!(await confirm(
-								`确定要将服务器地址更改为 '${origin}' 吗？你需要重新登录。`,
-							))
-						)
-							return;
-
-						await authStore.set(undefined);
-						await commands.setServerUrl(origin);
-						handleChange("serverUrl", origin);
-					}}
-				/> */}
 			</div>
 		</div>
 	);
@@ -459,45 +425,6 @@ function SettingGroup(
 			</h3>
 			<div class="px-3 rounded-xl border divide-y divide-gray-3 border-gray-3 bg-gray-2">
 				{props.children}
-			</div>
-		</div>
-	);
-}
-
-function ServerURLSetting(props: {
-	value: string;
-	onChange: (v: string) => void;
-}) {
-	const [value, setValue] = createWritableMemo(() => props.value);
-
-	return (
-		<div class="flex flex-col gap-3">
-			<h3 class="text-sm text-gray-12 w-fit">{L("自托管", "Self-Host")}</h3>
-			<div class="flex flex-col gap-2 px-4 rounded-xl border border-gray-3 bg-gray-2">
-				<SettingItem
-					label={L("Taple 服务器地址", "Taple Server URL")}
-					description={L(
-						"仅当你自托管 Taple Web 实例时才需要修改此设置。",
-						"Only change this if you are self-hosting your own instance of Taple Web.",
-					)}
-				>
-					<div class="flex flex-col gap-2 items-end">
-						<Input
-							class="bg-gray-3"
-							value={value()}
-							onInput={(e) => setValue(e.currentTarget.value)}
-						/>
-						<Button
-							size="sm"
-							class="mt-2"
-							variant="dark"
-							disabled={props.value === value()}
-							onClick={() => props.onChange(value())}
-						>
-							{L("更新", "Update")}
-						</Button>
-					</div>
-				</SettingItem>
 			</div>
 		</div>
 	);
