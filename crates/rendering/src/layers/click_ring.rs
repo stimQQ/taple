@@ -164,11 +164,7 @@ impl ClickRingLayer {
                 if click_age >= 0.0 && click_age <= duration_ms {
                     if let Some(cursor_pos) = find_cursor_position_at_time(cursor, click.time_ms) {
                         let position = Coord::<crate::RawDisplayUVSpace>::new(cursor_pos)
-                            .to_frame_space(
-                                &constants.options,
-                                &uniforms.project,
-                                resolution_base,
-                            );
+                            .to_frame_space(&constants.options, &uniforms.project, resolution_base);
 
                         let zoomed_position = position.to_zoomed_frame_space(
                             &constants.options,
@@ -178,10 +174,7 @@ impl ClickRingLayer {
                         );
 
                         self.active_clicks.push(ActiveClick {
-                            position: Coord::new(XY::new(
-                                zoomed_position.x,
-                                zoomed_position.y,
-                            )),
+                            position: Coord::new(XY::new(zoomed_position.x, zoomed_position.y)),
                             start_time_ms: click.time_ms,
                             duration_ms,
                         });
@@ -214,10 +207,7 @@ impl ClickRingLayer {
 
             let click_uniforms = ClickRingUniforms {
                 position: [click.position.x as f32, click.position.y as f32],
-                output_size: [
-                    uniforms.output_size.0 as f32,
-                    uniforms.output_size.1 as f32,
-                ],
+                output_size: [uniforms.output_size.0 as f32, uniforms.output_size.1 as f32],
                 color: [color[0], color[1], color[2], color[3]],
                 ring_size: click_effect.size,
                 progress,

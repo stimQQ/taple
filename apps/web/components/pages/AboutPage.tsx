@@ -163,9 +163,9 @@ export const AboutPage = () => {
 										Studio Mode
 									</h3>
 									<p className="text-gray-600">
-										Records at top quality up to 4K. Captures both your screen and
-										webcam separately so you can edit them later. Share with a
-										link or export locally.
+										Records at top quality up to 4K. Captures both your screen
+										and webcam separately so you can edit them later. Share with
+										a link or export locally.
 									</p>
 								</div>
 							</div>

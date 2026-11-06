@@ -16,11 +16,7 @@ import { UpgradeModal } from "@/components/UpgradeModal";
 import { usePublicEnv } from "@/utils/public-env";
 import type { VideoData } from "../types";
 
-export const ShareHeader = ({
-	data,
-}: {
-	data: VideoData;
-}) => {
+export const ShareHeader = ({ data }: { data: VideoData }) => {
 	const user = useCurrentUser();
 	const { push, refresh } = useRouter();
 	const [isEditing, setIsEditing] = useState(false);

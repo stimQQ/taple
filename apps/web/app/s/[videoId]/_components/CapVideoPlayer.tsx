@@ -247,7 +247,6 @@ export function CapVideoPlayer({
 		}
 	}, [resolvedSrc.refetch, videoSrc, enableCrossOrigin]);
 
-
 	useEffect(() => {
 		const video = videoRef.current;
 		if (!video || resolvedSrc.isPending) return;

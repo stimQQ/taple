@@ -32,10 +32,12 @@ export const SettingsDropdown = () => {
 
 	const updateNotificationPreferences = async (option: NotificationOption) => {
 		try {
-			const currentPrefs = userPreferences?.notifications ?? {
-				pauseViews: false,
-				pauseReactions: false,
-			} as { pauseViews: boolean; pauseReactions: boolean };
+			const currentPrefs =
+				userPreferences?.notifications ??
+				({
+					pauseViews: false,
+					pauseReactions: false,
+				} as { pauseViews: boolean; pauseReactions: boolean });
 
 			await updatePreferences({
 				notifications: {

@@ -54,14 +54,7 @@ const tabTransition = {
 
 export const Sidebar = forwardRef<{ scrollToBottom: () => void }, SidebarProps>(
 	(
-		{
-			data,
-			views,
-			videoSettings,
-			onSeek,
-			aiData,
-			aiGenerationEnabled = false,
-		},
+		{ data, views, videoSettings, onSeek, aiData, aiGenerationEnabled = false },
 		ref,
 	) => {
 		const user = useCurrentUser();

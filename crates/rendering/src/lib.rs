@@ -1205,7 +1205,12 @@ impl RendererLayers {
             self.camera.render(&mut pass);
         }
 
-        if uniforms.project.captions.as_ref().map_or(false, |c| c.settings.enabled) {
+        if uniforms
+            .project
+            .captions
+            .as_ref()
+            .map_or(false, |c| c.settings.enabled)
+        {
             let mut pass = render_pass!(session.current_texture_view(), wgpu::LoadOp::Load);
             self.captions.render(&mut pass);
         }
@@ -1371,7 +1376,13 @@ async fn produce_frame(
         }),
     );
 
-    layers.render(&constants.device, &constants.queue, &mut encoder, session, &uniforms);
+    layers.render(
+        &constants.device,
+        &constants.queue,
+        &mut encoder,
+        session,
+        &uniforms,
+    );
 
     finish_encoder(
         session,

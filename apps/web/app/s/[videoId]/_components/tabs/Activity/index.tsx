@@ -17,14 +17,7 @@ interface ActivityProps {
 
 export const Activity = Object.assign(
 	forwardRef<{ scrollToBottom: () => void }, ActivityProps>(
-		(
-			{
-				videoId,
-				isOwnerOrMember,
-				...props
-			},
-			ref,
-		) => {
+		({ videoId, isOwnerOrMember, ...props }, ref) => {
 			return (
 				<Activity.Shell
 					analytics={

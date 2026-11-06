@@ -4,6 +4,4 @@ pub struct Flags {
     pub captions: bool,
 }
 
-pub const FLAGS: Flags = Flags {
-    captions: true,
-};
+pub const FLAGS: Flags = Flags { captions: true };

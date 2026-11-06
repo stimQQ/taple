@@ -212,8 +212,7 @@ export const Share = ({
 	const areCommentStampsDisabled = true;
 	const areReactionStampsDisabled = true;
 	const allSettingsDisabled =
-		isDisabled("disableSummary") &&
-		isDisabled("disableTranscript");
+		isDisabled("disableSummary") && isDisabled("disableTranscript");
 
 	return (
 		<div className="mt-4">

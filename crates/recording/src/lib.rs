@@ -18,7 +18,6 @@ use thiserror::Error;
 
 use crate::{feeds::camera::CameraFeedLock, sources::screen_capture::ScreenCaptureTarget};
 
-
 #[derive(specta::Type, Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct RecordingOptions {
