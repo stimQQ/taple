@@ -79,12 +79,6 @@
 				"name": "Taple Recording",
 				"mimeType": "application/x-taple-recording",
 				"role": "Editor"
-			},
-			{
-				"ext": ["cap"],
-				"name": "Cap Recording",
-				"mimeType": "application/x-cap-recording",
-				"role": "Editor"
 			}
 		]
 	}

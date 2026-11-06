@@ -28,22 +28,6 @@
 			<key>LSTypeIsPackage</key>
 			<true/>
 		</dict>
-		<dict>
-			<key>CFBundleTypeExtensions</key>
-			<array>
-				<string>cap</string>
-			</array>
-			<key>CFBundleTypeIconFile</key>
-			<string>icon.icns</string>
-			<key>CFBundleTypeName</key>
-			<string>Cap Recording</string>
-			<key>CFBundleTypeRole</key>
-			<string>Editor</string>
-			<key>LSHandlerRank</key>
-			<string>Default</string>
-			<key>LSTypeIsPackage</key>
-			<true/>
-		</dict>
 	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>Taple needs camera access to record video.</string>

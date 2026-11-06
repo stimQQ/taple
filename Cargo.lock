@@ -1054,33 +1054,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cap"
-version = "0.1.0"
-dependencies = [
- "cap-camera",
- "cap-editor",
- "cap-export",
- "cap-flags",
- "cap-media",
- "cap-project",
- "cap-recording",
- "cap-rendering",
- "cap-utils",
- "cidre",
- "clap",
- "ffmpeg-next",
- "flume",
- "scap-targets",
- "serde",
- "serde_json",
- "tokio",
- "tracing",
- "tracing-subscriber",
- "uuid",
- "workspace-hack",
-]
-
-[[package]]
 name = "cap-api"
 version = "0.0.0"
 dependencies = [
@@ -9362,6 +9335,33 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.106",
+]
+
+[[package]]
+name = "taple-cli"
+version = "0.1.0"
+dependencies = [
+ "cap-camera",
+ "cap-editor",
+ "cap-export",
+ "cap-flags",
+ "cap-media",
+ "cap-project",
+ "cap-recording",
+ "cap-rendering",
+ "cap-utils",
+ "cidre",
+ "clap",
+ "ffmpeg-next",
+ "flume",
+ "scap-targets",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+ "workspace-hack",
 ]
 
 [[package]]

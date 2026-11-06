@@ -4,7 +4,7 @@
 
 English | [简体中文](README.zh-CN.md)
 
-Taple is an open source screen recorder and editor for macOS. Record your screen, edit right away, add captions, clean up the audio, and export to video or GIF. It is a fork of [Cap](https://github.com/CapSoftware/Cap).
+Taple is a free, open source screen recorder for product demos and tutorials on macOS. Record your screen, camera and voice, then trim, zoom in, add captions and clean up the audio in the built-in editor before exporting to video or GIF. It is a fork of [Cap](https://github.com/CapSoftware/Cap).
 
 **Download for macOS: [GitHub Releases](https://github.com/stimQQ/taple/releases/latest)** (requires macOS 13.1 or later)
 
@@ -24,10 +24,10 @@ This is a Turborepo monorepo:
 | Directory | Contents |
 |---|---|
 | `apps/desktop` | The macOS app (Tauri v2 + SolidStart) for recording and editing |
-| `apps/web` | The web app (Next.js) for share pages and accounts |
+| `apps/website` | The static website for taple.app |
 | `apps/cli` | Command line tool (Rust) |
 | `crates/*` | Rust crates for recording, encoding, rendering, cameras and more |
-| `packages/*` | Shared database, UI components and utilities |
+| `packages/ui-solid` | Shared SolidJS components, icons and styles |
 | `patches/libDF` | A modified copy of the DeepFilterNet noise reduction library |
 
 ## Development
@@ -40,10 +40,7 @@ pnpm env-setup      # create .env
 pnpm cap-setup      # download FFmpeg and other native dependencies
 
 # Desktop app
-cd apps/desktop && pnpm dev
-
-# Web app
-pnpm dev:web
+pnpm dev:desktop
 ```
 
 Common commands: `pnpm lint` (Biome), `pnpm format`, `pnpm typecheck` (TypeScript) and `cargo fmt --all` (Rust).

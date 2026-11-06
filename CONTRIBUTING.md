@@ -10,7 +10,7 @@ You need Node 20 or later, pnpm 10, Rust and Xcode.
 pnpm install
 pnpm env-setup      # create .env
 pnpm cap-setup      # download FFmpeg and other native dependencies
-cd apps/desktop && pnpm dev
+pnpm dev:desktop
 ```
 
 ## Before you submit
@@ -26,7 +26,6 @@ cd apps/desktop && pnpm dev
 - `apps/desktop/src/utils/tauri.ts` and `queries.ts` are generated from Rust types. Do not edit them by hand
 - The desktop UI follows the system language. Wrap every user-facing string as `L("中文", "English")` from `~/utils/i18n`, and use `crate::i18n::tr` in Rust
 - `patches/libDF` is a modified copy of the DeepFilterNet noise reduction library. It keeps the upstream formatting and is excluded from `cargo fmt`
-- After changing the database schema, run `pnpm db:generate` and then `pnpm db:push`
 
 ## License
 

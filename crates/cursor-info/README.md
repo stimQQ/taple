@@ -1,4 +1,4 @@
-# Cap Cursor Info
+# Cursor Info
 
 A cross-platform Rust crate for detecting cursor shapes and providing accurate cursor assets with hotspot information.
 

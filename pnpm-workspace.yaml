@@ -2,7 +2,6 @@ packages:
   - apps/*
   - packages/*
   - crates/tauri-plugin-*
-  - scripts/orgIdBackfill
 ignoredBuiltDependencies:
   - '@parcel/watcher'
   - aws-sdk

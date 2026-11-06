@@ -6,6 +6,7 @@
 	"exports": {
 		".": "./src/index.tsx",
 		"./tailwind": "./tailwind.config.js",
+		"./postcss": "./postcss.config.cjs",
 		"./main.css": "./src/main.css",
 		"./vite": "./vite.js",
 		"./types": "./src/types.d.ts"

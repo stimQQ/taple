@@ -8,35 +8,8 @@
 			"dependsOn": ["^build"],
 			"outputs": [".next/**", "!.next/cache/**"]
 		},
-		"build:web:docker": {
-			"inputs": ["**/*.ts", "**/*.tsx", "!src-tauri/**", "!node_modules/**"],
-			"dependsOn": ["^build"],
-			"outputs": [".next/**", "!.next/cache/**"]
-		},
-		"build:web": {
-			"inputs": ["**/*.ts", "**/*.tsx", "!src-tauri/**", "!node_modules/**"],
-			"dependsOn": ["^build"],
-			"outputs": [".next/**", "!.next/cache/**"]
-		},
 		"lint": {
 			"cache": false
-		},
-		"docker:up": {
-			"cache": false,
-			"persistent": true
-		},
-		"docker:stop": {
-			"cache": false
-		},
-		"docker:clean": {
-			"cache": false
-		},
-		"db:generate": {
-			"cache": false
-		},
-		"db:push": {
-			"cache": false,
-			"interactive": true
 		},
 		"dev": {
 			"dependsOn": ["db:push"],

@@ -4,7 +4,7 @@
 
 [English](README.md) | 简体中文
 
-开源的 Mac 录屏和剪辑工具：录完直接剪辑、加字幕、降噪，导出成视频或 GIF。
+专门录产品演示和教程的开源 Mac 录屏工具，免费使用：录完直接剪辑、放大重点、加字幕、降噪，导出成视频或 GIF。
 
 **下载 macOS 版：[GitHub Releases](https://github.com/stimQQ/taple/releases/latest)**（需要 macOS 13.1 或更新版本）
 
@@ -24,10 +24,10 @@
 | 目录 | 内容 |
 |---|---|
 | `apps/desktop` | Mac 桌面应用（Tauri v2 + SolidStart），负责录制和剪辑 |
-| `apps/web` | Web 端（Next.js），负责分享页面和账号管理 |
+| `apps/website` | 官网 taple.app 的静态页面 |
 | `apps/cli` | 命令行工具（Rust） |
 | `crates/*` | 录制、编码、渲染、摄像头等 Rust 模块 |
-| `packages/*` | 共享的数据库、UI 组件、工具函数等 |
+| `packages/ui-solid` | 共享的 SolidJS 组件、图标和样式 |
 | `patches/libDF` | 降噪库 DeepFilterNet 的修改版 |
 
 ## 开发
@@ -40,10 +40,7 @@ pnpm env-setup      # 生成 .env
 pnpm cap-setup      # 下载 FFmpeg 等原生依赖
 
 # 桌面应用
-cd apps/desktop && pnpm dev
-
-# Web 端
-pnpm dev:web
+pnpm dev:desktop
 ```
 
 常用命令：`pnpm lint`（Biome 检查）、`pnpm format`（格式化）、`pnpm typecheck`（TypeScript 类型检查）、`cargo fmt --all`（Rust 格式化）。
