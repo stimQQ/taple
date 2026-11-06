@@ -34,16 +34,15 @@ pnpm-lock.yaml
 .output
 .vinxi
 native-deps*
-apps/storybook/storybook-static
 
 *.tsbuildinfo
 .cargo/config.toml
 tauri.windows.conf.json
 .vercel
 
-# sst
-.sst
 
 # Cursor
 .cursor
 .env*.local
+
+app.config.timestamp_*.js

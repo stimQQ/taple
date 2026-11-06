@@ -5,7 +5,7 @@
   - `apps/desktop` (Tauri v2 + SolidStart), `apps/web` (Next.js), `apps/cli` (Rust CLI).
   - `packages/*` shared libs (e.g., `database`, `ui`, `ui-solid`, `utils`, `web-*`).
   - `crates/*` Rust media/recording/rendering/camera crates.
-  - `scripts/*`, `infra/`, and `packages/local-docker/` for tooling and local services.
+  - `scripts/*` and `packages/local-docker/` for tooling and local services.
 
 ## Build, Test, Develop
 - Install: `pnpm install`; setup: `pnpm env-setup` then `pnpm cap-setup`.

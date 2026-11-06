@@ -1,10 +1,6 @@
-import { recordScreenMacContent } from "../content/blog-content/record-screen-mac-system-audio";
-import { recordScreenWindowsContent } from "../content/blog-content/windows-11-record-screen-system-audio-no-stereo-mix";
+import type { BlogPost } from "../components/blog/BlogTemplate";
 
-export const INTERACTIVE_BLOG_REGISTRY = {
-	[recordScreenMacContent.slug]: recordScreenMacContent,
-	[recordScreenWindowsContent.slug]: recordScreenWindowsContent,
-} as const;
+export const INTERACTIVE_BLOG_REGISTRY: Record<string, BlogPost> = {};
 
 export type InteractiveBlogSlug = keyof typeof INTERACTIVE_BLOG_REGISTRY;
 
