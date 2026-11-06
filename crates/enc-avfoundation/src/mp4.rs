@@ -1,7 +1,7 @@
 use cap_media_info::{AudioInfo, VideoInfo};
 use cidre::{cm::SampleTimingInfo, objc::Obj, *};
 use ffmpeg::frame;
-use std::{ops::Sub, path::PathBuf, time::Duration};
+use std::{path::PathBuf, time::Duration};
 use tracing::*;
 
 // before pausing at all, subtract 0.
@@ -488,7 +488,10 @@ impl MP4Encoder {
         self.is_writing = false;
 
         self.asset_writer.end_session_at_src_time(cm::Time::new(
-            most_recent_frame.1.sub(self.timestamp_offset).as_millis() as i64,
+            most_recent_frame
+                .1
+                .saturating_sub(self.timestamp_offset)
+                .as_millis() as i64,
             1000,
         ));
         self.video_input.mark_as_finished();
