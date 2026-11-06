@@ -9423,6 +9423,7 @@ dependencies = [
  "rodio",
  "scap-screencapturekit",
  "scap-targets",
+ "security-framework",
  "sentry",
  "serde",
  "serde_json",

@@ -1,3 +1,4 @@
+mod ai;
 mod api;
 mod audio;
 mod audio_meter;
@@ -1986,7 +1987,12 @@ pub async fn run(recording_logging_handle: LoggingHandle, logs_dir: PathBuf) {
             target_select_overlay::get_window_icon,
             target_select_overlay::focus_window,
             editor_delete_project,
-            noise_reduction::denoise_recording_audio
+            noise_reduction::denoise_recording_audio,
+            ai::get_frame_jpeg,
+            ai::get_cursor_clicks,
+            ai::ai_get_api_key,
+            ai::ai_set_api_key,
+            ai::ai_delete_api_key
         ])
         .events(tauri_specta::collect_events![
             RecordingOptionsChanged,

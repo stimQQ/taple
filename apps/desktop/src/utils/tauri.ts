@@ -304,6 +304,21 @@ async editorDeleteProject() : Promise<null> {
 },
 async denoiseRecordingAudio(recordingPath: string) : Promise<null> {
     return await TAURI_INVOKE("denoise_recording_audio", { recordingPath });
+},
+async getFrameJpeg(projectPath: string, segmentIndex: number, timeSecs: number, maxWidth: number) : Promise<string> {
+    return await TAURI_INVOKE("get_frame_jpeg", { projectPath, segmentIndex, timeSecs, maxWidth });
+},
+async getCursorClicks(projectPath: string) : Promise<CursorClickInfo[]> {
+    return await TAURI_INVOKE("get_cursor_clicks", { projectPath });
+},
+async aiGetApiKey(provider: string) : Promise<string | null> {
+    return await TAURI_INVOKE("ai_get_api_key", { provider });
+},
+async aiSetApiKey(provider: string, apiKey: string) : Promise<null> {
+    return await TAURI_INVOKE("ai_set_api_key", { provider, apiKey });
+},
+async aiDeleteApiKey(provider: string) : Promise<null> {
+    return await TAURI_INVOKE("ai_delete_api_key", { provider });
 }
 }
 
@@ -403,6 +418,7 @@ export type CurrentRecording = { target: CurrentRecordingTarget }
 export type CurrentRecordingChanged = null
 export type CurrentRecordingTarget = { window: { id: WindowId; bounds: LogicalBounds } } | { screen: { id: DisplayId } } | { area: { screen: DisplayId; bounds: LogicalBounds } }
 export type CursorAnimationStyle = "regular" | "slow" | "fast"
+export type CursorClickInfo = { segment_index: number; time_secs: number; x: number; y: number }
 export type CursorConfiguration = { hide?: boolean; hideWhenIdle?: boolean; hideWhenIdleDelay?: number; size: number; type: CursorType; animationStyle: CursorAnimationStyle; tension: number; mass: number; friction: number; raw?: boolean; motionBlur?: number; useSvg?: boolean; clickEffect?: ClickEffectConfiguration }
 export type CursorMeta = { imagePath: string; hotspot: XY<number>; shape?: string | null }
 export type CursorType = "pointer" | "circle"
