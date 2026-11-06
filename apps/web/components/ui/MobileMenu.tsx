@@ -19,12 +19,11 @@ const internalLinks: NavLink[] = [
 	{ href: "/download", text: "Download" },
 	{ href: "/pricing", text: "Get started" },
 	{ href: "/about", text: "About" },
-	{ href: "/blog", text: "Blog" },
 ];
 
 const externalLinks: NavLink[] = [
 	{
-		href: "https://github.com/CapSoftware/Cap",
+		href: "https://github.com/stimQQ/taple",
 		text: "Open Source",
 		external: true,
 		icon: (

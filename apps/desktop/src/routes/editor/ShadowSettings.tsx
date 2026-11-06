@@ -1,5 +1,6 @@
 import { cx } from "cva";
 import { createSignal } from "solid-js";
+import { L } from "~/utils/i18n";
 import { Field, Slider } from "./ui";
 
 interface Props {
@@ -40,7 +41,7 @@ const ShadowSettings = (props: Props) => {
 				onClick={handleToggle}
 				class="flex gap-1 items-center w-full font-medium text-left transition duration-200 text-gray-12 hover:text-gray-10"
 			>
-				<span>高级阴影设置</span>
+				<span>{L("高级阴影设置", "Advanced Shadow Settings")}</span>
 				<IconCapChevronDown
 					class={cx(
 						"size-5",
@@ -51,7 +52,7 @@ const ShadowSettings = (props: Props) => {
 
 			{isOpen() && (
 				<div class="mt-4 space-y-4 font-medium">
-					<Field name="大小" inline>
+					<Field name={L("大小", "Size")} inline>
 						<Slider
 							value={props.size.value}
 							onChange={props.size.onChange}
@@ -60,7 +61,7 @@ const ShadowSettings = (props: Props) => {
 							step={0.1}
 						/>
 					</Field>
-					<Field name="不透明度" inline>
+					<Field name={L("不透明度", "Opacity")} inline>
 						<Slider
 							value={props.opacity.value}
 							onChange={props.opacity.onChange}
@@ -69,7 +70,7 @@ const ShadowSettings = (props: Props) => {
 							step={0.1}
 						/>
 					</Field>
-					<Field name="模糊" inline>
+					<Field name={L("模糊", "Blur")} inline>
 						<Slider
 							value={props.blur.value}
 							onChange={props.blur.onChange}

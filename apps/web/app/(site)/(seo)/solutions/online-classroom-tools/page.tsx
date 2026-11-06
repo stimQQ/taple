@@ -5,7 +5,7 @@ import { SeoPageTemplate } from "@/components/seo/SeoPageTemplate";
 import type { SeoPageContent } from "@/components/seo/types";
 
 const onlineClassroomToolsContent: SeoPageContent = {
-	title: "Online Classroom Tools: Empower Remote Teaching with SparkVideo",
+	title: "Online Classroom Tools: Empower Remote Teaching with Taple",
 	description:
 		"Searching for online classroom tools? Learn how Cap's screen recorder helps educators create engaging lessons, manage student feedback, and streamline remote learning.",
 
@@ -216,21 +216,21 @@ const createFaqStructuredData = () => {
 };
 
 export const metadata: Metadata = {
-	title: "Online Classroom Tools: Empower Remote Teaching with SparkVideo",
+	title: "Online Classroom Tools: Empower Remote Teaching with Taple",
 	description:
 		"Searching for online classroom tools? Learn how Cap's screen recorder helps educators create engaging lessons, manage student feedback, and streamline remote learning.",
 	openGraph: {
-		title: "Online Classroom Tools: Empower Remote Teaching with SparkVideo",
+		title: "Online Classroom Tools: Empower Remote Teaching with Taple",
 		description:
 			"Learn how Cap's screen recorder helps educators create engaging lessons, manage student feedback, and streamline remote learning.",
-		url: "https://sparkvideo.cc/solutions/online-classroom-tools",
-		siteName: "SparkVideo",
+		url: "https://taple.app/solutions/online-classroom-tools",
+		siteName: "Taple",
 		images: [
 			{
-				url: "https://sparkvideo.cc/og.png",
+				url: "https://taple.app/og.png",
 				width: 1200,
 				height: 630,
-				alt: "SparkVideo: Online Classroom Tools",
+				alt: "Taple: Online Classroom Tools",
 			},
 		],
 		locale: "en_US",
@@ -241,7 +241,7 @@ export const metadata: Metadata = {
 		title: "Online Classroom Tools | Cap Screen Recorder",
 		description:
 			"Learn how Cap's screen recorder helps educators create engaging lessons, manage student feedback, and streamline remote learning.",
-		images: ["https://sparkvideo.cc/og.png"],
+		images: ["https://taple.app/og.png"],
 	},
 };
 

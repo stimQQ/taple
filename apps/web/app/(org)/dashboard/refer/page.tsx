@@ -4,8 +4,8 @@ import { redirect } from "next/navigation";
 import ReferClient from "./ReferClient";
 
 export const metadata = {
-	title: "Refer - SparkVideo",
-	description: "Earn rewards by referring friends to SparkVideo",
+	title: "Refer - Taple",
+	description: "Earn rewards by referring friends to Taple",
 };
 
 async function generateEmbedToken(

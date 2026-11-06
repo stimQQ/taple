@@ -86,7 +86,7 @@ export default async function sitemap() {
 
 	const routes = [...(homeRoute ? [homeRoute] : []), ...otherRoutes].map(
 		(route) => ({
-			url: `https://sparkvideo.cc${route.path}`,
+			url: `https://taple.app${route.path}`,
 			lastModified: route.lastModified,
 		}),
 	);

@@ -15,6 +15,7 @@ import { createStore, produce } from "solid-js/store";
 import createPresence from "solid-presence";
 import { authStore } from "~/store";
 import { createTauriEventListener } from "~/utils/createEventListener";
+import { L } from "~/utils/i18n";
 import {
 	createCurrentRecordingQuery,
 	createOptionsQuery,
@@ -123,8 +124,15 @@ export default function () {
 	const restartRecording = createMutation(() => ({
 		mutationFn: async () => {
 			const shouldRestart = await dialog.confirm(
-				"确定要重新开始录制吗？当前录制将被丢弃。",
-				{ title: "确认重新开始", okLabel: "重新开始", cancelLabel: "取消" },
+				L(
+					"确定要重新开始录制吗？当前录制将被丢弃。",
+					"Are you sure you want to restart the recording? The current recording will be discarded.",
+				),
+				{
+					title: L("确认重新开始", "Restart Recording"),
+					okLabel: L("重新开始", "Restart"),
+					cancelLabel: L("取消", "Cancel"),
+				},
 			);
 
 			if (!shouldRestart) return;
@@ -139,8 +147,15 @@ export default function () {
 	const deleteRecording = createMutation(() => ({
 		mutationFn: async () => {
 			const shouldDelete = await dialog.confirm(
-				"确定要删除此录制吗？",
-				{ title: "确认删除", okLabel: "删除", cancelLabel: "取消" },
+				L(
+					"确定要删除此录制吗？",
+					"Are you sure you want to delete this recording?",
+				),
+				{
+					title: L("确认删除", "Delete Recording"),
+					okLabel: L("删除", "Delete"),
+					cancelLabel: L("取消", "Cancel"),
+				},
 			);
 
 			if (!shouldDelete) return;
@@ -229,15 +244,15 @@ export default function () {
 					</div>
 
 					<ActionButton
-					disabled={togglePause.isPending}
-					onClick={() => togglePause.mutate()}
-				>
-					{state().variant === "paused" ? (
-						<IconCapPlayCircle />
-					) : (
-						<IconCapPauseCircle />
-					)}
-				</ActionButton>
+						disabled={togglePause.isPending}
+						onClick={() => togglePause.mutate()}
+					>
+						{state().variant === "paused" ? (
+							<IconCapPlayCircle />
+						) : (
+							<IconCapPauseCircle />
+						)}
+					</ActionButton>
 
 					<ActionButton
 						disabled={restartRecording.isPending}
@@ -311,7 +326,9 @@ function Countdown(props: { from: number; current: number }) {
 	return (
 		<div class="flex flex-row justify-between p-[0.25rem] flex-1 bg-gray-1 fixed inset-0 z-10">
 			<div class="flex flex-1 gap-3 items-center px-3">
-				<div class="flex-1 text-[13px] text-gray-11">录制即将开始...</div>
+				<div class="flex-1 text-[13px] text-gray-11">
+					{L("录制即将开始...", "Recording starting...")}
+				</div>
 				<div class="relative w-5 h-5 text-red-300">
 					<svg class="absolute inset-0 w-5 h-5 -rotate-90" viewBox="0 0 20 20">
 						<circle

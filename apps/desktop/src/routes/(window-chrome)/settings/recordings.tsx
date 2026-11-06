@@ -6,7 +6,11 @@ import {
 	useQueryClient,
 } from "@tanstack/solid-query";
 import { convertFileSrc } from "@tauri-apps/api/core";
-import { ask, confirm, open as openFileDialog } from "@tauri-apps/plugin-dialog";
+import {
+	ask,
+	confirm,
+	open as openFileDialog,
+} from "@tauri-apps/plugin-dialog";
 import { remove } from "@tauri-apps/plugin-fs";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import * as shell from "@tauri-apps/plugin-shell";
@@ -22,6 +26,7 @@ import { createStore, produce, reconcile } from "solid-js/store";
 import CapTooltip from "~/components/Tooltip";
 import { trackEvent } from "~/utils/analytics";
 import { createTauriEventListener } from "~/utils/createEventListener";
+import { L } from "~/utils/i18n";
 import {
 	commands,
 	events,
@@ -35,7 +40,6 @@ type Recording = {
 	prettyName: string;
 	thumbnailPath: string;
 };
-
 
 const recordingsQuery = queryOptions({
 	queryKey: ["recordings"],
@@ -117,10 +121,10 @@ export default function Recordings() {
 			trackEvent("video_import_clicked");
 
 			const filePath = await openFileDialog({
-				title: "选择要导入的视频文件",
+				title: L("选择要导入的视频文件", "Choose a video file to import"),
 				filters: [
 					{
-						name: "视频文件",
+						name: L("视频文件", "Video Files"),
 						extensions: ["mp4", "mov", "avi", "mkv", "webm", "m4v"],
 					},
 				],
@@ -151,7 +155,9 @@ export default function Recordings() {
 					class="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-12 bg-gray-3 hover:bg-gray-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
 				>
 					<IconLucideImport class="size-4" />
-					{isImporting() ? "导入中..." : "导入视频"}
+					{isImporting()
+						? L("导入中...", "Importing...")
+						: L("导入视频", "Import Video")}
 				</button>
 			</div>
 			<Show
@@ -159,7 +165,7 @@ export default function Recordings() {
 				fallback={
 					<div class="flex flex-col items-center justify-center w-full h-full gap-4">
 						<p class="text-center text-[--text-tertiary]">
-							未找到录制
+							{L("未找到录制", "No recordings found")}
 						</p>
 						<button
 							type="button"
@@ -168,7 +174,9 @@ export default function Recordings() {
 							class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-12 bg-gray-3 hover:bg-gray-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
 						>
 							<IconLucideImport class="size-4" />
-							{isImporting() ? "导入中..." : "导入视频文件"}
+							{isImporting()
+								? L("导入中...", "Importing...")
+								: L("导入视频文件", "Import Video File")}
 						</button>
 					</div>
 				}
@@ -176,7 +184,7 @@ export default function Recordings() {
 				<div class="flex relative flex-col flex-1 custom-scroll overflow-y-auto">
 					<Show when={filteredRecordings().length === 0}>
 						<p class="text-center text-[--text-tertiary] absolute flex items-center justify-center w-full h-full">
-							暂无录制
+							{L("暂无录制", "No recordings yet")}
 						</p>
 					</Show>
 					<ul class="flex flex-col w-full text-[--text-primary]">
@@ -217,8 +225,7 @@ function RecordingItem(props: {
 	const [imageExists, setImageExists] = createSignal(true);
 
 	const queryClient = useQueryClient();
-	const isComplete = () =>
-		props.recording.meta.status.status === "Complete";
+	const isComplete = () => props.recording.meta.status.status === "Complete";
 
 	return (
 		<li
@@ -229,9 +236,7 @@ function RecordingItem(props: {
 			}}
 			class={cx(
 				"flex flex-row justify-between p-3 [&:not(:last-child)]:border-b [&:not(:last-child)]:border-gray-3 items-center w-full  transition-colors duration-200",
-				isComplete()
-					? "cursor-pointer hover:bg-gray-3"
-					: "cursor-default",
+				isComplete() ? "cursor-pointer hover:bg-gray-3" : "cursor-default",
 			)}
 		>
 			<div class="flex gap-5 items-center">
@@ -241,7 +246,7 @@ function RecordingItem(props: {
 				>
 					<img
 						class="object-cover rounded size-12"
-						alt="录制缩略图"
+						alt={L("录制缩略图", "Recording thumbnail")}
 						src={`${convertFileSrc(
 							props.recording.thumbnailPath,
 						)}?t=${Date.now()}`}
@@ -258,7 +263,7 @@ function RecordingItem(props: {
 								)}
 							>
 								<IconPhRecordFill class="size-2.5" />
-								<p>录制进行中</p>
+								<p>{L("录制进行中", "Recording in progress")}</p>
 							</div>
 						</Show>
 
@@ -278,7 +283,7 @@ function RecordingItem(props: {
 									)}
 								>
 									<IconPhWarningBold class="invert size-2.5 dark:invert-0" />
-									<p>录制失败</p>
+									<p>{L("录制失败", "Recording failed")}</p>
 								</div>
 							</CapTooltip>
 						</Show>
@@ -298,7 +303,7 @@ function RecordingItem(props: {
 				<Show when={props.recording.meta.sharing}>
 					{(sharing) => (
 						<TooltipIconButton
-							tooltipText="打开链接"
+							tooltipText={L("打开链接", "Open link")}
 							onClick={() => shell.open(sharing().link)}
 						>
 							<IconCapLink class="size-4" />
@@ -306,14 +311,17 @@ function RecordingItem(props: {
 					)}
 				</Show>
 				<TooltipIconButton
-					tooltipText="编辑"
+					tooltipText={L("编辑", "Edit")}
 					onClick={async () => {
 						if (
 							props.recording.meta.status.status === "Failed" &&
 							!(await confirm(
-								"录制失败，此文件在编辑器中可能存在问题！如果恢复文件时遇到问题，请联系支持团队！",
+								L(
+									"录制失败，此文件在编辑器中可能存在问题！如果恢复文件时遇到问题，请联系支持团队！",
+									"This recording failed and may not work correctly in the editor. If you have trouble recovering the file, please contact support.",
+								),
 								{
-									title: "录制文件可能已损坏",
+									title: L("录制文件可能已损坏", "Recording may be corrupted"),
 									kind: "warning",
 								},
 							))
@@ -326,15 +334,22 @@ function RecordingItem(props: {
 					<IconLucideEdit class="size-4" />
 				</TooltipIconButton>
 				<TooltipIconButton
-					tooltipText="打开录制文件夹"
+					tooltipText={L("打开录制文件夹", "Open recording folder")}
 					onClick={() => revealItemInDir(`${props.recording.path}/`)}
 				>
 					<IconLucideFolder class="size-4" />
 				</TooltipIconButton>
 				<TooltipIconButton
-					tooltipText="删除"
+					tooltipText={L("删除", "Delete")}
 					onClick={async () => {
-						if (!(await ask("确定要删除此录制吗？")))
+						if (
+							!(await ask(
+								L(
+									"确定要删除此录制吗？",
+									"Are you sure you want to delete this recording?",
+								),
+							))
+						)
 							return;
 						await remove(props.recording.path, { recursive: true });
 

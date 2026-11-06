@@ -338,7 +338,7 @@ export const CapCard = ({
 					)}
 
 					<CapCardButton
-						tooltipContent="Download SparkVideo"
+						tooltipContent="Download Taple"
 						onClick={(e) => {
 							e.stopPropagation();
 							handleDownload();
@@ -449,7 +449,7 @@ export const CapCard = ({
 					<ConfirmationDialog
 						open={confirmOpen}
 						icon={<FontAwesomeIcon icon={faVideo} />}
-						title="Delete SparkVideo"
+						title="Delete Taple"
 						description={`Are you sure you want to delete the cap "${cap.name}"? This action cannot be undone.`}
 						confirmLabel={deleteMutation.isPending ? "Deleting..." : "Delete"}
 						cancelLabel="Cancel"

@@ -36,7 +36,7 @@ export const apiClient = initClient(contract, {
 	api,
 });
 export const licenseApiClient = initClient(licenseContract, {
-	baseUrl: `https://sparkvideo.cc/api`,
+	baseUrl: `https://taple.app/api`,
 	api,
 });
 

@@ -17,8 +17,6 @@ Cap is the open source alternative to Loom. It's a Turborepo monorepo with a Tau
 ### Core Applications
 - `apps/web/` — Next.js web application (sharing, management, dashboard)
 - `apps/desktop/` — Tauri desktop app (recording, editing)
-- `apps/discord-bot/` — Discord integration bot
-- `apps/storybook/` — UI component documentation
 
 ### Shared Packages
 - `packages/database/` — Drizzle ORM, auth, email templates
@@ -67,7 +65,7 @@ pnpm --dir packages/database db:check  # Verify database schema
 # Web app (apps/web)
 cd apps/web && pnpm dev          # Start Next.js dev server
 
-# Desktop (apps/desktop) — package name is @sparkvideo/desktop
+# Desktop (apps/desktop) — package name is @taple/desktop
 cd apps/desktop && pnpm dev      # Start SolidStart + Tauri dev (use this, not pnpm run dev:desktop)
 pnpm tauri:build                 # Build desktop app (release)
 ```
@@ -364,6 +362,8 @@ Minimize `useEffect` usage: compute during render, handle logic in event handler
 - No code comments: Never add inline, block, or docstring comments in any language. Code must be self-explanatory through naming, types, and structure. Use docs/READMEs for explanations when necessary.
 - Directory naming: lower-case-dashed
 - Components: PascalCase; hooks: camelCase starting with `use`
+- Desktop UI language follows the macOS system language (Chinese when it starts with `zh`, English otherwise). Wrap every user-facing desktop string as `L("中文", "English")` from `~/utils/i18n`; in Rust use `crate::i18n::tr("中文", "English")`. macOS permission prompts live in `src-tauri/Info.plist` (English) and `src-tauri/zh-Hans.lproj/InfoPlist.strings`.
+- The web app (`apps/web`) is English only.
 - Strict TypeScript; avoid `any`; leverage shared types
 - Use Biome for linting/formatting; match existing formatting
 
@@ -420,13 +420,14 @@ Required GitHub Secrets (configure once):
 | `APPLE_API_KEY` | App Store Connect API Key ID |
 | `APPLE_API_KEY_FILE` | .p8 file contents |
 | `TAURI_SIGNING_PRIVATE_KEY` | Updater signing private key |
+| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Password of the updater signing key |
+| `NEXT_PUBLIC_WEB_URL` | Web app URL baked into the desktop build (`https://taple.app`) |
 
 ### Download Page
 Already exists at `apps/web/app/(site)/download/` and `apps/web/app/(site)/download/[platform]/route.ts`.
-Downloads redirect to GitHub Releases (`https://github.com/YOUR_ORG/YOUR_REPO/releases/latest/download/SparkVideo_*.dmg`).
-Update `YOUR_GITHUB_ORG/YOUR_REPO_NAME` in `[platform]/route.ts` to match the actual repository.
+Downloads redirect to GitHub Releases (`https://github.com/stimQQ/taple/releases/latest/download/Taple_{arch}.dmg`).
 
-Auto-update endpoint: `https://sparkvideo.cc/api/releases/tauri/{{current_version}}/{{target}}/{{arch}}` (configured in `tauri.prod.conf.json`). This API route must be implemented in `apps/web`, or disable the updater by setting `"active": false` in `tauri.prod.conf.json`.
+Auto-update endpoint: `https://github.com/stimQQ/taple/releases/latest/download/latest.json` (configured in `tauri.prod.conf.json`). The `updater-manifest` job in `publish.yml` generates and uploads `latest.json` for every release, so the updater works without the web app.
 
 ## References & Documentation
 
@@ -438,8 +439,8 @@ Auto-update endpoint: `https://sparkvideo.cc/api/releases/tauri/{{current_versio
 - **Drizzle ORM**: https://orm.drizzle.team/
 - **SolidJS**: https://solidjs.com/
 
-### SparkVideo-Specific
-- **Website**: https://sparkvideo.cc
+### Taple-Specific
+- **Website**: https://taple.app
 - **API Documentation**: Generated from TypeScript contracts
 - **Architecture Decisions**: See individual package READMEs
 

@@ -7,8 +7,8 @@ export const allowedOrigins = [
 	"tauri://localhost",
 	"http://tauri.localhost",
 	"https://tauri.localhost",
-	"https://sparkvideo.cc",
-	"https://www.sparkvideo.cc",
+	"https://taple.app",
+	"https://www.taple.app",
 ];
 
 export function getCorsHeaders(origin: string | null, originalOrigin: string) {

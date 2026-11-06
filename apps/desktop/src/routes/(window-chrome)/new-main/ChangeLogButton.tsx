@@ -4,6 +4,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { createEffect, createResource } from "solid-js";
 import { createStore } from "solid-js/store";
 import Tooltip from "~/components/Tooltip";
+import { L } from "~/utils/i18n";
 import { commands } from "~/utils/tauri";
 import { apiClient } from "~/utils/web-api";
 
@@ -63,7 +64,7 @@ const ChangelogButton = () => {
 	});
 
 	return (
-		<Tooltip openDelay={0} content="更新日志">
+		<Tooltip openDelay={0} content={L("更新日志", "Changelog")}>
 			<button
 				type="button"
 				onClick={handleChangelogClick}

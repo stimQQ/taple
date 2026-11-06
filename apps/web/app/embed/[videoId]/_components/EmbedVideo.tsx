@@ -268,10 +268,10 @@ export const EmbedVideo = forwardRef<
 								transition={{ duration: 0.3, delay: 0.1 }}
 								onClick={(e) => {
 									e.stopPropagation();
-									window.open("https://sparkvideo.cc", "_blank");
+									window.open("https://taple.app", "_blank");
 								}}
 								className="hidden z-10 gap-2 items-center px-3 py-2 text-sm rounded-full border backdrop-blur-sm transition-colors duration-200 sm:flex border-white/10 w-fit text-white/80 hover:text-white bg-black/50"
-								aria-label="Powered by SparkVideo"
+								aria-label="Powered by Taple"
 							>
 								<span className="text-xs md:text-sm text-white/80">
 									Powered by

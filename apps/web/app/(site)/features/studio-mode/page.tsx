@@ -2,21 +2,21 @@ import type { Metadata } from "next";
 import { StudioModePage } from "./StudioModePage";
 
 export const metadata: Metadata = {
-	title: "Studio Mode - Professional Screen Recording | SparkVideo",
+	title: "Studio Mode - Professional Screen Recording | Taple",
 	description:
 		"Create professional-quality screen recordings with Cap Studio Mode. Local recording, 4K 60fps quality, precision editing tools, and complete privacy control.",
 	openGraph: {
-		title: "Studio Mode - Professional Screen Recording | SparkVideo",
+		title: "Studio Mode - Professional Screen Recording | Taple",
 		description:
 			"Create professional-quality screen recordings with Cap Studio Mode. Local recording, 4K 60fps quality, precision editing tools, and complete privacy control.",
-		url: "https://sparkvideo.cc/features/studio-mode",
-		siteName: "SparkVideo",
+		url: "https://taple.app/features/studio-mode",
+		siteName: "Taple",
 		images: [
 			{
-				url: "https://sparkvideo.cc/og.png",
+				url: "https://taple.app/og.png",
 				width: 1200,
 				height: 630,
-				alt: "SparkVideo Studio Mode",
+				alt: "Taple Studio Mode",
 			},
 		],
 		locale: "en_US",
@@ -24,10 +24,10 @@ export const metadata: Metadata = {
 	},
 	twitter: {
 		card: "summary_large_image",
-		title: "Studio Mode - Professional Screen Recording | SparkVideo",
+		title: "Studio Mode - Professional Screen Recording | Taple",
 		description:
 			"Create professional-quality screen recordings with Cap Studio Mode. Local recording, 4K 60fps quality, precision editing tools, and complete privacy control.",
-		images: ["https://sparkvideo.cc/og.png"],
+		images: ["https://taple.app/og.png"],
 	},
 };
 

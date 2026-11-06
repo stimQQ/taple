@@ -1,3 +1,4 @@
+import { L } from "~/utils/i18n";
 import InfoPill from "./InfoPill";
 
 export default function TargetSelectInfoPill<T>(props: {
@@ -24,10 +25,10 @@ export default function TargetSelectInfoPill<T>(props: {
 			}}
 		>
 			{!props.permissionGranted
-				? "请求权限"
+				? L("请求权限", "Request Permission")
 				: props.value !== null
-					? "开"
-					: "关"}
+					? L("开", "On")
+					: L("关", "Off")}
 		</InfoPill>
 	);
 }

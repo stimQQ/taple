@@ -1,8 +1,8 @@
 {
 	"$schema": "https://schema.tauri.app/config/2",
-	"productName": "SparkVideo",
-	"mainBinaryName": "SparkVideo",
-	"identifier": "com.sparkvideo.desktop",
+	"productName": "Taple",
+	"mainBinaryName": "Taple",
+	"identifier": "app.taple.desktop",
 	"build": {
 		"beforeBundleCommand": "node scripts/prodBeforeBundle.js"
 	},
@@ -11,7 +11,7 @@
 			"active": true,
 			"pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEEwRUU1RTBEMUIxREQzRkQKUldUOTB4MGJEVjd1b0VFZEZMVE1sS3NPanpzcno4QkszNGNwQWtYbG80WDVTVitZQ214MC8zN24K",
 			"endpoints": [
-				"https://sparkvideo.cc/api/releases/tauri/{{current_version}}/{{target}}/{{arch}}"
+				"https://github.com/stimQQ/taple/releases/latest/download/latest.json"
 			]
 		}
 	},

@@ -17,6 +17,7 @@ import {
 import Tooltip from "~/components/Tooltip";
 import CaptionControlsWindows11 from "~/components/titlebar/controls/CaptionControlsWindows11";
 import { trackEvent } from "~/utils/analytics";
+import { L } from "~/utils/i18n";
 import { commands, events } from "~/utils/tauri";
 import { initializeTitlebar } from "~/utils/titlebar-state";
 import { useEditorContext } from "./context";
@@ -84,24 +85,31 @@ export function Header() {
 						console.log({ path: `${editorInstance.path}/` });
 						revealItemInDir(`${editorInstance.path}/`);
 					}}
-					tooltipText="打开录制包"
+					tooltipText={L("打开录制包", "Open recording bundle")}
 					leftIcon={<IconLucideFolder class="w-5" />}
 				/>
 
 				<div class="flex flex-row items-center">
 					<NameEditor name={meta().prettyName} />
-					<span class="text-sm text-gray-11">.sparkvideo</span>
+					<span class="text-sm text-gray-11">.taple</span>
 				</div>
 				<EditorButton
 					onClick={async () => {
 						clearTimelineSelection();
 
-						if (!(await ask("确定要删除这个录制吗？")))
+						if (
+							!(await ask(
+								L(
+									"确定要删除这个录制吗？",
+									"Are you sure you want to delete this recording?",
+								),
+							))
+						)
 							return;
 
 						await commands.editorDeleteProject();
 					}}
-					tooltipText="删除录制"
+					tooltipText={L("删除录制", "Delete recording")}
 					leftIcon={<IconCapTrash class="w-5" />}
 				/>
 				<div data-tauri-drag-region class="flex-1 h-full" />
@@ -131,7 +139,7 @@ export function Header() {
 					}}
 				>
 					<UploadIcon class="text-gray-1 size-4" />
-					导出
+					{L("导出", "Export")}
 				</Button>
 				{ostype() === "windows" && <CaptionControlsWindows11 />}
 			</div>

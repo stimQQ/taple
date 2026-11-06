@@ -65,16 +65,16 @@ const defaultFont = localFont({
 });
 
 export const metadata: Metadata = {
-	title: "SparkVideo — 精美的屏幕录制，由你掌控。",
+	title: "Taple — Beautiful screen recordings, owned by you.",
 	description:
-		"SparkVideo 是一款轻量、强大的跨平台屏幕录制工具。几秒内完成录制和分享。",
+		"Taple is a lightweight, powerful open source screen recorder and editor for macOS.",
 	openGraph: {
-		title: "SparkVideo — 精美的屏幕录制，由你掌控。",
+		title: "Taple — Beautiful screen recordings, owned by you.",
 		description:
-			"SparkVideo 是一款轻量、强大的跨平台屏幕录制工具。几秒内完成录制和分享。",
+			"Taple is a lightweight, powerful open source screen recorder and editor for macOS.",
 		type: "website",
-		url: "https://sparkvideo.cc",
-		images: ["https://sparkvideo.cc/og.png"],
+		url: "https://taple.app",
+		images: ["https://taple.app/og.png"],
 	},
 };
 
@@ -105,7 +105,6 @@ export default ({ children }: PropsWithChildren) =>
 						href="/favicon-16x16.png"
 					/>
 					<link rel="manifest" href="/site.webmanifest" />
-					<link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5" />
 					<link rel="shortcut icon" href="/favicon.ico" />
 					<meta name="msapplication-TileColor" content="#da532c" />
 					<meta name="theme-color" content="#ffffff" />

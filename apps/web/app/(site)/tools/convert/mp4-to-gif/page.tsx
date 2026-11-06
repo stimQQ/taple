@@ -4,7 +4,7 @@ import { ToolsPageTemplate } from "@/components/tools/ToolsPageTemplate";
 import type { ToolPageContent } from "@/components/tools/types";
 
 export const metadata: Metadata = {
-	title: "MP4 to GIF Converter | Free Online Animated GIF Maker | SparkVideo",
+	title: "MP4 to GIF Converter | Free Online Animated GIF Maker | Taple",
 	description:
 		"Convert MP4 videos to animated GIF images directly in your browser. Create high-quality GIFs with our free online converter, no uploads needed.",
 	openGraph: {

@@ -50,7 +50,7 @@ const createHomePageSchema = () => {
 		createWebSiteSchema(),
 		createSoftwareApplicationSchema(testimonials),
 		createProductSchema(),
-		createBreadcrumbSchema([{ name: "Home", url: "https://sparkvideo.cc" }]),
+		createBreadcrumbSchema([{ name: "Home", url: "https://taple.app" }]),
 		createFAQSchema(homePageFAQs),
 	];
 

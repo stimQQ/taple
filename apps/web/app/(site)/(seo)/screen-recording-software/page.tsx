@@ -9,14 +9,14 @@ export const metadata: Metadata = {
 		title: "Screen Recording Software: High-Quality, User-Friendly, and Free",
 		description:
 			"Cap is an all-in-one screen recording software offering high-quality video capture with an intuitive interface. Ideal for creating tutorials, presentations, and educational content, Cap provides everything you need at no cost.",
-		url: "https://sparkvideo.cc/screen-recording-software",
-		siteName: "SparkVideo",
+		url: "https://taple.app/screen-recording-software",
+		siteName: "Taple",
 		images: [
 			{
-				url: "https://sparkvideo.cc/og.png",
+				url: "https://taple.app/og.png",
 				width: 1200,
 				height: 630,
-				alt: "SparkVideo: Screen Recording Software",
+				alt: "Taple: Screen Recording Software",
 			},
 		],
 		locale: "en_US",
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
 		title: "Screen Recording Software: High-Quality, User-Friendly, and Free",
 		description:
 			"Cap is an all-in-one screen recording software offering high-quality video capture with an intuitive interface. Ideal for creating tutorials, presentations, and educational content.",
-		images: ["https://sparkvideo.cc/og.png"],
+		images: ["https://taple.app/og.png"],
 	},
 };
 

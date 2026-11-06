@@ -1,6 +1,7 @@
 import { cx } from "cva";
 import type { ComponentProps } from "solid-js";
 import { createMemo, Show, splitProps } from "solid-js";
+import { L } from "~/utils/i18n";
 import type {
 	CaptureDisplayWithThumbnail,
 	CaptureWindowWithThumbnail,
@@ -154,9 +155,10 @@ export default function TargetCard(props: TargetCardProps) {
 				>
 					<img
 						src={thumbnailSrc()!}
-						alt={`${
-							local.variant === "display" ? "显示器" : "窗口"
-						}预览 - ${label()}`}
+						alt={L(
+							`${local.variant === "display" ? "显示器" : "窗口"}预览 - ${label()}`,
+							`${local.variant === "display" ? "Display" : "Window"} preview - ${label()}`,
+						)}
 						class="object-cover w-full h-full"
 						loading="lazy"
 						draggable={false}

@@ -12,6 +12,7 @@ import {
 	Switch,
 } from "solid-js";
 import { generalSettingsStore } from "~/store";
+import { L } from "~/utils/i18n";
 import { createLicenseQuery } from "~/utils/queries";
 import { commands } from "~/utils/tauri";
 import { licenseApiClient } from "~/utils/web-api";
@@ -30,12 +31,16 @@ export default function Page() {
 						<div class="flex flex-col items-center p-6 mx-auto space-y-3 w-full max-w-md text-white rounded-3xl border bg-gray-2 border-gray-3">
 							<div class="flex flex-col gap-2 items-center">
 								<h3 class="text-2xl font-medium text-gray-12">
-									SparkVideo Pro 许可证
+									{L("Taple Pro 许可证", "Taple Pro License")}
 								</h3>
 							</div>
 							<p class="text-center text-gray-11">
-								你的账户已升级为{" "}
-								<span class="font-semibold text-blue-500">SparkVideo Pro</span>，已包含商业许可证。
+								{L("你的账户已升级为", "Your account is upgraded to")}{" "}
+								<span class="font-semibold text-blue-500">Taple Pro</span>
+								{L(
+									"，已包含商业许可证。",
+									" and includes a commercial license.",
+								)}
 							</p>
 						</div>
 					</div>
@@ -47,12 +52,12 @@ export default function Page() {
 								<div class="flex flex-col gap-2 items-center mb-4 text-center">
 									<span class="text-2xl text-green-400 fa fa-briefcase" />
 									<h3 class="text-2xl font-medium text-gray-12">
-										商业许可证
+										{L("商业许可证", "Commercial License")}
 									</h3>
 								</div>
 								<div>
 									<label class="block mb-2 text-sm text-gray-12">
-										许可证密钥
+										{L("许可证密钥", "License Key")}
 									</label>
 									<pre class="overflow-x-auto p-3 font-mono text-xs rounded-lg border border-gray-4 text-gray-9 bg-gray-3">
 										{license().licenseKey}
@@ -61,7 +66,9 @@ export default function Page() {
 								<Show when={license().expiryDate}>
 									{(expiry) => (
 										<div class="space-y-1">
-											<label class="text-sm text-gray-12">到期时间</label>
+											<label class="text-sm text-gray-12">
+												{L("到期时间", "Expires")}
+											</label>
 											<p class="text-gray-10">
 												{new Date(expiry()).toLocaleDateString()}
 											</p>
@@ -79,7 +86,7 @@ export default function Page() {
 											queryClient.refetchQueries({ queryKey: ["bruh"] });
 										}}
 									>
-										停用许可证
+										{L("停用许可证", "Deactivate License")}
 									</Button>
 								</div>
 							</div>
@@ -136,9 +143,11 @@ function LicenseKeyActivate(props: {
 					return (
 						<div class="p-6 mx-auto w-full rounded-xl border text-gray-12 bg-gray-2 border-gray-3">
 							<div class="space-y-3">
-								<h3 class="mb-2 text-xl text-center">已有许可证密钥？</h3>
+								<h3 class="mb-2 text-xl text-center">
+									{L("已有许可证密钥？", "Have a license key?")}
+								</h3>
 								<Input
-									placeholder="许可证密钥"
+									placeholder={L("许可证密钥", "License key")}
 									value={licenseKey()}
 									onInput={(e) => setLicenseKey(e.currentTarget.value)}
 									class="w-full bg-gray-3 border-gray-4"
@@ -154,8 +163,8 @@ function LicenseKeyActivate(props: {
 										}
 									>
 										{activateLicenseKey.isPending
-											? "激活中..."
-											: "激活许可证"}
+											? L("激活中...", "Activating...")
+											: L("激活许可证", "Activate License")}
 									</Button>
 								</div>
 								<Show when={activateLicenseKey.isError}>
@@ -230,10 +239,10 @@ function CommercialLicensePurchase() {
 						<Commercial class="w-[200px]" />
 						<div class="space-y-1 text-center">
 							<h3 class="text-2xl font-medium tracking-tight leading-5">
-								商业许可证
+								{L("商业许可证", "Commercial License")}
 							</h3>
 							<p class="mt-2 text-sm text-[--text-tertiary]">
-								商业用途
+								{L("商业用途", "For commercial use")}
 							</p>
 						</div>
 						<div class="flex flex-col justify-center items-center mt-5">
@@ -242,7 +251,9 @@ function CommercialLicensePurchase() {
 								<span class="text-gray-11 text-[16px]">.00 /</span>
 							</h3>
 							<p class="text-[16px] font-medium text-gray-11">
-								{isCommercialAnnual() ? "按年计费" : "一次性付款"}
+								{isCommercialAnnual()
+									? L("按年计费", "Billed annually")
+									: L("一次性付款", "One-time payment")}
 							</p>
 						</div>
 						<div
@@ -250,7 +261,10 @@ function CommercialLicensePurchase() {
 							class="px-3 py-2 text-center rounded-full border border-transparent transition-all duration-200 cursor-pointer w-fit bg-gray-5 hover:border-gray-400"
 						>
 							<p class="text-xs text-gray-12">
-								切换到{isCommercialAnnual() ? "终身版" : "年付版"}：{" "}
+								{L(
+									`切换到${isCommercialAnnual() ? "终身版" : "年付版"}：`,
+									`Switch to ${isCommercialAnnual() ? "Lifetime" : "Annual"}:`,
+								)}{" "}
 								<span class="font-medium">
 									{isCommercialAnnual() ? "$58" : "$29"}
 								</span>
@@ -264,8 +278,8 @@ function CommercialLicensePurchase() {
 							size="lg"
 						>
 							{openCommercialCheckout.isPending
-								? "加载中..."
-								: "购买许可证"}
+								? L("加载中...", "Loading...")
+								: L("购买许可证", "Buy License")}
 						</Button>
 					</div>
 
@@ -273,10 +287,13 @@ function CommercialLicensePurchase() {
 					<div class="flex flex-col gap-4 justify-center items-center p-5 rounded-t-none rounded-b-xl border border-t-0 md:border-t md:border-l-0 md:rounded-bl-none md:rounded-tr-xl md:rounded-br-xl md:w-1/2 border-gray-3">
 						<ul class="flex flex-col gap-2 list-none">
 							{[
-								"SparkVideo 录制器 + 编辑器的商业使用权",
-								"社区支持",
-								"仅限本地功能",
-								"终身许可证选项",
+								L(
+									"Taple 录制器 + 编辑器的商业使用权",
+									"Commercial use of Taple Recorder + Editor",
+								),
+								L("社区支持", "Community support"),
+								L("仅限本地功能", "Local-only features"),
+								L("终身许可证选项", "Lifetime license option"),
 							].map((feature) => (
 								<li class="flex justify-start items-center">
 									<div class="flex justify-center items-center p-0 m-0 w-6 h-6">

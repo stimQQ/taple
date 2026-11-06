@@ -11,14 +11,14 @@ export const metadata: Metadata = {
 			"Remote Team Collaboration Software: Async Screen Recording for Distributed Teams",
 		description:
 			"Enhance your remote team collaboration with Cap's secure, open-source screen recording platform. Save time and boost productivity across time zones.",
-		url: "https://sparkvideo.cc/solutions/remote-team-collaboration",
-		siteName: "SparkVideo",
+		url: "https://taple.app/solutions/remote-team-collaboration",
+		siteName: "Taple",
 		images: [
 			{
-				url: "https://sparkvideo.cc/og.png",
+				url: "https://taple.app/og.png",
 				width: 1200,
 				height: 630,
-				alt: "SparkVideo: Remote Team Collaboration Software",
+				alt: "Taple: Remote Team Collaboration Software",
 			},
 		],
 		locale: "en_US",
@@ -29,7 +29,7 @@ export const metadata: Metadata = {
 		title: "Remote Team Collaboration Software | Cap Screen Recorder",
 		description:
 			"Enhance your remote team collaboration with Cap's secure, open-source screen recording platform. Save time and boost productivity.",
-		images: ["https://sparkvideo.cc/og.png"],
+		images: ["https://taple.app/og.png"],
 	},
 };
 

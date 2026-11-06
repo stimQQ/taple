@@ -1,3 +1,4 @@
+import { L } from "~/utils/i18n";
 import { createCurrentRecordingQuery } from "~/utils/queries";
 import { useRecordingOptions } from "../OptionsContext";
 import InfoPill from "./InfoPill";
@@ -18,11 +19,11 @@ export default function SystemAudio() {
 			<IconPhMonitorBold class="text-gray-10 size-4" />
 			<p class="flex-1 text-xs text-left truncate text-gray-12">
 				{rawOptions.captureSystemAudio
-					? "录制电脑播放音"
-					: "不录制电脑播放音"}
+					? L("录制电脑播放音", "Record System Audio")
+					: L("不录制电脑播放音", "No System Audio")}
 			</p>
 			<InfoPill variant={rawOptions.captureSystemAudio ? "blue" : "red"}>
-				{rawOptions.captureSystemAudio ? "开" : "关"}
+				{rawOptions.captureSystemAudio ? L("开", "On") : L("关", "Off")}
 			</InfoPill>
 		</button>
 	);

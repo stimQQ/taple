@@ -26,6 +26,7 @@ import { TransitionGroup } from "solid-transition-group";
 import { authStore } from "~/store";
 import { createTauriEventListener } from "~/utils/createEventListener";
 import { exportVideo } from "~/utils/export";
+import { L } from "~/utils/i18n";
 import {
 	commands,
 	events,
@@ -65,7 +66,7 @@ export default function () {
 				if (state.some((entry) => entry.path === path)) return;
 				const fileName = path.split("/").pop() || "";
 				const match = fileName.match(
-					/(?:SparkVideo|Cap) (\d{4}-\d{2}-\d{2} at \d{2}\.\d{2}\.\d{2})/,
+					/(?:Taple|SparkVideo|Cap) (\d{4}-\d{2}-\d{2} at \d{2}\.\d{2}\.\d{2})/,
 				);
 				const prettyName = match ? match[1].replace(/\./g, ":") : fileName;
 				state.unshift({ path, prettyName, isNew: true, type });
@@ -182,7 +183,7 @@ export default function () {
 												>
 													<img
 														class="pointer-events-none w-full h-full object-cover absolute inset-0 -z-10 rounded-[7.4px]"
-														alt="媒体预览"
+														alt={L("媒体预览", "Media preview")}
 														src={`${convertFileSrc(
 															isRecording
 																? `${media.path}/screenshots/display.jpg`
@@ -203,10 +204,16 @@ export default function () {
 															<ActionProgressOverlay
 																title={
 																	state.type === "rendering"
-																		? "正在渲染视频"
+																		? L("正在渲染视频", "Rendering video")
 																		: state.type === "copying"
-																			? "正在复制到剪贴板"
-																			: "已复制到剪贴板"
+																			? L(
+																					"正在复制到剪贴板",
+																					"Copying to clipboard",
+																				)
+																			: L(
+																					"已复制到剪贴板",
+																					"Copied to clipboard",
+																				)
 																}
 																progressPercentage={actionProgressPercentage(
 																	actionState,
@@ -224,20 +231,26 @@ export default function () {
 															<ActionProgressOverlay
 																title={(() => {
 																	if (state.type === "choosing-location")
-																		return "准备中";
+																		return L("准备中", "Preparing");
 
 																	if (isRecording) {
 																		if (state.type === "rendering")
-																			return "正在渲染视频";
+																			return L(
+																				"正在渲染视频",
+																				"Rendering video",
+																			);
 																		if (state.type === "saving")
-																			return "正在保存视频";
-																		return "视频已保存";
+																			return L("正在保存视频", "Saving video");
+																		return L("视频已保存", "Video saved");
 																	} else {
 																		if (state.type === "rendering")
-																			return "正在渲染图片";
+																			return L(
+																				"正在渲染图片",
+																				"Rendering image",
+																			);
 																		if (state.type === "saving")
-																			return "正在保存图片";
-																		return "图片已保存";
+																			return L("正在保存图片", "Saving image");
+																		return L("图片已保存", "Image saved");
 																	}
 																})()}
 																progressPercentage={actionProgressPercentage(
@@ -245,9 +258,10 @@ export default function () {
 																)}
 																progressMessage={
 																	state.type === "choosing-location" &&
-																	`选择${
-																		isRecording ? "导出视频" : "保存图片"
-																	}的位置...`
+																	L(
+																		`选择${isRecording ? "导出视频" : "保存图片"}的位置...`,
+																		`Choose where to ${isRecording ? "export the video" : "save the image"}...`,
+																	)
 																}
 															/>
 														)}
@@ -262,10 +276,13 @@ export default function () {
 															<ActionProgressOverlay
 																title={
 																	state.type === "rendering"
-																		? "正在渲染视频"
+																		? L("正在渲染视频", "Rendering video")
 																		: state.type === "uploading"
-																			? "正在创建分享链接"
-																			: "分享链接已复制"
+																			? L(
+																					"正在创建分享链接",
+																					"Creating share link",
+																				)
+																			: L("分享链接已复制", "Share link copied")
 																}
 																progressPercentage={actionProgressPercentage(
 																	actionState,
@@ -289,7 +306,7 @@ export default function () {
 												>
 													<TooltipIconButton
 														class="absolute top-3 left-3 z-20"
-														tooltipText="关闭"
+														tooltipText={L("关闭", "Close")}
 														tooltipPlacement="right"
 														onClick={() => {
 															const setMedia = isRecording
@@ -312,7 +329,7 @@ export default function () {
 													{isRecording ? (
 														<TooltipIconButton
 															class="absolute bottom-3 left-3 z-20"
-															tooltipText="编辑"
+															tooltipText={L("编辑", "Edit")}
 															tooltipPlacement="right"
 															onClick={() => {
 																const setMedia = isRecording
@@ -338,7 +355,7 @@ export default function () {
 													) : (
 														<TooltipIconButton
 															class="absolute bottom-3 left-3 z-20"
-															tooltipText="查看"
+															tooltipText={L("查看", "View")}
 															tooltipPlacement="right"
 															onClick={() => {
 																commands.openFilePath(media.path);
@@ -351,8 +368,8 @@ export default function () {
 														class="absolute top-3 right-3 z-20"
 														tooltipText={
 															copy.isPending
-																? "正在复制到剪贴板"
-																: "复制到剪贴板"
+																? L("正在复制到剪贴板", "Copying to clipboard")
+																: L("复制到剪贴板", "Copy to clipboard")
 														}
 														tooltipPlacement="left"
 														onClick={() => copy.mutate()}
@@ -363,8 +380,8 @@ export default function () {
 														class="absolute right-3 bottom-3 z-[998]"
 														tooltipText={
 															recordingMeta.data?.sharing
-																? "复制分享链接"
-																: "创建分享链接"
+																? L("复制分享链接", "Copy share link")
+																: L("创建分享链接", "Create share link")
 														}
 														tooltipPlacement="left"
 														onClick={() => upload.mutate()}
@@ -377,7 +394,7 @@ export default function () {
 															size="sm"
 															onClick={() => save.mutate()}
 														>
-															导出
+															{L("导出", "Export")}
 														</Button>
 													</div>
 												</div>
@@ -637,8 +654,10 @@ function createRecordingMutations(
 			}
 
 			const defaultName = isRecording
-				? "SparkVideo 录制"
-				: (media.path.split(".sparkvideo/")[1] || media.path.split(".cap/")[1]);
+				? L("Taple 录制", "Taple Recording")
+				: media.path.split(".taple/")[1] ||
+					media.path.split(".sparkvideo/")[1] ||
+					media.path.split(".cap/")[1];
 			const suggestedName = meta.pretty_name || defaultName;
 
 			const fileType = isRecording ? "recording" : "screenshot";
@@ -708,7 +727,9 @@ function createRecordingMutations(
 			// Check authentication first
 			const existingAuth = await authStore.get();
 			if (!existingAuth) {
-				throw new Error("你需要登录才能分享录制");
+				throw new Error(
+					L("你需要登录才能分享录制", "Sign in to share recordings"),
+				);
 			}
 
 			const metadata = await commands.getVideoMetadata(media.path);
@@ -722,7 +743,10 @@ function createRecordingMutations(
 				if (canShare.reason === "upgrade_required") {
 					await commands.showWindow("Upgrade");
 					throw new Error(
-						"分享超过5分钟的录制需要升级",
+						L(
+							"分享超过5分钟的录制需要升级",
+							"Upgrade to share recordings longer than 5 minutes",
+						),
 					);
 				}
 			}

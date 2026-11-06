@@ -8,6 +8,7 @@ import {
 } from "solid-js";
 import { Store } from "@tauri-apps/plugin-store";
 import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
+import { L } from "~/utils/i18n";
 import IconLucideHistory from "~icons/lucide/history";
 import IconLucidePencil from "~icons/lucide/pencil";
 import IconLucidePlus from "~icons/lucide/plus";
@@ -58,7 +59,7 @@ export default function TeleprompterPage() {
 		await storeRef.save();
 	};
 
-	const persistSpeed = async (s: 1 | 1.5 | 2) => {
+	const persistSpeed = async (s: 0.5 | 0.8 | 1) => {
 		if (!storeRef) return;
 		const data: TeleprompterData = {
 			scripts: scripts(),
@@ -219,7 +220,7 @@ export default function TeleprompterPage() {
 					}}
 				>
 					<IconLucideHistory class="size-3.5" />
-					历史
+					{L("历史", "History")}
 				</button>
 
 				<button
@@ -240,7 +241,12 @@ export default function TeleprompterPage() {
 				>
 					<Show
 						when={isPlaying()}
-						fallback={<IconPhPlayFill class="size-3.5" style={{ "margin-left": "1px" }} />}
+						fallback={
+							<IconPhPlayFill
+								class="size-3.5"
+								style={{ "margin-left": "1px" }}
+							/>
+						}
 					>
 						<IconPhPauseFill class="size-3.5" />
 					</Show>
@@ -292,13 +298,17 @@ export default function TeleprompterPage() {
 					}}
 				>
 					<IconLucidePencil class="size-3.5" />
-					编辑
+					{L("编辑", "Edit")}
 				</button>
 
 				<button
 					type="button"
 					class="flex items-center justify-center rounded-full transition-colors hover:bg-white/10 ml-1.5"
-					style={{ width: "26px", height: "26px", color: "rgba(255,255,255,0.45)" }}
+					style={{
+						width: "26px",
+						height: "26px",
+						color: "rgba(255,255,255,0.45)",
+					}}
 					onClick={closeWindow}
 				>
 					<IconLucideX class="size-3.5" />
@@ -322,7 +332,7 @@ export default function TeleprompterPage() {
 								class="text-[11px] font-medium"
 								style={{ color: "rgba(255,255,255,0.45)" }}
 							>
-								历史脚本
+								{L("历史脚本", "Script History")}
 							</span>
 							<button
 								type="button"
@@ -330,7 +340,7 @@ export default function TeleprompterPage() {
 								style={{ color: "rgba(255,255,255,0.35)" }}
 								onClick={() => setMode("view")}
 							>
-								关闭
+								{L("关闭", "Close")}
 							</button>
 						</div>
 						<div class="flex-1 overflow-y-auto">
@@ -341,7 +351,7 @@ export default function TeleprompterPage() {
 										class="flex items-center justify-center h-full text-[12px]"
 										style={{ color: "rgba(255,255,255,0.2)" }}
 									>
-										暂无历史脚本
+										{L("暂无历史脚本", "No saved scripts")}
 									</div>
 								}
 							>
@@ -400,7 +410,7 @@ export default function TeleprompterPage() {
 								"line-height": "3",
 								"font-family": "inherit",
 							}}
-							placeholder="在此输入您的脚本..."
+							placeholder={L("在此输入您的脚本...", "Type your script here...")}
 							value={currentContent()}
 							onInput={(e) => setCurrentContent(e.currentTarget.value)}
 						/>
@@ -413,7 +423,7 @@ export default function TeleprompterPage() {
 							}}
 							onClick={finishEditing}
 						>
-							完成
+							{L("完成", "Done")}
 						</button>
 					</div>
 				</Show>
@@ -427,9 +437,7 @@ export default function TeleprompterPage() {
 						<Show
 							when={currentContent().trim()}
 							fallback={
-								<div
-									class="h-full flex flex-col items-center justify-center gap-3"
-								>
+								<div class="h-full flex flex-col items-center justify-center gap-3">
 									<button
 										type="button"
 										class="flex items-center gap-1.5 px-4 h-9 rounded-lg text-[12px] transition-colors hover:opacity-80"
@@ -440,7 +448,7 @@ export default function TeleprompterPage() {
 										onClick={newScript}
 									>
 										<IconLucidePlus class="size-3.5" />
-										新建脚本
+										{L("新建脚本", "New Script")}
 									</button>
 									<Show when={scripts().length > 0}>
 										<button
@@ -449,7 +457,7 @@ export default function TeleprompterPage() {
 											style={{ color: "rgba(255,255,255,0.3)" }}
 											onClick={() => setMode("history")}
 										>
-											或从历史记录中选择
+											{L("或从历史记录中选择", "or choose from history")}
 										</button>
 									</Show>
 								</div>

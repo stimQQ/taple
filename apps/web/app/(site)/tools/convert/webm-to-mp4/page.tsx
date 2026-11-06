@@ -4,7 +4,7 @@ import { ToolsPageTemplate } from "@/components/tools/ToolsPageTemplate";
 import type { ToolPageContent } from "@/components/tools/types";
 
 export const metadata: Metadata = {
-	title: "WebM to MP4 Converter | Free Online Video Converter | SparkVideo",
+	title: "WebM to MP4 Converter | Free Online Video Converter | Taple",
 	description:
 		"Convert WebM videos to MP4 format directly in your browser with our free online converter. No uploads, no installation, 100% private.",
 	openGraph: {

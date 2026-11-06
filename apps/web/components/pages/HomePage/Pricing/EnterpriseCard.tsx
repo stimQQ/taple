@@ -41,7 +41,7 @@ export const EnterpriseCard = () => {
 	];
 
 	const handleBookCall = () => {
-		window.open("mailto:hello@sparkvideo.cc", "_blank");
+		window.open("mailto:hello@taple.app", "_blank");
 	};
 
 	return (

@@ -7,7 +7,7 @@ import { redirect } from "next/navigation";
 import { Organization } from "./Organization";
 
 export const metadata: Metadata = {
-	title: "Organization Settings — SparkVideo",
+	title: "Organization Settings — Taple",
 };
 
 export default async function OrganizationPage() {

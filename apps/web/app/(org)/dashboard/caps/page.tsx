@@ -19,7 +19,7 @@ import { runPromise } from "@/lib/server";
 import { Caps } from "./Caps";
 
 export const metadata: Metadata = {
-	title: "My Caps — SparkVideo",
+	title: "My Caps — Taple",
 };
 
 export default async function CapsPage(props: PageProps<"/dashboard/caps">) {

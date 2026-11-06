@@ -8,6 +8,7 @@ import Tooltip from "~/components/Tooltip";
 import { createProgressBar } from "~/routes/editor/utils";
 import { authStore } from "~/store";
 import { exportVideo } from "~/utils/export";
+import { L } from "~/utils/i18n";
 import { commands, events, type UploadProgress } from "~/utils/tauri";
 import { useEditorContext } from "./context";
 import { RESOLUTION_OPTIONS } from "./Header";
@@ -34,7 +35,12 @@ function ShareButton() {
 			// Check authentication first
 			const existingAuth = await authStore.get();
 			if (!existingAuth) {
-				throw new Error("你需要登录才能分享录制");
+				throw new Error(
+					L(
+						"你需要登录才能分享录制",
+						"You need to sign in to share recordings",
+					),
+				);
 			}
 
 			const metadata = await commands.getVideoMetadata(projectPath);
@@ -48,7 +54,10 @@ function ShareButton() {
 				if (canShare.reason === "upgrade_required") {
 					await commands.showWindow("Upgrade");
 					throw new Error(
-						"分享超过5分钟的录制需要升级",
+						L(
+							"分享超过5分钟的录制需要升级",
+							"Upgrade to share recordings longer than 5 minutes",
+						),
 					);
 				}
 			}
@@ -112,11 +121,20 @@ function ShareButton() {
 					);
 
 			if (result === "NotAuthenticated") {
-				throw new Error("你需要登录才能分享录制");
+				throw new Error(
+					L(
+						"你需要登录才能分享录制",
+						"You need to sign in to share recordings",
+					),
+				);
 			} else if (result === "PlanCheckFailed")
-				throw new Error("验证订阅状态失败");
+				throw new Error(
+					L("验证订阅状态失败", "Failed to verify subscription status"),
+				);
 			else if (result === "UpgradeRequired")
-				throw new Error("此功能需要升级订阅");
+				throw new Error(
+					L("此功能需要升级订阅", "This feature requires an upgraded plan"),
+				);
 
 			setUploadState({ type: "link-copied" });
 
@@ -125,7 +143,9 @@ function ShareButton() {
 		onError: (error) => {
 			console.error(error);
 			commands.globalMessageDialog(
-				error instanceof Error ? error.message : "上传录制失败",
+				error instanceof Error
+					? error.message
+					: L("上传录制失败", "Failed to upload recording"),
 			);
 		},
 		onSettled() {
@@ -192,7 +212,9 @@ function ShareButton() {
 						<div class="flex gap-3 items-center">
 							<Tooltip
 								content={
-									upload.isPending ? "正在重新上传视频" : "重新上传视频"
+									upload.isPending
+										? L("正在重新上传视频", "Reuploading video")
+										: L("重新上传视频", "Reupload video")
 								}
 							>
 								<Button
@@ -214,7 +236,7 @@ function ShareButton() {
 									)}
 								</Button>
 							</Tooltip>
-							<Tooltip content="打开链接">
+							<Tooltip content={L("打开链接", "Open link")}>
 								<div class="rounded-xl px-3 py-2 flex flex-row items-center gap-[0.375rem] bg-gray-3 hover:bg-gray-4 transition-colors duration-100">
 									<a
 										href={
@@ -235,7 +257,7 @@ function ShareButton() {
 											customDomain.data?.domain_verified
 										}
 									>
-										<Tooltip content="选择链接">
+										<Tooltip content={L("选择链接", "Select link")}>
 											<KSelect
 												value={linkToDisplay()}
 												onChange={(value) => value && setLinkToDisplay(value)}
@@ -276,7 +298,7 @@ function ShareButton() {
 										</Tooltip>
 									</Show>
 									{/** Copy button */}
-									<Tooltip content="复制链接">
+									<Tooltip content={L("复制链接", "Copy link")}>
 										<div
 											class="flex justify-center items-center transition-colors duration-200 rounded-lg size-[22px] text-gray-12 bg-gray-6 hover:bg-gray-7"
 											onClick={copyLink}
@@ -296,7 +318,7 @@ function ShareButton() {
 			</Show>
 			<Dialog.Root open={!upload.isIdle}>
 				<DialogContent
-					title={"重新上传录制"}
+					title={L("重新上传录制", "Reupload Recording")}
 					confirm={<></>}
 					close={<></>}
 					class="text-gray-12 dark:text-gray-12"
@@ -326,12 +348,18 @@ function ShareButton() {
 
 						<p class="relative z-10 mt-3 text-xs text-white">
 							{uploadState.type === "idle" || uploadState.type === "starting"
-								? "正在准备渲染..."
+								? L("正在准备渲染...", "Preparing to render...")
 								: uploadState.type === "rendering"
-									? `正在渲染视频 (${uploadState.renderedFrames}/${uploadState.totalFrames} 帧)`
+									? L(
+											`正在渲染视频 (${uploadState.renderedFrames}/${uploadState.totalFrames} 帧)`,
+											`Rendering video (${uploadState.renderedFrames}/${uploadState.totalFrames} frames)`,
+										)
 									: uploadState.type === "uploading"
-										? `正在上传 - ${Math.floor(uploadState.progress)}%`
-										: "链接已复制到剪贴板！"}
+										? L(
+												`正在上传 - ${Math.floor(uploadState.progress)}%`,
+												`Uploading - ${Math.floor(uploadState.progress)}%`,
+											)
+										: L("链接已复制到剪贴板！", "Link copied to clipboard!")}
 						</p>
 					</div>
 				</DialogContent>

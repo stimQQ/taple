@@ -12,6 +12,7 @@ import {
 } from "solid-js";
 import { createStore } from "solid-js/store";
 import { generalSettingsStore, hotkeysStore } from "~/store";
+import { L } from "~/utils/i18n";
 
 import {
 	commands,
@@ -21,13 +22,13 @@ import {
 } from "~/utils/tauri";
 
 const ACTION_TEXT = {
-	startStudioRecording: "开始录制",
-	restartRecording: "重新开始录制",
-	stopRecording: "停止录制",
-	openRecordingPicker: "打开录制选择器",
-	openRecordingPickerDisplay: "录制显示器",
-	openRecordingPickerWindow: "录制窗口",
-	openRecordingPickerArea: "录制区域",
+	startStudioRecording: L("开始录制", "Start Recording"),
+	restartRecording: L("重新开始录制", "Restart Recording"),
+	stopRecording: L("停止录制", "Stop Recording"),
+	openRecordingPicker: L("打开录制选择器", "Open Recording Picker"),
+	openRecordingPickerDisplay: L("录制显示器", "Record Display"),
+	openRecordingPickerWindow: L("录制窗口", "Record Window"),
+	openRecordingPickerArea: L("录制区域", "Record Area"),
 } satisfies { [K in HotkeyAction]?: string };
 
 export default function () {
@@ -94,9 +95,14 @@ function Inner(props: { initialStore: HotkeysStore | null }) {
 	return (
 		<div class="flex flex-col flex-1 p-4 h-full custom-scroll">
 			<div class="flex flex-col pb-4 border-b border-gray-2">
-				<h2 class="text-lg font-medium text-gray-12">快捷键</h2>
+				<h2 class="text-lg font-medium text-gray-12">
+					{L("快捷键", "Shortcuts")}
+				</h2>
 				<p class="text-sm text-gray-10 w-full max-w-[500px]">
-					配置全局键盘快捷键来控制 SparkVideo
+					{L(
+						"配置全局键盘快捷键来控制 Taple",
+						"Set global keyboard shortcuts to control Taple",
+					)}
 				</p>
 			</div>
 			<div class="flex flex-col gap-3 p-4 mt-4 w-full rounded-xl border bg-gray-2 border-gray-3">
@@ -122,7 +128,7 @@ function Inner(props: { initialStore: HotkeysStore | null }) {
 													when={hotkeys[item()]}
 													fallback={
 														<p class="text-[13px] text-gray-11">
-															设置快捷键...
+															{L("设置快捷键...", "Set shortcut...")}
 														</p>
 													}
 												>
@@ -185,7 +191,7 @@ function Inner(props: { initialStore: HotkeysStore | null }) {
 															class="flex items-center text-[11px] uppercase transition-colors hover:bg-gray-6 hover:border-gray-7
                         cursor-pointer py-3 px-2.5 h-5 bg-gray-4 border border-gray-5 rounded-lg text-gray-11 hover:text-gray-12"
 														>
-															无
+															{L("无", "None")}
 														</p>
 													}
 												>

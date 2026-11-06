@@ -12,11 +12,7 @@ import type { VideoMetadata } from "@cap/database/types";
 import { buildEnv } from "@cap/env";
 import { Logo } from "@cap/ui";
 import { userIsPro } from "@cap/utils";
-import {
-	ImageUploads,
-	provideOptionalAuth,
-	Videos,
-} from "@cap/web-backend";
+import { ImageUploads, provideOptionalAuth, Videos } from "@cap/web-backend";
 import { VideosPolicy } from "@cap/web-backend/src/Videos/VideosPolicy";
 import {
 	type ImageUpload,
@@ -68,7 +64,7 @@ export async function generateMetadata(
 				onNone: () => notFound(),
 				onSome: ([video]) => ({
 					title: video.name + " | Cap Recording",
-					description: "Watch this video on SparkVideo",
+					description: "Watch this video on Taple",
 					openGraph: {
 						images: [
 							{
@@ -95,7 +91,7 @@ export async function generateMetadata(
 					twitter: {
 						card: "player",
 						title: video.name + " | Cap Recording",
-						description: "Watch this video on SparkVideo",
+						description: "Watch this video on Taple",
 						images: [
 							new URL(
 								`/api/video/og?videoId=${videoId}`,

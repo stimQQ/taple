@@ -81,11 +81,11 @@ pub fn create_tray(app: &AppHandle) -> tauri::Result<()> {
             &MenuItem::with_id(
                 app,
                 "version",
-                format!("SparkVideo v{}", env!("CARGO_PKG_VERSION")),
+                format!("Taple v{}", env!("CARGO_PKG_VERSION")),
                 false,
                 None::<&str>,
             )?,
-            &MenuItem::with_id(app, TrayItem::Quit, "Quit SparkVideo", true, None::<&str>)?,
+            &MenuItem::with_id(app, TrayItem::Quit, "Quit Taple", true, None::<&str>)?,
         ],
     )?;
     let app = app.clone();
@@ -94,6 +94,7 @@ pub fn create_tray(app: &AppHandle) -> tauri::Result<()> {
         .icon(Image::from_bytes(include_bytes!(
             "../icons/tray-default-icon.png"
         ))?)
+        .icon_as_template(true)
         .menu(&menu)
         .show_menu_on_left_click(true)
         .on_menu_event({

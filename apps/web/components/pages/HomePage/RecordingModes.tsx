@@ -16,7 +16,7 @@ const RecordingModes = () => {
 	const loading = platform === null;
 
 	const studioMode = homepageCopy.recordingModes.modes.find(
-		(m) => m.name === "Studio Mode"
+		(m) => m.name === "Studio Mode",
 	);
 
 	return (
@@ -56,7 +56,7 @@ const RecordingModes = () => {
 						}}
 					>
 						<iframe
-							src="https://sparkvideo.cc/embed/qk8gt56e1q1r735"
+							src="https://taple.app/embed/qk8gt56e1q1r735"
 							frameBorder="0"
 							allowFullScreen
 							style={{

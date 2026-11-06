@@ -1,7 +1,10 @@
 import { Button } from "@cap/ui-solid";
 import { A, type RouteSectionProps } from "@solidjs/router";
 import { getVersion } from "@tauri-apps/api/app";
-import { getAllWebviewWindows, WebviewWindow } from "@tauri-apps/api/webviewWindow";
+import {
+	getAllWebviewWindows,
+	WebviewWindow,
+} from "@tauri-apps/api/webviewWindow";
 import { LogicalSize, primaryMonitor } from "@tauri-apps/api/window";
 import "@total-typescript/ts-reset/filter-boolean";
 import { createResource, For, Show, Suspense } from "solid-js";
@@ -10,6 +13,7 @@ import { SignInButton } from "~/components/SignInButton";
 
 import { authStore } from "~/store";
 import { trackEvent } from "~/utils/analytics";
+import { L } from "~/utils/i18n";
 
 export default function Settings(props: RouteSectionProps) {
 	const auth = authStore.createQuery();
@@ -30,27 +34,27 @@ export default function Settings(props: RouteSectionProps) {
 						each={[
 							{
 								href: "recordings",
-								name: "历史录制",
+								name: L("历史录制", "Recordings"),
 								icon: IconLucideSquarePlay,
 							},
 							{
 								href: "general",
-								name: "通用设置",
+								name: L("通用设置", "General"),
 								icon: IconCapSettings,
 							},
 							{
 								href: "hotkeys",
-								name: "快捷键",
+								name: L("快捷键", "Shortcuts"),
 								icon: IconCapHotkeys,
 							},
 							{
 								href: "feedback",
-								name: "反馈",
+								name: L("反馈", "Feedback"),
 								icon: IconLucideMessageSquarePlus,
 							},
 							{
 								href: "changelog",
-								name: "更新日志",
+								name: L("更新日志", "Changelog"),
 								icon: IconLucideBell,
 							},
 						].filter(Boolean)}
@@ -85,7 +89,8 @@ export default function Settings(props: RouteSectionProps) {
 
 							const monitor = await primaryMonitor();
 							const scaleFactor = monitor?.scaleFactor ?? 1;
-							const monitorLogicalWidth = (monitor?.size.width ?? 1920) / scaleFactor;
+							const monitorLogicalWidth =
+								(monitor?.size.width ?? 1920) / scaleFactor;
 							const windowWidth = 500;
 							const windowHeight = 300;
 							const x = Math.floor((monitorLogicalWidth - windowWidth) / 2);
@@ -102,14 +107,14 @@ export default function Settings(props: RouteSectionProps) {
 								contentProtected: true,
 								shadow: false,
 								resizable: false,
-								title: "提词器",
+								title: L("提词器", "Teleprompter"),
 								skipTaskbar: true,
 							});
 						}}
 						class="rounded-lg h-[2rem] hover:bg-gray-3 text-[13px] px-2 flex flex-row items-center gap-[0.375rem] transition-colors text-gray-12"
 					>
 						<IconLucideScrollText class="opacity-60 size-4" />
-						<span>提词器</span>
+						<span>{L("提词器", "Teleprompter")}</span>
 					</button>
 					{import.meta.env.DEV && (
 						<button

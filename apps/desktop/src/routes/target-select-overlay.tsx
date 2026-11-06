@@ -27,6 +27,7 @@ import {
 } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
 import { generalSettingsStore } from "~/store";
+import { L } from "~/utils/i18n";
 import { createOptionsQuery, createOrganizationsQuery } from "~/utils/queries";
 import { handleRecordingResult } from "~/utils/recording";
 import {
@@ -170,7 +171,7 @@ function Inner() {
 							{(display) => (
 								<>
 									<span class="mb-2 text-3xl font-semibold text-white">
-										{display.name || "显示器"}
+										{display.name || L("显示器", "Display")}
 									</span>
 									<Show when={display.physical_size}>
 										{(size) => (
@@ -249,7 +250,7 @@ function Inner() {
 										commands.openTargetSelectOverlays(null);
 									}}
 								>
-									调整录制区域
+									{L("调整录制区域", "Adjust Recording Area")}
 								</Button>
 							</div>
 						</div>
@@ -806,13 +807,19 @@ function Inner() {
 							<Show when={!state()}>
 								<Show when={!hasArea()}>
 									<p class="z-10 text-xl pointer-events-none text-white">
-										点击并拖动以选择区域
+										{L(
+											"点击并拖动以选择区域",
+											"Click and drag to select an area",
+										)}
 									</p>
 								</Show>
 								<Show when={hasArea()}>
 									<Show when={controlsPlacement().position !== "inside-bottom"}>
 										<p class="z-10 text-xl pointer-events-none text-white absolute bottom-4">
-											点击并拖动以创建新区域
+											{L(
+												"点击并拖动以创建新区域",
+												"Click and drag to create a new area",
+											)}
 										</p>
 									</Show>
 								</Show>
@@ -841,27 +848,27 @@ function RecordingControls(props: {
 
 	const countdownMenu = async () =>
 		await Submenu.new({
-			text: "录制倒计时",
+			text: L("录制倒计时", "Recording Countdown"),
 			items: [
 				await CheckMenuItem.new({
-					text: "关闭",
+					text: L("关闭", "Off"),
 					action: () => generalSettingsStore.set({ recordingCountdown: 0 }),
 					checked:
 						!generalSetings.data?.recordingCountdown ||
 						generalSetings.data?.recordingCountdown === 0,
 				}),
 				await CheckMenuItem.new({
-					text: "3秒",
+					text: L("3秒", "3 seconds"),
 					action: () => generalSettingsStore.set({ recordingCountdown: 3 }),
 					checked: generalSetings.data?.recordingCountdown === 3,
 				}),
 				await CheckMenuItem.new({
-					text: "5秒",
+					text: L("5秒", "5 seconds"),
 					action: () => generalSettingsStore.set({ recordingCountdown: 5 }),
 					checked: generalSetings.data?.recordingCountdown === 5,
 				}),
 				await CheckMenuItem.new({
-					text: "10秒",
+					text: L("10秒", "10 seconds"),
 					action: () => generalSettingsStore.set({ recordingCountdown: 10 }),
 					checked: generalSetings.data?.recordingCountdown === 10,
 				}),
@@ -889,12 +896,18 @@ function RecordingControls(props: {
 				<div class="flex flex-col gap-2 items-center p-2 my-2.5 rounded-xl border w-52 bg-red-500/80 border-red-500/60 text-white">
 					<div class="flex gap-2 items-center">
 						<IconCapInfo class="will-change-transform size-4" />
-						<p class="text-sm font-medium">区域太小</p>
+						<p class="text-sm font-medium">{L("区域太小", "Area Too Small")}</p>
 					</div>
 					<p class="text-xs text-center tabular-nums">
-						选择区域至少为 {MIN_WIDTH}x{MIN_HEIGHT} 像素
+						{L(
+							`选择区域至少为 ${MIN_WIDTH}x${MIN_HEIGHT} 像素`,
+							`Minimum area is ${MIN_WIDTH}x${MIN_HEIGHT} pixels`,
+						)}
 						{props.target.variant === "area" &&
-							` (当前 ${props.target.bounds.size.width}x${props.target.bounds.size.height})`}
+							L(
+								` (当前 ${props.target.bounds.size.width}x${props.target.bounds.size.height})`,
+								` (currently ${props.target.bounds.size.width}x${props.target.bounds.size.height})`,
+							)}
 					</p>
 				</div>
 			}
@@ -925,7 +938,7 @@ function RecordingControls(props: {
 					>
 						<IconCapFilmCut class="size-4" />
 						<span class="text-sm font-medium text-nowrap ml-3">
-							开始录制
+							{L("开始录制", "Start Recording")}
 						</span>
 					</div>
 				</div>
@@ -974,7 +987,7 @@ function OrganizationSelect(props: { showBackground?: boolean }) {
 				}}
 			>
 				<div class="text-sm text-white flex flex-row">
-					<span class="opacity-70">组织：</span>
+					<span class="opacity-70">{L("组织：", "Organization:")}</span>
 					<span class="ml-1 flex flex-row ">
 						{
 							(

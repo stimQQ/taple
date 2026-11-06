@@ -22,7 +22,7 @@ export async function generateMetadata(
 
 	if (!CONVERSION_CONFIGS[conversionPath]) {
 		return {
-			title: "Conversion Not Supported | SparkVideo",
+			title: "Conversion Not Supported | Taple",
 			description:
 				"This conversion type is not supported by our free online tools.",
 		};

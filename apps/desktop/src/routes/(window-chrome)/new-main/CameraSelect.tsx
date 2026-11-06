@@ -1,12 +1,13 @@
 import { createQuery } from "@tanstack/solid-query";
 import { CheckMenuItem, Menu, PredefinedMenuItem } from "@tauri-apps/api/menu";
 import { trackEvent } from "~/utils/analytics";
+import { L } from "~/utils/i18n";
 import { createCurrentRecordingQuery, getPermissions } from "~/utils/queries";
 import type { CameraInfo } from "~/utils/tauri";
 import TargetSelectInfoPill from "./TargetSelectInfoPill";
 import useRequestPermission from "./useRequestPermission";
 
-const NO_CAMERA = "未选择摄像头";
+const NO_CAMERA = L("未选择摄像头", "No Camera");
 
 export default function CameraSelect(props: {
 	disabled?: boolean;
@@ -42,7 +43,7 @@ export default function CameraSelect(props: {
 				onClick={() => {
 					Promise.all([
 						CheckMenuItem.new({
-							text: "关闭摄像头",
+							text: L("关闭摄像头", "No Camera"),
 							checked: props.value === null,
 							action: () => onChange(null),
 						}),

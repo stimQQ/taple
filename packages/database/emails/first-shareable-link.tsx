@@ -33,18 +33,19 @@ export function FirstShareableLink({
 								src={CAP_LOGO_URL}
 								width="40"
 								height="40"
-								alt="SparkVideo"
+								alt="Taple"
 								className="mx-auto my-0"
 							/>
 						</Section>
 						<Heading className="mx-0 my-7 p-0 text-center text-xl font-semibold text-black">
-							You created your first SparkVideo link! 🥳
+							You created your first Taple link! 🥳
 						</Heading>
 						<Text className="text-sm leading-6 text-black">
 							Your video "{videoName}" is now ready to share with anyone.
 						</Text>
 						<Text className="text-sm leading-6 text-black">
-							Click the button below to view your SparkVideo and share it with others.
+							Click the button below to view your Taple and share it with
+							others.
 						</Text>
 						<Section className="my-8 text-center">
 							<Link

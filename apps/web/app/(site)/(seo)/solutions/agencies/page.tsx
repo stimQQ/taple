@@ -86,14 +86,14 @@ export const metadata: Metadata = {
 		title: "Cap for Agencies — Faster Client Updates with Instant Video Links",
 		description:
 			"Send clearer client updates in minutes. Share instant links with comments, or craft polished walkthroughs. Cap for Agencies on macOS & Windows.",
-		url: "https://sparkvideo.cc/solutions/agencies",
-		siteName: "SparkVideo",
+		url: "https://taple.app/solutions/agencies",
+		siteName: "Taple",
 		images: [
 			{
-				url: "https://sparkvideo.cc/og.png",
+				url: "https://taple.app/og.png",
 				width: 1200,
 				height: 630,
-				alt: "SparkVideo for Agencies",
+				alt: "Taple for Agencies",
 			},
 		],
 		locale: "en_US",
@@ -104,7 +104,7 @@ export const metadata: Metadata = {
 		title: "Cap for Agencies — Faster Client Updates with Instant Video Links",
 		description:
 			"Send clearer client updates in minutes. Share instant links with comments, or craft polished walkthroughs. Cap for Agencies on macOS & Windows.",
-		images: ["https://sparkvideo.cc/og.png"],
+		images: ["https://taple.app/og.png"],
 	},
 };
 

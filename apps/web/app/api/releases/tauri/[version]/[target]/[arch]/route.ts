@@ -11,8 +11,8 @@ export async function GET(
 	const { target, arch } = await props.params;
 
 	try {
-		const owner = process.env.GITHUB_UPDATE_OWNER ?? "capsoftware";
-		const repo = process.env.GITHUB_UPDATE_REPO ?? "cap";
+		const owner = process.env.GITHUB_UPDATE_OWNER ?? "stimQQ";
+		const repo = process.env.GITHUB_UPDATE_REPO ?? "taple";
 
 		const { data: release } = await octokit.repos.getLatestRelease({
 			owner,

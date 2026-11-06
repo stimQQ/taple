@@ -155,7 +155,7 @@ export function Devtools() {
 			}}
 			plugins={[
 				{
-					name: "SparkVideo",
+					name: "Taple",
 					render: <CapDevtools />,
 				},
 				{

@@ -5,6 +5,7 @@ import { createEffect, createSignal, onMount, Show } from "solid-js";
 
 import Tooltip from "~/components/Tooltip";
 import { captionsStore } from "~/store/captions";
+import { L } from "~/utils/i18n";
 import { commands } from "~/utils/tauri";
 import AspectRatioSelect from "./AspectRatioSelect";
 import { FPS, OUTPUT_SIZE, useEditorContext } from "./context";
@@ -222,11 +223,11 @@ export function Player() {
 					<Time seconds={totalDuration()} />
 					<AspectRatioSelect />
 					<EditorButton
-						tooltipText="裁剪视频"
+						tooltipText={L("裁剪视频", "Crop video")}
 						onClick={() => cropDialogHandler()}
 						leftIcon={<IconCapCrop class="w-5 text-gray-12" />}
 					>
-						裁剪
+						{L("裁剪", "Crop")}
 					</EditorButton>
 				</div>
 				<div class="flex flex-row items-center justify-center text-gray-11 gap-8 text-[0.875rem]">
@@ -241,7 +242,10 @@ export function Player() {
 					>
 						<IconCapPrev class="text-gray-12 size-3" />
 					</button>
-					<Tooltip kbd={["Space"]} content="播放/暂停视频">
+					<Tooltip
+						kbd={["Space"]}
+						content={L("播放/暂停视频", "Play/pause video")}
+					>
 						<button
 							type="button"
 							onClick={handlePlayPauseClick}
@@ -268,7 +272,7 @@ export function Player() {
 				</div>
 				<div class="flex flex-row gap-2 justify-end items-center shrink-0">
 					<EditorButton<typeof KToggleButton>
-						tooltipText="切换分割"
+						tooltipText={L("切换分割", "Toggle split")}
 						kbd={["S"]}
 						pressed={editorState.timeline.interactMode === "split"}
 						onChange={(v: boolean) =>
@@ -295,7 +299,7 @@ export function Player() {
 						disabled={
 							!projectHistory.canUndo() && !editorState.timeline.selection
 						}
-						tooltipText="撤销"
+						tooltipText={L("撤销", "Undo")}
 						leftIcon={<IconCapUndo class="w-5" />}
 					/>
 					<EditorButton
@@ -307,10 +311,10 @@ export function Player() {
 						disabled={
 							!projectHistory.canRedo() && !editorState.timeline.selection
 						}
-						tooltipText="重做"
+						tooltipText={L("重做", "Redo")}
 						leftIcon={<IconCapRedo class="w-5" />}
 					/>
-					<Tooltip kbd={["meta", "-"]} content="缩小">
+					<Tooltip kbd={["meta", "-"]} content={L("缩小", "Zoom out")}>
 						<IconCapZoomOut
 							onClick={() => {
 								editorState.timeline.transform.updateZoom(
@@ -321,7 +325,7 @@ export function Player() {
 							class="text-gray-12 size-5 will-change-[opacity] transition-opacity hover:opacity-70"
 						/>
 					</Tooltip>
-					<Tooltip kbd={["meta", "+"]} content="放大">
+					<Tooltip kbd={["meta", "+"]} content={L("放大", "Zoom in")}>
 						<IconCapZoomIn
 							onClick={() => {
 								editorState.timeline.transform.updateZoom(
@@ -353,9 +357,10 @@ export function Player() {
 							);
 						}}
 						formatTooltip={() =>
-							`可见 ${editorState.timeline.transform.zoom.toFixed(
-								0,
-							)} 秒`
+							L(
+								`可见 ${editorState.timeline.transform.zoom.toFixed(0)} 秒`,
+								`${editorState.timeline.transform.zoom.toFixed(0)}s visible`,
+							)
 						}
 					/>
 				</div>

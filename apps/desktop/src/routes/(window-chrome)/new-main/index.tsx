@@ -28,6 +28,7 @@ import { reconcile } from "solid-js/store";
 import Tooltip from "~/components/Tooltip";
 import { Input } from "~/routes/editor/ui";
 import { createSignInMutation } from "~/utils/auth";
+import { L } from "~/utils/i18n";
 import {
 	createCameraMutation,
 	createCurrentRecordingQuery,
@@ -131,7 +132,7 @@ type InlinePanelProps =
 			variant: "window";
 			targets?: CaptureWindowWithThumbnail[];
 			onSelect: (target: CaptureWindowWithThumbnail) => void;
-			selectedId?: number;
+			selectedId?: string;
 	  };
 
 function InlinePanel(
@@ -144,9 +145,14 @@ function InlinePanel(
 	const [search, setSearch] = createSignal("");
 	const trimmedSearch = createMemo(() => search().trim());
 	const normalizedQuery = createMemo(() => trimmedSearch().toLowerCase());
-	const placeholder = props.variant === "display" ? "搜索显示器" : "搜索窗口";
+	const placeholder =
+		props.variant === "display"
+			? L("搜索显示器", "Search displays")
+			: L("搜索窗口", "Search windows");
 	const noResultsMessage =
-		props.variant === "display" ? "没有匹配的显示器" : "没有匹配的窗口";
+		props.variant === "display"
+			? L("没有匹配的显示器", "No matching displays")
+			: L("没有匹配的窗口", "No matching windows");
 
 	const filteredDisplayTargets = createMemo<CaptureDisplayWithThumbnail[]>(
 		() => {
@@ -156,9 +162,7 @@ function InlinePanel(
 			if (!query) return targets;
 			const matchesQuery = (value?: string | null) =>
 				!!value && value.toLowerCase().includes(query);
-			return targets.filter(
-				(t) => matchesQuery(t.name) || matchesQuery(t.id),
-			);
+			return targets.filter((t) => matchesQuery(t.name) || matchesQuery(t.id));
 		},
 	);
 
@@ -302,12 +306,18 @@ function Page() {
 
 	const displayErrorMessage = () => {
 		if (!displayTargets.error) return undefined;
-		return "无法加载显示器列表，请尝试使用显示器按钮。";
+		return L(
+			"无法加载显示器列表，请尝试使用显示器按钮。",
+			"Couldn't load displays. Try the Display button.",
+		);
 	};
 
 	const windowErrorMessage = () => {
 		if (!windowTargets.error) return undefined;
-		return "无法加载窗口列表，请尝试使用窗口按钮。";
+		return L(
+			"无法加载窗口列表，请尝试使用窗口按钮。",
+			"Couldn't load windows. Try the Window button.",
+		);
 	};
 
 	const selectDisplayTarget = (target: CaptureDisplayWithThumbnail) => {
@@ -602,7 +612,7 @@ function Page() {
 			contentProtected: true,
 			shadow: false,
 			resizable: false,
-			title: "提词器",
+			title: L("提词器", "Teleprompter"),
 			skipTaskbar: true,
 		});
 	};
@@ -628,7 +638,7 @@ function Page() {
 					data-tauri-drag-region
 				>
 					<div class="flex gap-1 items-center" data-tauri-drag-region>
-						<Tooltip content={<span>设置</span>}>
+						<Tooltip content={<span>{L("设置", "Settings")}</span>}>
 							<button
 								type="button"
 								onClick={async () => {
@@ -640,7 +650,6 @@ function Page() {
 								<IconCapSettings class="transition-colors text-gray-11 size-4 hover:text-gray-12" />
 							</button>
 						</Tooltip>
-
 					</div>
 					{ostype() === "macos" && (
 						<div class="flex-1" data-tauri-drag-region />
@@ -662,10 +671,10 @@ function Page() {
 								)}
 							>
 								{license.data?.type === "commercial"
-									? "商业版"
+									? L("商业版", "Commercial")
 									: license.data?.type === "pro"
-										? "专业版"
-										: "个人版"}
+										? L("专业版", "Pro")
+										: L("个人版", "Personal")}
 							</span>
 						</Suspense>
 					</ErrorBoundary>
@@ -674,7 +683,7 @@ function Page() {
 			<Show when={signIn.isPending}>
 				<div class="flex absolute inset-0 justify-center items-center bg-gray-1 animate-in fade-in">
 					<div class="flex flex-col gap-4 justify-center items-center">
-						<span>登录中...</span>
+						<span>{L("登录中...", "Signing in...")}</span>
 
 						<Button
 							onClick={() => {
@@ -684,7 +693,7 @@ function Page() {
 							variant="gray"
 							class="w-full"
 						>
-							取消登录
+							{L("取消登录", "Cancel Sign In")}
 						</Button>
 					</div>
 				</div>
@@ -706,7 +715,9 @@ function Page() {
 							disabled={mics.isPending}
 							options={mics.isPending ? [] : (mics.data ?? [])}
 							value={
-								mics.isPending ? rawOptions.micName : (options.micName() ?? null)
+								mics.isPending
+									? rawOptions.micName
+									: (options.micName() ?? null)
 							}
 							onChange={(v) => setMicInput.mutate(v)}
 						/>
@@ -739,7 +750,7 @@ function Page() {
 									});
 								}
 							}}
-							name="全屏录制"
+							name={L("全屏录制", "Display")}
 							class={cx(
 								"flex-1",
 								(rawOptions.targetMode === "display" || displayMenuOpen()) &&
@@ -773,7 +784,7 @@ function Page() {
 									});
 								}
 							}}
-							name="窗口录制"
+							name={L("窗口录制", "Window")}
 							class={cx(
 								"flex-1",
 								(rawOptions.targetMode === "window" || windowMenuOpen()) &&
@@ -793,7 +804,7 @@ function Page() {
 									commands.openTargetSelectOverlays(null);
 								else commands.closeTargetSelectOverlays();
 							}}
-							name="区域录制"
+							name={L("区域录制", "Area")}
 							class={cx(
 								"flex-1",
 								rawOptions.targetMode === "area" &&
@@ -811,7 +822,9 @@ function Page() {
 							class="flex flex-1 flex-row gap-2 items-center px-2 h-9 rounded-lg transition-colors bg-gray-3 hover:bg-gray-4 text-gray-12"
 						>
 							<IconLucideSquarePlay class="text-gray-10 size-4" />
-							<p class="flex-1 text-xs text-left">历史录制</p>
+							<p class="flex-1 text-xs text-left">
+								{L("历史录制", "Recordings")}
+							</p>
 						</button>
 						<button
 							type="button"
@@ -819,7 +832,9 @@ function Page() {
 							class="flex flex-1 flex-row gap-2 items-center px-2 h-9 rounded-lg transition-colors bg-gray-3 hover:bg-gray-4 text-gray-12"
 						>
 							<IconLucideScrollText class="text-gray-10 size-4" />
-							<p class="flex-1 text-xs text-left">提词器</p>
+							<p class="flex-1 text-xs text-left">
+								{L("提词器", "Teleprompter")}
+							</p>
 						</button>
 					</div>
 					<Show when={displayMenuOpen()}>

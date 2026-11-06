@@ -16,9 +16,11 @@ jobs:
       matrix:
         settings:
           - target: x86_64-apple-darwin
-            runner: macos-latest-xlarge
+            arch: x86_64
+            runner: macos-latest
           - target: aarch64-apple-darwin
-            runner: macos-latest-xlarge
+            arch: aarch64
+            runner: macos-latest
     env:
       TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
       TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
@@ -85,10 +87,59 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
-      - name: Upload DMG to GitHub Release
+      - name: Collect release files
+        run: |
+          BUNDLE="target/${{ matrix.settings.target }}/release/bundle"
+          ARCH="${{ matrix.settings.arch }}"
+          mkdir -p release-files
+          cp "$BUNDLE"/dmg/*.dmg release-files/
+          cp "$BUNDLE"/dmg/*.dmg "release-files/Taple_${ARCH}.dmg"
+          cp "$BUNDLE/macos/Taple.app.tar.gz" "release-files/Taple_${ARCH}.app.tar.gz"
+          cp "$BUNDLE/macos/Taple.app.tar.gz.sig" "release-files/Taple_${ARCH}.app.tar.gz.sig"
+          ls -l release-files
+
+      - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.read_version.outputs.value }}
           name: v${{ steps.read_version.outputs.value }}
           draft: false
-          files: target/${{ matrix.settings.target }}/release/bundle/dmg/*.dmg
+          files: release-files/*
+
+  updater-manifest:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Read version number
+        uses: SebRollen/toml-action@v1.0.2
+        id: read_version
+        with:
+          file: ${{ env.APP_CARGO_TOML }}
+          field: "package.version"
+
+      - name: Upload latest.json for the in-app updater
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.read_version.outputs.value }}
+        run: |
+          TAG="v${VERSION}"
+          BASE="https://github.com/${{ github.repository }}/releases/download/${TAG}"
+          gh release download "$TAG" --pattern "*.app.tar.gz.sig" --dir sigs
+          jq -n \
+            --arg version "$VERSION" \
+            --arg date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg arm_sig "$(cat sigs/Taple_aarch64.app.tar.gz.sig)" \
+            --arg x64_sig "$(cat sigs/Taple_x86_64.app.tar.gz.sig)" \
+            --arg arm_url "$BASE/Taple_aarch64.app.tar.gz" \
+            --arg x64_url "$BASE/Taple_x86_64.app.tar.gz" \
+            '{version: $version, pub_date: $date, platforms: {
+              "darwin-aarch64": {signature: $arm_sig, url: $arm_url},
+              "darwin-x86_64": {signature: $x64_sig, url: $x64_url}
+            }}' > latest.json
+          cat latest.json
+          gh release upload "$TAG" latest.json --clobber

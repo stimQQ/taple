@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-	title: "Privacy Policy — SparkVideo",
+	title: "Privacy Policy — Taple",
 };
 
 export default function App() {
@@ -19,14 +19,13 @@ export default function App() {
 				<div className="text-left legal-body fade-in-up animate-delay-2">
 					<>
 						<p>
-							At SparkVideo ("SparkVideo," "we," "us," or "our"), we are
-							committed to protecting your privacy and ensuring the security of
-							your personal information. This Privacy Policy explains how we
-							collect, use, disclose, and safeguard your information when you
-							use our software application and services (collectively, the
-							"Services"). By using our Services, you consent to the collection,
-							use, and disclosure of your information as described in this
-							Privacy Policy.
+							At Taple ("Taple," "we," "us," or "our"), we are committed to
+							protecting your privacy and ensuring the security of your personal
+							information. This Privacy Policy explains how we collect, use,
+							disclose, and safeguard your information when you use our software
+							application and services (collectively, the "Services"). By using
+							our Services, you consent to the collection, use, and disclosure
+							of your information as described in this Privacy Policy.
 						</p>
 						<ol>
 							<li>
@@ -132,14 +131,14 @@ export default function App() {
 								<h3>Contact Us</h3>
 								<br />
 								If you have any questions or concerns about this Privacy Policy
-								or our privacy practices, please contact us at hello@sparkvideo.cc.
+								or our privacy practices, please contact us at hello@taple.app.
 							</li>
 						</ol>
 						<p>
 							By using our Services, you acknowledge that you have read and
 							understood this Privacy Policy and agree to be bound by its terms.
 						</p>
-						<p>Privacy Policy for SparkVideo</p>
+						<p>Privacy Policy for Taple</p>
 						<p>Last Updated: 24th April 2024</p>
 					</>
 				</div>

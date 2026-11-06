@@ -8,7 +8,10 @@ import {
 } from "@tanstack/solid-query";
 import { Channel } from "@tauri-apps/api/core";
 import { CheckMenuItem, Menu } from "@tauri-apps/api/menu";
-import { save as saveDialog, open as openDialog } from "@tauri-apps/plugin-dialog";
+import {
+	save as saveDialog,
+	open as openDialog,
+} from "@tauri-apps/plugin-dialog";
 import { homeDir, desktopDir } from "@tauri-apps/api/path";
 import { cx } from "cva";
 import {
@@ -33,6 +36,7 @@ import { authStore } from "~/store";
 import { trackEvent } from "~/utils/analytics";
 import { createSignInMutation } from "~/utils/auth";
 import { exportVideo } from "~/utils/export";
+import { L } from "~/utils/i18n";
 import { createOrganizationsQuery } from "~/utils/queries";
 import {
 	commands,
@@ -58,10 +62,10 @@ export const COMPRESSION_OPTIONS: Array<{
 	label: string;
 	value: ExportCompression;
 }> = [
-	{ label: "最小压缩", value: "Minimal" },
-	{ label: "社交媒体", value: "Social" },
-	{ label: "网页", value: "Web" },
-	{ label: "极限压缩", value: "Potato" },
+	{ label: L("最小压缩", "Minimal"), value: "Minimal" },
+	{ label: L("社交媒体", "Social Media"), value: "Social" },
+	{ label: L("网页", "Web"), value: "Web" },
+	{ label: L("极限压缩", "Maximum"), value: "Potato" },
 ];
 
 export const FPS_OPTIONS = [
@@ -78,14 +82,20 @@ export const GIF_FPS_OPTIONS = [
 	{ label: "30 FPS", value: 30 },
 ] satisfies Array<{ label: string; value: number }>;
 
-export const EXPORT_TO_OPTIONS = [
+type ExportToOption = "file" | "clipboard" | "link";
+
+export const EXPORT_TO_OPTIONS: {
+	label: string;
+	value: ExportToOption;
+	icon: JSX.Element;
+}[] = [
 	{
-		label: "文件",
+		label: L("文件", "File"),
 		value: "file",
 		icon: <IconCapFile class="text-gray-12 size-3.5" />,
 	},
 	{
-		label: "剪贴板",
+		label: L("剪贴板", "Clipboard"),
 		value: "clipboard",
 		icon: <IconCapCopy class="text-gray-12 size-3.5" />,
 	},
@@ -94,7 +104,7 @@ export const EXPORT_TO_OPTIONS = [
 	// 	value: "link",
 	// 	icon: <IconCapLink class="text-gray-12 size-3.5" />,
 	// },
-] as const;
+];
 
 type ExportFormat = ExportSettings["format"];
 
@@ -102,8 +112,6 @@ const FORMAT_OPTIONS = [
 	{ label: "MP4", value: "Mp4" },
 	{ label: "GIF", value: "Gif" },
 ] as { label: string; value: ExportFormat; disabled?: boolean }[];
-
-type ExportToOption = (typeof EXPORT_TO_OPTIONS)[number]["value"];
 
 interface Settings {
 	format: ExportFormat;
@@ -253,7 +261,9 @@ export function ExportDialog() {
 		},
 		onError: (error) => {
 			commands.globalMessageDialog(
-				error instanceof Error ? error.message : "复制录制失败",
+				error instanceof Error
+					? error.message
+					: L("复制录制失败", "Failed to copy recording"),
 			);
 			setExportState(reconcile({ type: "idle" }));
 		},
@@ -274,9 +284,10 @@ export function ExportDialog() {
 				});
 			} else
 				toast.success(
-					`${
-						settings.format === "Gif" ? "GIF" : "录制"
-					}已复制到剪贴板`,
+					L(
+						`${settings.format === "Gif" ? "GIF" : "录制"}已复制到剪贴板`,
+						`${settings.format === "Gif" ? "GIF" : "Recording"} copied to clipboard`,
+					),
 				);
 		},
 	}));
@@ -314,7 +325,7 @@ export function ExportDialog() {
 			commands.globalMessageDialog(
 				error instanceof Error
 					? error.message
-					: `导出录制失败: ${error}`,
+					: L(`导出录制失败: ${error}`, `Failed to export recording: ${error}`),
 			);
 			setExportState({ type: "idle" });
 		},
@@ -333,7 +344,10 @@ export function ExportDialog() {
 				});
 			} else
 				toast.success(
-					`${settings.format === "Gif" ? "GIF" : "录制"}已导出到文件`,
+					L(
+						`${settings.format === "Gif" ? "GIF" : "录制"}已导出到文件`,
+						`${settings.format === "Gif" ? "GIF" : "Recording"} exported to file`,
+					),
 				);
 		},
 	}));
@@ -403,11 +417,20 @@ export function ExportDialog() {
 					);
 
 			if (result === "NotAuthenticated")
-				throw new Error("你需要登录才能分享录制");
+				throw new Error(
+					L(
+						"你需要登录才能分享录制",
+						"You need to sign in to share recordings",
+					),
+				);
 			else if (result === "PlanCheckFailed")
-				throw new Error("验证订阅状态失败");
+				throw new Error(
+					L("验证订阅状态失败", "Failed to verify subscription status"),
+				);
 			else if (result === "UpgradeRequired")
-				throw new Error("此功能需要升级订阅");
+				throw new Error(
+					L("此功能需要升级订阅", "This feature requires an upgraded plan"),
+				);
 		},
 		onSuccess: async () => {
 			const d = dialog();
@@ -423,7 +446,9 @@ export function ExportDialog() {
 			console.error(error);
 			if (!(error instanceof SilentError)) {
 				commands.globalMessageDialog(
-					error instanceof Error ? error.message : "上传录制失败",
+					error instanceof Error
+						? error.message
+						: L("上传录制失败", "Failed to upload recording"),
 				);
 			}
 
@@ -435,13 +460,15 @@ export function ExportDialog() {
 		<>
 			<Show when={exportState.type === "idle"}>
 				<DialogContent
-					title="导出 SparkVideo"
+					title={L("导出 Taple", "Export Taple")}
 					onClose={() => setDialog((d) => ({ ...d, open: false }))}
 					confirm={
 						settings.exportTo === "link" && !auth.data ? (
 							<SignInButton>
 								{exportButtonIcon[settings.exportTo]}
-								<span class="ml-1.5">登录以分享</span>
+								<span class="ml-1.5">
+									{L("登录以分享", "Sign In to Share")}
+								</span>
 							</SignInButton>
 						) : (
 							<Button
@@ -453,7 +480,7 @@ export function ExportDialog() {
 									else copy.mutate();
 								}}
 							>
-								导出
+								{L("导出", "Export")}
 							</Button>
 						)
 					}
@@ -533,19 +560,23 @@ export function ExportDialog() {
 					<div class="flex flex-col gap-3">
 						{/* 1. 文件名称 */}
 						<div class="flex items-center justify-between p-3 rounded-xl dark:bg-gray-2 bg-gray-3">
-							<span class="text-sm text-gray-11">文件名称</span>
+							<span class="text-sm text-gray-11">
+								{L("文件名称", "File Name")}
+							</span>
 							<input
 								type="text"
 								value={customFileName()}
 								onInput={(e) => setCustomFileName(e.currentTarget.value)}
 								class="text-sm text-gray-12 font-medium bg-transparent border-none outline-none text-right max-w-[200px] focus:ring-1 focus:ring-gray-6 rounded px-2 py-1"
-								placeholder="输入文件名"
+								placeholder={L("输入文件名", "Enter file name")}
 							/>
 						</div>
 
 						{/* 2. 保存位置 */}
 						<div class="flex items-center justify-between p-3 rounded-xl dark:bg-gray-2 bg-gray-3">
-							<span class="text-sm text-gray-11">导出到</span>
+							<span class="text-sm text-gray-11">
+								{L("导出到", "Export To")}
+							</span>
 							<div class="flex gap-2">
 								<For each={EXPORT_TO_OPTIONS}>
 									{(option) => (
@@ -578,10 +609,16 @@ export function ExportDialog() {
 						{/* 3. 文件保存路径 (仅当导出到文件时显示) */}
 						<Show when={settings.exportTo === "file"}>
 							<div class="flex items-center justify-between p-3 rounded-xl dark:bg-gray-2 bg-gray-3">
-								<span class="text-sm text-gray-11">保存路径</span>
+								<span class="text-sm text-gray-11">
+									{L("保存路径", "Save Location")}
+								</span>
 								<div class="flex items-center gap-2">
-									<span class="text-xs text-gray-11 max-w-[180px] truncate" title={settings.saveDirectory}>
-										{settings.saveDirectory?.replace(/^\/Users\/[^/]+/, "~") || "~/Desktop"}
+									<span
+										class="text-xs text-gray-11 max-w-[180px] truncate"
+										title={settings.saveDirectory}
+									>
+										{settings.saveDirectory?.replace(/^\/Users\/[^/]+/, "~") ||
+											"~/Desktop"}
 									</span>
 									<Button
 										variant="gray"
@@ -605,7 +642,9 @@ export function ExportDialog() {
 
 						{/* 3. 分辨率 */}
 						<div class="flex items-center justify-between p-3 rounded-xl dark:bg-gray-2 bg-gray-3">
-							<span class="text-sm text-gray-11">分辨率</span>
+							<span class="text-sm text-gray-11">
+								{L("分辨率", "Resolution")}
+							</span>
 							<div class="flex gap-2">
 								<For
 									each={
@@ -620,9 +659,7 @@ export function ExportDialog() {
 								>
 									{(option) => (
 										<Button
-											data-selected={
-												settings.resolution.value === option.value
-											}
+											data-selected={settings.resolution.value === option.value}
 											class="px-2.5 py-1.5 text-xs"
 											variant="gray"
 											onClick={() => setSettings("resolution", option)}
@@ -636,7 +673,9 @@ export function ExportDialog() {
 
 						{/* 4. 格式和帧率 */}
 						<div class="flex items-center justify-between p-3 rounded-xl dark:bg-gray-2 bg-gray-3">
-							<span class="text-sm text-gray-11">格式 / 帧率</span>
+							<span class="text-sm text-gray-11">
+								{L("格式 / 帧率", "Format / Frame Rate")}
+							</span>
 							<div class="flex gap-3 items-center">
 								{/* Format buttons */}
 								<div class="flex gap-1.5">
@@ -647,12 +686,18 @@ export function ExportDialog() {
 													option.value === "Mp4" &&
 													hasTransparentBackground()
 												)
-													return "MP4 格式不支持透明背景";
+													return L(
+														"MP4 格式不支持透明背景",
+														"MP4 doesn't support transparent backgrounds",
+													);
 												if (
 													option.value === "Gif" &&
 													settings.exportTo === "link"
 												)
-													return "无法从 GIF 创建分享链接";
+													return L(
+														"无法从 GIF 创建分享链接",
+														"Shareable links can't be created from GIFs",
+													);
 											};
 
 											return (
@@ -716,7 +761,7 @@ export function ExportDialog() {
 									}
 									optionValue="value"
 									optionTextValue="label"
-									placeholder="选择帧率"
+									placeholder={L("选择帧率", "Select frame rate")}
 									value={(settings.format === "Gif"
 										? GIF_FPS_OPTIONS
 										: FPS_OPTIONS
@@ -791,7 +836,7 @@ export function ExportDialog() {
 						<>
 							<Dialog.Header>
 								<div class="flex justify-between items-center w-full">
-									<span class="text-gray-12">导出</span>
+									<span class="text-gray-12">{L("导出", "Export")}</span>
 									<div
 										onClick={() => setDialog((d) => ({ ...d, open: false }))}
 										class="flex justify-center items-center p-1 rounded-full transition-colors cursor-pointer hover:bg-gray-3"
@@ -811,14 +856,17 @@ export function ExportDialog() {
 												<div class="flex flex-col gap-4 justify-center items-center h-full">
 													<h1 class="text-lg font-medium text-gray-12">
 														{copyState.type === "starting"
-															? "准备中..."
+															? L("准备中...", "Preparing...")
 															: copyState.type === "rendering"
 																? settings.format === "Gif"
-																	? "正在渲染 GIF..."
-																	: "正在渲染视频..."
+																	? L("正在渲染 GIF...", "Rendering GIF...")
+																	: L("正在渲染视频...", "Rendering video...")
 																: copyState.type === "copying"
-																	? "正在复制到剪贴板..."
-																	: "已复制到剪贴板"}
+																	? L(
+																			"正在复制到剪贴板...",
+																			"Copying to clipboard...",
+																		)
+																	: L("已复制到剪贴板", "Copied to clipboard")}
 													</h1>
 													<Show
 														when={
@@ -853,14 +901,23 @@ export function ExportDialog() {
 															<>
 																<h1 class="text-lg font-medium text-gray-12">
 																	{saveState.type === "starting"
-																		? "准备中..."
+																		? L("准备中...", "Preparing...")
 																		: saveState.type === "rendering"
 																			? settings.format === "Gif"
-																				? "正在渲染 GIF..."
-																				: "正在渲染视频..."
+																				? L(
+																						"正在渲染 GIF...",
+																						"Rendering GIF...",
+																					)
+																				: L(
+																						"正在渲染视频...",
+																						"Rendering video...",
+																					)
 																			: saveState.type === "copying"
-																				? "正在导出到文件..."
-																				: "导出完成"}
+																				? L(
+																						"正在导出到文件...",
+																						"Exporting to file...",
+																					)
+																				: L("导出完成", "Export Complete")}
 																</h1>
 																<Show
 																	when={
@@ -887,12 +944,13 @@ export function ExportDialog() {
 																</div>
 																<div class="flex flex-col gap-1 items-center">
 																	<h1 class="text-xl font-medium text-gray-12">
-																		导出完成
+																		{L("导出完成", "Export Complete")}
 																	</h1>
 																	<p class="text-sm text-gray-11">
-																		你的{settings.format === "Gif"
-																			? "GIF"
-																			: "视频"}已成功导出
+																		{L(
+																			`你的${settings.format === "Gif" ? "GIF" : "视频"}已成功导出`,
+																			`Your ${settings.format === "Gif" ? "GIF" : "video"} has been exported`,
+																		)}
 																	</p>
 																</div>
 															</div>
@@ -914,7 +972,7 @@ export function ExportDialog() {
 														{(uploadState) => (
 															<div class="flex flex-col gap-4 justify-center items-center">
 																<h1 class="text-lg font-medium text-center text-gray-12">
-																	正在上传...
+																	{L("正在上传...", "Uploading...")}
 																</h1>
 																<Switch>
 																	<Match
@@ -927,9 +985,10 @@ export function ExportDialog() {
 																		{(uploadState) => (
 																			<ProgressView
 																				amount={uploadState.progress}
-																				label={`正在上传 - ${Math.floor(
-																					uploadState.progress,
-																				)}%`}
+																				label={L(
+																					`正在上传 - ${Math.floor(uploadState.progress)}%`,
+																					`Uploading - ${Math.floor(uploadState.progress)}%`,
+																				)}
 																			/>
 																		)}
 																	</Match>
@@ -955,10 +1014,13 @@ export function ExportDialog() {
 														<div class="flex flex-col gap-5 justify-center items-center">
 															<div class="flex flex-col gap-1 items-center">
 																<h1 class="mx-auto text-lg font-medium text-center text-gray-12">
-																	上传完成
+																	{L("上传完成", "Upload Complete")}
 																</h1>
 																<p class="text-sm text-gray-11">
-																	你的视频已成功上传
+																	{L(
+																		"你的视频已成功上传",
+																		"Your video has been uploaded",
+																	)}
 																</p>
 															</div>
 														</div>
@@ -999,7 +1061,7 @@ export function ExportDialog() {
 												) : (
 													<IconLucideCheck class="transition-colors duration-200 text-gray-1 size-4 svgpathanimation group-hover:text-gray-12" />
 												)}
-												<p>打开链接</p>
+												<p>{L("打开链接", "Open Link")}</p>
 											</Button>
 										</a>
 									</div>
@@ -1022,7 +1084,7 @@ export function ExportDialog() {
 											}}
 										>
 											<IconCapFile class="size-4" />
-											打开文件
+											{L("打开文件", "Open File")}
 										</Button>
 										<Button
 											variant="dark"
@@ -1036,9 +1098,10 @@ export function ExportDialog() {
 													}, 2000);
 													await commands.copyVideoToClipboard(path);
 													toast.success(
-														`${
-															settings.format === "Gif" ? "GIF" : "视频"
-														}已复制到剪贴板`,
+														L(
+															`${settings.format === "Gif" ? "GIF" : "视频"}已复制到剪贴板`,
+															`${settings.format === "Gif" ? "GIF" : "Video"} copied to clipboard`,
+														),
 													);
 												}
 											}}
@@ -1048,7 +1111,7 @@ export function ExportDialog() {
 											) : (
 												<IconLucideCheck class="size-4 svgpathanimation" />
 											)}
-											复制到剪贴板
+											{L("复制到剪贴板", "Copy to Clipboard")}
 										</Button>
 									</div>
 								</Show>
@@ -1073,10 +1136,15 @@ function RenderProgress(props: { state: RenderState; format?: ExportFormat }) {
 			}
 			label={
 				props.state.type === "rendering"
-					? `正在渲染${props.format === "Gif" ? " GIF" : "视频"} (${
-							props.state.progress.renderedCount
-						}/${props.state.progress.totalFrames} 帧)`
-					: "正在准备渲染..."
+					? L(
+							`正在渲染${props.format === "Gif" ? " GIF" : "视频"} (${
+								props.state.progress.renderedCount
+							}/${props.state.progress.totalFrames} 帧)`,
+							`Rendering ${props.format === "Gif" ? "GIF" : "video"} (${
+								props.state.progress.renderedCount
+							}/${props.state.progress.totalFrames} frames)`,
+						)
+					: L("正在准备渲染...", "Preparing to render...")
 			}
 		/>
 	);

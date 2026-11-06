@@ -5,6 +5,7 @@ import { type as ostype } from "@tauri-apps/plugin-os";
 import { createSignal } from "solid-js";
 import toast from "solid-toast";
 
+import { L } from "~/utils/i18n";
 import { commands } from "~/utils/tauri";
 import { apiClient, protectedHeaders } from "~/utils/web-api";
 
@@ -29,9 +30,9 @@ export default function FeedbackTab() {
 		setUploadingLogs(true);
 		try {
 			await commands.uploadLogs();
-			toast.success("日志上传成功");
+			toast.success(L("日志上传成功", "Logs uploaded"));
 		} catch (error) {
-			toast.error("日志上传失败");
+			toast.error(L("日志上传失败", "Failed to upload logs"));
 			console.error("Failed to upload logs:", error);
 		} finally {
 			setUploadingLogs(false);
@@ -43,9 +44,14 @@ export default function FeedbackTab() {
 			<div class="flex-1 custom-scroll">
 				<div class="p-4 space-y-4">
 					<div class="flex flex-col pb-4 border-b border-gray-2">
-						<h2 class="text-lg font-medium text-gray-12">发送反馈</h2>
+						<h2 class="text-lg font-medium text-gray-12">
+							{L("发送反馈", "Send Feedback")}
+						</h2>
 						<p class="text-sm text-gray-10">
-							提交反馈或报告问题，帮助我们改进 SparkVideo。我们会尽快处理。
+							{L(
+								"提交反馈或报告问题，帮助我们改进 Taple。我们会尽快处理。",
+								"Share feedback or report an issue to help us improve Taple. We'll get back to you soon.",
+							)}
 						</p>
 					</div>
 					<form
@@ -60,7 +66,10 @@ export default function FeedbackTab() {
 								<textarea
 									value={feedback()}
 									onInput={(e) => setFeedback(e.currentTarget.value)}
-									placeholder="告诉我们你对 SparkVideo 的想法..."
+									placeholder={L(
+										"告诉我们你对 Taple 的想法...",
+										"Tell us what you think about Taple...",
+									)}
 									required
 									minLength={10}
 									class="p-2 w-full h-32 text-[13px] rounded-md border transition-colors duration-200 resize-none bg-gray-2 placeholder:text-gray-10 border-gray-3 text-primary focus:outline-none focus:ring-1 focus:ring-gray-8 hover:border-gray-6"
@@ -74,7 +83,9 @@ export default function FeedbackTab() {
 							)}
 
 							{submission.result?.success && (
-								<p class="text-sm text-primary">感谢你的反馈！</p>
+								<p class="text-sm text-primary">
+									{L("感谢你的反馈！", "Thanks for your feedback!")}
+								</p>
 							)}
 
 							<Button
@@ -84,17 +95,22 @@ export default function FeedbackTab() {
 								disabled={feedback().trim().length < 4}
 								class="mt-2"
 							>
-								{submission.pending ? "提交中..." : "提交反馈"}
+								{submission.pending
+									? L("提交中...", "Submitting...")
+									: L("提交反馈", "Submit Feedback")}
 							</Button>
 						</fieldset>
 					</form>
 
 					<div class="pt-6 border-t border-gray-2">
 						<h3 class="text-sm font-medium text-gray-12 mb-2">
-							调试信息
+							{L("调试信息", "Debug Information")}
 						</h3>
 						<p class="text-sm text-gray-10 mb-3">
-							上传日志帮助我们诊断 SparkVideo 的问题。不包含任何个人信息。
+							{L(
+								"上传日志帮助我们诊断 Taple 的问题。不包含任何个人信息。",
+								"Upload logs to help us diagnose issues with Taple. No personal information is included.",
+							)}
 						</p>
 						<Button
 							onClick={handleUploadLogs}
@@ -102,7 +118,9 @@ export default function FeedbackTab() {
 							variant="gray"
 							disabled={uploadingLogs()}
 						>
-							{uploadingLogs() ? "上传中..." : "上传日志"}
+							{uploadingLogs()
+								? L("上传中...", "Uploading...")
+								: L("上传日志", "Upload Logs")}
 						</Button>
 					</div>
 				</div>

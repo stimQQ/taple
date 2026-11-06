@@ -24,7 +24,7 @@ export function LoginLink({
 	return (
 		<Html>
 			<Head />
-			<Preview>Your SparkVideo Login Link</Preview>
+			<Preview>Your Taple Login Link</Preview>
 			<Tailwind>
 				<Body className="mx-auto my-auto bg-gray-1 font-sans">
 					<Container className="mx-auto my-10 max-w-[500px] rounded border border-solid border-gray-200 px-10 py-5">
@@ -33,7 +33,7 @@ export function LoginLink({
 								src={CAP_LOGO_URL}
 								width="40"
 								height="40"
-								alt="SparkVideo"
+								alt="Taple"
 								className="mx-auto my-0"
 							/>
 						</Section>

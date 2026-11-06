@@ -9,6 +9,7 @@ import { createSignal, onCleanup, onMount, Show } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
 import { Transition } from "solid-transition-group";
 import Cropper from "~/components/Cropper";
+import { L } from "~/utils/i18n";
 import { createOptionsQuery } from "~/utils/queries";
 import type { Crop } from "~/utils/tauri";
 
@@ -123,7 +124,7 @@ export default function CaptureArea() {
 								</Tooltip.Trigger>
 								<Tooltip.Portal>
 									<Tooltip.Content class="z-50 px-2 py-1 text-xs rounded shadow-lg duration-500 delay-1000 text-gray-1 bg-gray-12 animate-in fade-in">
-										三分法网格
+										{L("三分法网格", "Rule of Thirds")}
 										<Tooltip.Arrow class="fill-gray-12" />
 									</Tooltip.Content>
 								</Tooltip.Portal>
@@ -136,7 +137,7 @@ export default function CaptureArea() {
 								>
 									<IconCapCircleCheck class="size-5" />
 									<span class="font-[500] text-[0.875rem]">
-										确认选择
+										{L("确认选择", "Confirm Selection")}
 									</span>
 								</button>
 							</div>

@@ -5,7 +5,7 @@ import { SeoPageTemplate } from "@/components/seo/SeoPageTemplate";
 import type { SeoPageContent } from "@/components/seo/types";
 
 const dailyStandupSoftwareContent: SeoPageContent = {
-	title: "Daily Standup Software: Streamline Your Agile Meetings with SparkVideo",
+	title: "Daily Standup Software: Streamline Your Agile Meetings with Taple",
 	description:
 		"Looking for daily standup software? Discover how Cap helps remote or hybrid teams run async standups efficiently. No more timezone conflicts!",
 
@@ -216,21 +216,21 @@ const createFaqStructuredData = () => {
 };
 
 export const metadata: Metadata = {
-	title: "Daily Standup Software: Streamline Your Agile Meetings with SparkVideo",
+	title: "Daily Standup Software: Streamline Your Agile Meetings with Taple",
 	description:
 		"Looking for daily standup software? Discover how Cap helps remote or hybrid teams run async standups efficiently—no more timezone conflicts!",
 	openGraph: {
-		title: "Daily Standup Software: Streamline Your Agile Meetings with SparkVideo",
+		title: "Daily Standup Software: Streamline Your Agile Meetings with Taple",
 		description:
 			"Looking for daily standup software? Discover how Cap helps remote or hybrid teams run async standups efficiently—no more timezone conflicts!",
-		url: "https://sparkvideo.cc/solutions/daily-standup-software",
-		siteName: "SparkVideo",
+		url: "https://taple.app/solutions/daily-standup-software",
+		siteName: "Taple",
 		images: [
 			{
-				url: "https://sparkvideo.cc/og.png",
+				url: "https://taple.app/og.png",
 				width: 1200,
 				height: 630,
-				alt: "SparkVideo: Daily Standup Software",
+				alt: "Taple: Daily Standup Software",
 			},
 		],
 		locale: "en_US",
@@ -238,10 +238,10 @@ export const metadata: Metadata = {
 	},
 	twitter: {
 		card: "summary_large_image",
-		title: "Daily Standup Software: Streamline Your Agile Meetings with SparkVideo",
+		title: "Daily Standup Software: Streamline Your Agile Meetings with Taple",
 		description:
 			"Looking for daily standup software? Discover how Cap helps remote or hybrid teams run async standups efficiently—no more timezone conflicts!",
-		images: ["https://sparkvideo.cc/og.png"],
+		images: ["https://taple.app/og.png"],
 	},
 };
 

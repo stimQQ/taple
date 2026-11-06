@@ -3,24 +3,24 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
-	<string>zh_CN</string>
+	<string>en</string>
 	<key>CFBundleLocalizations</key>
 	<array>
-		<string>zh_CN</string>
-		<string>zh-Hans</string>
 		<string>en</string>
+		<string>zh-Hans</string>
 	</array>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
 			<key>CFBundleTypeExtensions</key>
 			<array>
+				<string>taple</string>
 				<string>sparkvideo</string>
 			</array>
 			<key>CFBundleTypeIconFile</key>
 			<string>icon.icns</string>
 			<key>CFBundleTypeName</key>
-			<string>SparkVideo Recording</string>
+			<string>Taple Recording</string>
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>LSHandlerRank</key>
@@ -46,13 +46,13 @@
 		</dict>
 	</array>
 	<key>NSCameraUsageDescription</key>
-	<string>SparkVideo 需要使用摄像头来录制视频</string>
+	<string>Taple needs camera access to record video.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>SparkVideo 需要使用麦克风来录制音频</string>
+	<string>Taple needs microphone access to record audio.</string>
 	<key>NSScreenCaptureUsageDescription</key>
-	<string>SparkVideo 需要录制屏幕内容</string>
+	<string>Taple needs screen recording access to capture your screen.</string>
 	<key>NSAccessibilityUsageDescription</key>
-	<string>SparkVideo 需要辅助功能权限来控制录制操作</string>
+	<string>Taple needs accessibility access to control recordings.</string>
 	<key>NSCameraUseContinuityCameraDeviceType</key>
 	<true/>
 </dict>

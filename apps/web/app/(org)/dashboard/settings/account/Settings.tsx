@@ -212,9 +212,9 @@ export const Settings = () => {
 				</Card>
 				<Card className="flex flex-col gap-4">
 					<div className="space-y-1">
-						<CardTitle>联系邮箱</CardTitle>
+						<CardTitle>Contact Email</CardTitle>
 						<CardDescription>
-							这是你注册 SparkVideo 时使用的邮箱地址。
+							This is the email address you used to sign up for Taple.
 						</CardDescription>
 					</div>
 					<Input

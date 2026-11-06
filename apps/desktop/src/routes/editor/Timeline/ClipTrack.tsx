@@ -17,6 +17,7 @@ import {
 } from "solid-js";
 import { produce } from "solid-js/store";
 
+import { L } from "~/utils/i18n";
 import type { TimelineSegment } from "~/utils/tauri";
 import { useEditorContext } from "../context";
 import { useSegmentContext, useTimelineContext } from "./context";
@@ -588,8 +589,11 @@ export function ClipTrack(
 												<div class="flex flex-col gap-1 justify-center items-center text-xs whitespace-nowrap text-gray-12">
 													<span class="text-white/70">
 														{hasMultipleRecordingSegments()
-															? `片段 ${segment.recordingSegment}`
-															: "片段"}
+															? L(
+																	`片段 ${segment.recordingSegment}`,
+																	`Clip ${segment.recordingSegment}`,
+																)
+															: L("片段", "Clip")}
 													</span>
 													<div class="flex gap-1 items-center text-md dark:text-gray-12 text-gray-1">
 														<IconLucideClock class="size-3.5" />{" "}

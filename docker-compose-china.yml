@@ -1,12 +1,12 @@
 name: cap-china-deployment
 
-# Cap 国内部署配置
+# Taple 国内部署配置
 # 优化：使用国内镜像源 + MinIO 本地存储
 
 services:
   cap-web:
     container_name: cap-web
-    image: ghcr.io/capsoftware/cap-web:latest
+    image: ghcr.io/stimqq/taple-web:latest
     restart: unless-stopped
     depends_on:
       - ps-mysql

@@ -1,6 +1,7 @@
 import { cx } from "cva";
 import { createMemo, For, Match, Switch } from "solid-js";
 import { Transition } from "solid-transition-group";
+import { L } from "~/utils/i18n";
 import type {
 	CaptureDisplayWithThumbnail,
 	CaptureWindowWithThumbnail,
@@ -28,7 +29,7 @@ type DisplayGridProps = BaseProps<CaptureDisplayWithThumbnail> & {
 
 type WindowGridProps = BaseProps<CaptureWindowWithThumbnail> & {
 	variant: "window";
-	selectedId?: number;
+	selectedId?: string;
 };
 
 type TargetMenuGridProps = DisplayGridProps | WindowGridProps;
@@ -99,7 +100,9 @@ export default function TargetMenuGrid(props: TargetMenuGridProps) {
 	};
 
 	const defaultEmptyMessage = () =>
-		props.variant === "display" ? "未找到显示器" : "未找到窗口";
+		props.variant === "display"
+			? L("未找到显示器", "No displays found")
+			: L("未找到窗口", "No windows found");
 
 	return (
 		<div

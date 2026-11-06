@@ -11,14 +11,14 @@ export const metadata: Metadata = {
 			"The Ultimate Loom Alternative: Why Cap is the Best Open-Source Screen Recorder",
 		description:
 			"Looking for the best Loom alternative? Discover Cap, the open-source, privacy-focused screen recorder for Mac & Windows.",
-		url: "https://sparkvideo.cc/loom-alternative",
-		siteName: "SparkVideo",
+		url: "https://taple.app/loom-alternative",
+		siteName: "Taple",
 		images: [
 			{
-				url: "https://sparkvideo.cc/og.png",
+				url: "https://taple.app/og.png",
 				width: 1200,
 				height: 630,
-				alt: "SparkVideo: The Best Loom Alternative",
+				alt: "Taple: The Best Loom Alternative",
 			},
 		],
 		locale: "en_US",
@@ -29,7 +29,7 @@ export const metadata: Metadata = {
 		title: "The Ultimate Loom Alternative: Cap Screen Recorder",
 		description:
 			"Looking for the best Loom alternative? Discover Cap, the open-source, privacy-focused screen recorder for Mac & Windows.",
-		images: ["https://sparkvideo.cc/og.png"],
+		images: ["https://taple.app/og.png"],
 	},
 };
 

@@ -119,16 +119,16 @@ impl CapWindowId {
 
     pub fn title(&self) -> String {
         match self {
-            Self::Setup => "SparkVideo Setup".to_string(),
-            Self::Settings => "SparkVideo Settings".to_string(),
-            Self::WindowCaptureOccluder { .. } => "SparkVideo Window Capture Occluder".to_string(),
-            Self::CaptureArea => "SparkVideo Capture Area".to_string(),
-            Self::RecordingControls => "SparkVideo Recording Controls".to_string(),
-            Self::Editor { .. } => "SparkVideo Editor".to_string(),
-            Self::ModeSelect => "SparkVideo Mode Selection".to_string(),
-            Self::Camera => "SparkVideo Camera".to_string(),
-            Self::RecordingsOverlay => "SparkVideo Recordings Overlay".to_string(),
-            _ => "SparkVideo".to_string(),
+            Self::Setup => "Taple Setup".to_string(),
+            Self::Settings => "Taple Settings".to_string(),
+            Self::WindowCaptureOccluder { .. } => "Taple Window Capture Occluder".to_string(),
+            Self::CaptureArea => "Taple Capture Area".to_string(),
+            Self::RecordingControls => "Taple Recording Controls".to_string(),
+            Self::Editor { .. } => "Taple Editor".to_string(),
+            Self::ModeSelect => "Taple Mode Selection".to_string(),
+            Self::Camera => "Taple Camera".to_string(),
+            Self::RecordingsOverlay => "Taple Recordings Overlay".to_string(),
+            _ => "Taple".to_string(),
         }
     }
 
@@ -245,7 +245,9 @@ impl ShowCapWindow {
                     .flatten()
                     .map(|s| s.permissions_granted_override)
                     .unwrap_or(false);
-                if !permissions_override && !permissions::do_permissions_check(false).necessary_granted() {
+                if !permissions_override
+                    && !permissions::do_permissions_check(false).necessary_granted()
+                {
                     return Box::pin(Self::Setup.show(app)).await;
                 }
 

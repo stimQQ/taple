@@ -20,6 +20,7 @@ import {
 import { createStore, reconcile } from "solid-js/store";
 import { Input } from "~/routes/editor/ui";
 import { authStore, generalSettingsStore } from "~/store";
+import { L } from "~/utils/i18n";
 import {
 	type CaptureWindow,
 	commands,
@@ -35,7 +36,10 @@ import IconLucideX from "~icons/lucide/x";
 import { SettingItem, ToggleSettingItem } from "./Setting";
 
 const getExclusionPrimaryLabel = (entry: WindowExclusion) =>
-	entry.ownerName ?? entry.windowTitle ?? entry.bundleIdentifier ?? "未知";
+	entry.ownerName ??
+	entry.windowTitle ??
+	entry.bundleIdentifier ??
+	L("未知", "Unknown");
 
 const getExclusionSecondaryLabel = (entry: WindowExclusion) => {
 	if (entry.ownerName && entry.windowTitle) {
@@ -92,7 +96,6 @@ export default function GeneralSettings() {
 		</Show>
 	);
 }
-
 
 function Inner(props: { initialStore: GeneralSettingsStore | null }) {
 	const [settings, setSettings] = createStore<ExtendedGeneralSettingsStore>(
@@ -277,8 +280,8 @@ function Inner(props: { initialStore: GeneralSettingsStore | null }) {
 	return (
 		<div class="flex flex-col h-full custom-scroll">
 			<div class="p-4 space-y-6">
-					{/* <SettingGroup
-					title="SparkVideo Pro"
+				{/* <SettingGroup
+					title="Taple Pro"
 					titleStyling="bg-blue-500 py-1.5 mb-4 text-gray-1 dark:text-gray-1 text-xs px-2 rounded-lg"
 				>
 					<ToggleSettingItem
@@ -290,16 +293,22 @@ function Inner(props: { initialStore: GeneralSettingsStore | null }) {
 				</SettingGroup> */}
 
 				{ostype === "macos" && (
-					<SettingGroup title="应用">
+					<SettingGroup title={L("应用", "App")}>
 						<ToggleSettingItem
-							label="始终显示程序坞图标"
-							description="即使没有可关闭的窗口，也在程序坞中显示 SparkVideo。"
+							label={L("始终显示程序坞图标", "Always Show Dock Icon")}
+							description={L(
+								"即使没有可关闭的窗口，也在程序坞中显示 Taple。",
+								"Show Taple in the Dock even when there are no windows available to close.",
+							)}
 							value={!settings.hideDockIcon}
 							onChange={(v) => handleChange("hideDockIcon", !v)}
 						/>
 						<ToggleSettingItem
-							label="启用系统通知"
-							description="在复制到剪贴板、保存文件等操作时显示系统通知。你可能需要在系统通知设置中手动允许 SparkVideo 的通知权限。"
+							label={L("启用系统通知", "Enable System Notifications")}
+							description={L(
+								"在复制到剪贴板、保存文件等操作时显示系统通知。你可能需要在系统通知设置中手动允许 Taple 的通知权限。",
+								"Show system notifications for actions like copying to clipboard or saving files. You may need to allow notifications for Taple in System Settings.",
+							)}
 							value={!!settings.enableNotifications}
 							onChange={async (value) => {
 								if (value) {
@@ -328,63 +337,78 @@ function Inner(props: { initialStore: GeneralSettingsStore | null }) {
 							}}
 						/>
 						<ToggleSettingItem
-							label="启用触觉反馈"
-							description="在 Force Touch™ 触控板上使用触觉反馈"
+							label={L("启用触觉反馈", "Enable Haptics")}
+							description={L(
+								"在 Force Touch™ 触控板上使用触觉反馈",
+								"Use haptic feedback on Force Touch™ trackpads",
+							)}
 							value={!!settings.hapticsEnabled}
 							onChange={(v) => handleChange("hapticsEnabled", v)}
 						/>
 					</SettingGroup>
 				)}
 
-				<SettingGroup title="录制">
+				<SettingGroup title={L("录制", "Recording")}>
 					<SelectSettingItem
-						label="录制倒计时"
-						description="开始录制前的倒计时"
+						label={L("录制倒计时", "Recording Countdown")}
+						description={L(
+							"开始录制前的倒计时",
+							"Countdown before recording starts",
+						)}
 						value={settings.recordingCountdown ?? 0}
 						onChange={(value) => handleChange("recordingCountdown", value)}
 						options={[
-							{ text: "关闭", value: 0 },
-							{ text: "3 秒", value: 3 },
-							{ text: "5 秒", value: 5 },
-							{ text: "10 秒", value: 10 },
+							{ text: L("关闭", "Off"), value: 0 },
+							{ text: L("3 秒", "3 seconds"), value: 3 },
+							{ text: L("5 秒", "5 seconds"), value: 5 },
+							{ text: L("10 秒", "10 seconds"), value: 10 },
 						]}
 					/>
 					<SelectSettingItem
-						label="录制开始时主窗口行为"
-						description="开始录制时主窗口的行为"
+						label={L("录制开始时主窗口行为", "Main Window on Recording Start")}
+						description={L(
+							"开始录制时主窗口的行为",
+							"What the main window does when recording starts",
+						)}
 						value={settings.mainWindowRecordingStartBehaviour ?? "close"}
 						onChange={(value) =>
 							handleChange("mainWindowRecordingStartBehaviour", value)
 						}
 						options={[
-							{ text: "关闭", value: "close" },
-							{ text: "最小化", value: "minimise" },
+							{ text: L("关闭", "Close"), value: "close" },
+							{ text: L("最小化", "Minimize"), value: "minimise" },
 						]}
 					/>
 					<SelectSettingItem
-						label="工作室模式录制完成后行为"
-						description="工作室模式录制完成后的行为"
+						label={L("工作室模式录制完成后行为", "After Studio Recording")}
+						description={L(
+							"工作室模式录制完成后的行为",
+							"What happens after a Studio Mode recording finishes",
+						)}
 						value={settings.postStudioRecordingBehaviour ?? "openEditor"}
 						onChange={(value) =>
 							handleChange("postStudioRecordingBehaviour", value)
 						}
 						options={[
-							{ text: "打开编辑器", value: "openEditor" },
+							{ text: L("打开编辑器", "Open Editor"), value: "openEditor" },
 							{
-								text: "在浮窗中显示",
+								text: L("在浮窗中显示", "Show in Overlay"),
 								value: "showOverlay",
 							},
 						]}
 					/>
 					<SelectSettingItem
-						label="删除录制后的行为"
-						description="删除进行中的录制后，SparkVideo 是否应重新打开？"
+						label={L("删除录制后的行为", "After Deleting Recording")}
+						description={L(
+							"删除进行中的录制后，Taple 是否应重新打开？",
+							"Should Taple reopen after deleting an in-progress recording?",
+						)}
 						value={settings.postDeletionBehaviour ?? "doNothing"}
 						onChange={(value) => handleChange("postDeletionBehaviour", value)}
 						options={[
-							{ text: "不做任何操作", value: "doNothing" },
+							{ text: L("不做任何操作", "Do Nothing"), value: "doNothing" },
 							{
-								text: "重新打开录制窗口",
+								text: L("重新打开录制窗口", "Reopen Recording Window"),
 								value: "reopenRecordingWindow",
 							},
 						]}
@@ -403,7 +427,7 @@ function Inner(props: { initialStore: GeneralSettingsStore | null }) {
 				/>
 
 				{/* <ServerURLSetting
-					value={settings.serverUrl ?? "https://sparkvideo.cc"}
+					value={settings.serverUrl ?? "https://taple.app"}
 					onChange={async (v) => {
 						const url = new URL(v);
 						const origin = url.origin;
@@ -448,11 +472,14 @@ function ServerURLSetting(props: {
 
 	return (
 		<div class="flex flex-col gap-3">
-			<h3 class="text-sm text-gray-12 w-fit">自托管</h3>
+			<h3 class="text-sm text-gray-12 w-fit">{L("自托管", "Self-Host")}</h3>
 			<div class="flex flex-col gap-2 px-4 rounded-xl border border-gray-3 bg-gray-2">
 				<SettingItem
-					label="SparkVideo 服务器地址"
-					description="仅当你自托管 SparkVideo Web 实例时才需要修改此设置。"
+					label={L("Taple 服务器地址", "Taple Server URL")}
+					description={L(
+						"仅当你自托管 Taple Web 实例时才需要修改此设置。",
+						"Only change this if you are self-hosting your own instance of Taple Web.",
+					)}
 				>
 					<div class="flex flex-col gap-2 items-end">
 						<Input
@@ -467,7 +494,7 @@ function ServerURLSetting(props: {
 							disabled={props.value === value()}
 							onClick={() => props.onChange(value())}
 						>
-							更新
+							{L("更新", "Update")}
 						</Button>
 					</div>
 				</SettingItem>
@@ -546,13 +573,24 @@ function ExcludedWindowsCard(props: {
 		<div class="flex flex-col gap-3 px-4 py-3 mt-6 rounded-xl border border-gray-3 bg-gray-2">
 			<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
 				<div class="flex flex-col gap-1">
-					<p class="text-sm text-gray-12">排除窗口</p>
+					<p class="text-sm text-gray-12">
+						{L("排除窗口", "Excluded Windows")}
+					</p>
 					<p class="text-xs text-gray-10">
-						选择在录制时要隐藏的窗口。
+						{L(
+							"选择在录制时要隐藏的窗口。",
+							"Choose which windows to hide from your recordings.",
+						)}
 					</p>
 					<Show when={props.isWindows}>
 						<p class="text-xs text-gray-9">
-							<span class="font-medium text-gray-11">注意：</span>由于技术限制，Windows 系统上只能排除与 SparkVideo 相关的窗口。
+							<span class="font-medium text-gray-11">
+								{L("注意：", "Note: ")}
+							</span>
+							{L(
+								"由于技术限制，Windows 系统上只能排除与 Taple 相关的窗口。",
+								"Due to technical limitations, only Taple-related windows can be excluded on Windows.",
+							)}
 						</p>
 					</Show>
 				</div>
@@ -566,7 +604,7 @@ function ExcludedWindowsCard(props: {
 							void props.onReset();
 						}}
 					>
-						恢复默认
+						{L("恢复默认", "Reset to Default")}
 					</Button>
 					<Button
 						variant="dark"
@@ -576,7 +614,7 @@ function ExcludedWindowsCard(props: {
 						class="flex items-center gap-2"
 					>
 						<IconLucidePlus class="size-4" />
-						添加
+						{L("添加", "Add")}
 					</Button>
 				</div>
 			</div>
@@ -585,7 +623,10 @@ function ExcludedWindowsCard(props: {
 					when={hasExclusions()}
 					fallback={
 						<p class="text-xs text-gray-10">
-							当前没有排除任何窗口。
+							{L(
+								"当前没有排除任何窗口。",
+								"No windows are currently excluded.",
+							)}
 						</p>
 					}
 				>
@@ -609,7 +650,7 @@ function ExcludedWindowsCard(props: {
 										type="button"
 										class="flex items-center justify-center rounded-full bg-gray-4/70 text-gray-11 transition-colors hover:bg-gray-5 hover:text-gray-12 size-6"
 										onClick={() => void props.onRemove(index())}
-										aria-label="移除排除的窗口"
+										aria-label={L("移除排除的窗口", "Remove excluded window")}
 									>
 										<IconLucideX class="size-3" />
 									</button>

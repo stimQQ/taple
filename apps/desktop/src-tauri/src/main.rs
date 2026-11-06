@@ -1,7 +1,6 @@
-
 use std::sync::Arc;
 
-use sparkvideo_desktop_lib::DynLoggingLayer;
+use taple_desktop_lib::DynLoggingLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 fn main() {
@@ -50,14 +49,14 @@ fn main() {
     let logs_dir = dirs::home_dir()
         .unwrap()
         .join("Library/Logs")
-        .join("com.sparkvideo.desktop");
+        .join("app.taple.desktop");
 
     // Ensure logs directory exists
     std::fs::create_dir_all(&logs_dir).unwrap_or_else(|e| {
         eprintln!("Failed to create logs directory: {e}");
     });
 
-    let file_appender = tracing_appender::rolling::daily(&logs_dir, "sparkvideo-desktop.log");
+    let file_appender = tracing_appender::rolling::daily(&logs_dir, "taple-desktop.log");
     let (non_blocking, _logger_guard) = tracing_appender::non_blocking(file_appender);
 
     let (otel_layer, _tracer) = if cfg!(debug_assertions) {
@@ -75,13 +74,13 @@ fn main() {
             )
             .with_resource(
                 opentelemetry_sdk::Resource::builder()
-                    .with_service_name("sparkvideo-desktop")
+                    .with_service_name("taple-desktop")
                     .build(),
             )
             .build();
 
         let layer = tracing_opentelemetry::layer()
-            .with_tracer(tracer.tracer("sparkvideo-desktop"))
+            .with_tracer(tracer.tracer("taple-desktop"))
             .boxed();
 
         opentelemetry::global::set_tracer_provider(tracer.clone());
@@ -121,5 +120,5 @@ fn main() {
         .enable_all()
         .build()
         .expect("Failed to build multi threaded tokio runtime")
-        .block_on(sparkvideo_desktop_lib::run(handle, logs_dir));
+        .block_on(taple_desktop_lib::run(handle, logs_dir));
 }

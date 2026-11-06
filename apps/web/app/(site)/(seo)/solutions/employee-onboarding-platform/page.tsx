@@ -4,22 +4,23 @@ import { SeoPageTemplate } from "@/components/seo/SeoPageTemplate";
 import type { SeoPageContent } from "@/components/seo/types";
 
 export const metadata: Metadata = {
-	title: "Employee Onboarding Platform: Streamline New-Hire Training with SparkVideo",
+	title:
+		"Employee Onboarding Platform: Streamline New-Hire Training with Taple",
 	description:
 		"Looking for a powerful employee onboarding platform? Discover how Cap's open-source screen recorder and asynchronous features simplify new-hire training.",
 	openGraph: {
 		title:
-			"Employee Onboarding Platform: Streamline New-Hire Training with SparkVideo",
+			"Employee Onboarding Platform: Streamline New-Hire Training with Taple",
 		description:
 			"Looking for a powerful employee onboarding platform? Discover how Cap's open-source screen recorder and asynchronous features simplify new-hire training.",
-		url: "https://sparkvideo.cc/solutions/employee-onboarding-platform",
-		siteName: "SparkVideo",
+		url: "https://taple.app/solutions/employee-onboarding-platform",
+		siteName: "Taple",
 		images: [
 			{
-				url: "https://sparkvideo.cc/og.png",
+				url: "https://taple.app/og.png",
 				width: 1200,
 				height: 630,
-				alt: "SparkVideo: Employee Onboarding Platform",
+				alt: "Taple: Employee Onboarding Platform",
 			},
 		],
 		locale: "en_US",
@@ -30,14 +31,15 @@ export const metadata: Metadata = {
 		title: "Employee Onboarding Platform | Cap Screen Recorder",
 		description:
 			"Discover how Cap's open-source screen recorder simplifies new-hire training with asynchronous video and built-in feedback.",
-		images: ["https://sparkvideo.cc/og.png"],
+		images: ["https://taple.app/og.png"],
 	},
 };
 
 import Script from "next/script";
 
 const content: SeoPageContent = {
-	title: "Employee Onboarding Platform: Streamline New-Hire Training with SparkVideo",
+	title:
+		"Employee Onboarding Platform: Streamline New-Hire Training with Taple",
 	description:
 		"Looking for a powerful employee onboarding platform? Discover how Cap's open-source screen recorder and asynchronous features simplify new-hire training.",
 

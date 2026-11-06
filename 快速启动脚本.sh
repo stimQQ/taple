@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# Cap 一键部署脚本 - 国内服务器版
+# Taple 一键部署脚本 - 国内服务器版
 # 使用方法: bash 快速启动脚本.sh
 
 set -e
 
 echo "================================================"
-echo "Cap 快速部署脚本"
+echo "Taple 快速部署脚本"
 echo "================================================"
 echo ""
 
@@ -94,7 +94,7 @@ name: cap-deployment
 services:
   cap-web:
     container_name: cap-web
-    image: ghcr.io/capsoftware/cap-web:latest
+    image: ghcr.io/stimqq/taple-web:latest
     restart: unless-stopped
     depends_on:
       mysql:
@@ -183,7 +183,7 @@ echo "   ✅ 配置文件已创建"
 
 # 8. 保存密码信息
 cat > .credentials <<EOF
-# Cap 部署凭证信息
+# Taple 部署凭证信息
 # 请妥善保管此文件！
 
 部署时间: $(date)
@@ -265,7 +265,7 @@ echo "🎉 部署完成！"
 echo "================================================"
 echo ""
 echo "📌 访问信息："
-echo "   Cap Web:         $WEB_URL"
+echo "   Taple Web:         $WEB_URL"
 echo "   MinIO 控制台:    http://$SERVER_IP:9001"
 echo ""
 echo "📌 登录凭证（保存在 $DEPLOY_DIR/.credentials）："

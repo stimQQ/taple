@@ -4,7 +4,7 @@ import { ToolsPageTemplate } from "@/components/tools/ToolsPageTemplate";
 import type { ToolPageContent } from "@/components/tools/types";
 
 export const metadata: Metadata = {
-	title: "AVI to MP4 Converter | Free Online Video Converter | SparkVideo",
+	title: "AVI to MP4 Converter | Free Online Video Converter | Taple",
 	description:
 		"Convert AVI videos to MP4 format directly in your browser. Free online converter with no uploads needed for maximum privacy and security.",
 	openGraph: {

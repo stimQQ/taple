@@ -1,0 +1,4 @@
+"NSCameraUsageDescription" = "Taple needs camera access to record video.";
+"NSMicrophoneUsageDescription" = "Taple needs microphone access to record audio.";
+"NSScreenCaptureUsageDescription" = "Taple needs screen recording access to capture your screen.";
+"NSAccessibilityUsageDescription" = "Taple needs accessibility access to control recordings.";

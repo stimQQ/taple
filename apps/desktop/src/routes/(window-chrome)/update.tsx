@@ -5,6 +5,7 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import { check } from "@tauri-apps/plugin-updater";
 import { createResource, Match, Show, Switch } from "solid-js";
 
+import { L } from "~/utils/i18n";
 import { commands } from "~/utils/tauri";
 
 export default function () {
@@ -22,7 +23,9 @@ export default function () {
 			<Show
 				when={update()}
 				fallback={
-					<span class="text-[--text-tertiary]">暂无可用更新</span>
+					<span class="text-[--text-tertiary]">
+						{L("暂无可用更新", "No updates available")}
+					</span>
 				}
 				keyed
 			>
@@ -78,9 +81,14 @@ export default function () {
 								<Match when={updateStatus()?.type === "done"}>
 									<div class="flex flex-col gap-4 items-center">
 										<p class="text-[--text-tertiary]">
-											更新已安装完成。重启 SparkVideo 以完成更新。
+											{L(
+												"更新已安装完成。重启 Taple 以完成更新。",
+												"Update installed. Restart Taple to finish updating.",
+											)}
 										</p>
-										<Button onClick={() => relaunch()}>立即重启</Button>
+										<Button onClick={() => relaunch()}>
+											{L("立即重启", "Restart Now")}
+										</Button>
 									</div>
 								</Match>
 								<Match
@@ -97,7 +105,7 @@ export default function () {
 									{(status) => (
 										<>
 											<h1 class="text-[--text-primary] mb-4">
-												正在安装更新
+												{L("正在安装更新", "Installing Update")}
 											</h1>
 
 											<div class="w-full bg-gray-3 rounded-full h-2.5">

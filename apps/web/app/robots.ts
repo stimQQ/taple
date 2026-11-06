@@ -50,6 +50,6 @@ export default function robots(): MetadataRoute.Robots {
 				disallow: disallowPaths,
 			},
 		],
-		sitemap: "https://sparkvideo.cc/sitemap.xml",
+		sitemap: "https://taple.app/sitemap.xml",
 	};
 }

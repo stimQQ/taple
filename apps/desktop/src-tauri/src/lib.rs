@@ -14,6 +14,7 @@ mod frame_ws;
 mod general_settings;
 mod hotkeys;
 mod http_client;
+mod i18n;
 mod logging;
 mod noise_reduction;
 mod notifications;
@@ -83,12 +84,12 @@ use web_api::AuthedApiError;
 use web_api::ManagerExt as WebManagerExt;
 use windows::{CapWindowId, EditorWindowIds, ShowCapWindow, set_window_transparent};
 
+use crate::recording::start_recording;
+use crate::upload::{build_video_meta, create_or_get_video};
 use crate::{
     camera::CameraPreviewManager,
     recording_settings::{RecordingSettingsStore, RecordingTargetMode},
 };
-use crate::recording::start_recording;
-use crate::upload::{build_video_meta, create_or_get_video};
 
 #[allow(clippy::large_enum_variant)]
 pub enum RecordingState {
@@ -1215,11 +1216,12 @@ async fn save_file_dialog(
     println!("save_file_dialog called with file_name: {file_name}, file_type: {file_type}");
 
     let file_name = file_name
-        .strip_suffix(".sparkvideo")
+        .strip_suffix(".taple")
+        .or_else(|| file_name.strip_suffix(".sparkvideo"))
         .or_else(|| file_name.strip_suffix(".cap"))
         .unwrap_or(&file_name)
         .to_string();
-    println!("File name after removing .sparkvideo/.cap suffix: {file_name}");
+    println!("File name after removing .taple/.sparkvideo/.cap suffix: {file_name}");
 
     let (name, extension) = match file_type.as_str() {
         "recording" => {
@@ -1359,7 +1361,10 @@ async fn import_video_file(app: AppHandle, video_path: PathBuf) -> Result<PathBu
     std::fs::create_dir_all(&project_dir)
         .map_err(|e| format!("Failed to create project directory: {e}"))?;
 
-    let content_dir = project_dir.join("content").join("segments").join("segment-0");
+    let content_dir = project_dir
+        .join("content")
+        .join("segments")
+        .join("segment-0");
     std::fs::create_dir_all(&content_dir)
         .map_err(|e| format!("Failed to create content directory: {e}"))?;
 
@@ -1632,7 +1637,7 @@ async fn reset_camera_permissions(_app: AppHandle) -> Result<(), String> {
         let bundle_id =
             std::env::var("CAP_BUNDLE_ID").unwrap_or_else(|_| "com.apple.Terminal".to_string());
         #[cfg(not(debug_assertions))]
-        let bundle_id = "com.sparkvideo.desktop";
+        let bundle_id = "app.taple.desktop";
 
         Command::new("tccutil")
             .arg("reset")
@@ -1652,7 +1657,7 @@ async fn reset_microphone_permissions(_app: AppHandle) -> Result<(), ()> {
     #[cfg(debug_assertions)]
     let bundle_id = "com.apple.Terminal";
     #[cfg(not(debug_assertions))]
-    let bundle_id = "com.sparkvideo.desktop";
+    let bundle_id = "app.taple.desktop";
 
     Command::new("tccutil")
         .arg("reset")
@@ -2062,7 +2067,9 @@ pub async fn run(recording_logging_handle: LoggingHandle, logs_dir: PathBuf) {
             // This is also handled as a deeplink on some platforms (eg macOS), see deeplink_actions
             let Some(cap_file) = args
                 .iter()
-                .find(|arg| arg.ends_with(".sparkvideo") || arg.ends_with(".cap"))
+                .find(|arg| {
+                    arg.ends_with(".taple") || arg.ends_with(".sparkvideo") || arg.ends_with(".cap")
+                })
                 .map(PathBuf::from)
             else {
                 let app = app.clone();
@@ -2194,7 +2201,7 @@ pub async fn run(recording_logging_handle: LoggingHandle, logs_dir: PathBuf) {
                 } else {
                     (
                         option_env!("VITE_SERVER_URL")
-                            .unwrap_or("https://sparkvideo.cc")
+                            .unwrap_or("https://taple.app")
                             .to_string(),
                         true,
                     )
@@ -2497,7 +2504,12 @@ async fn resume_uploads(app: AppHandle) -> Result<(), String> {
         .map_err(|e| format!("Failed to read recordings directory: {e}"))?;
     for entry in entries.flatten() {
         let path = entry.path();
-        if path.is_dir() && path.extension().and_then(|s| s.to_str()) == Some("cap") {
+        if path.is_dir()
+            && matches!(
+                path.extension().and_then(|s| s.to_str()),
+                Some("taple" | "sparkvideo" | "cap")
+            )
+        {
             // Load recording meta to check for in-progress recordings
             if let Ok(mut meta) = RecordingMeta::load_for_project(&path) {
                 let mut needs_save = false;

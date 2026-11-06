@@ -4,6 +4,7 @@ import { createMutation, useQueryClient } from "@tanstack/solid-query";
 import { getCurrentWindow, Window } from "@tauri-apps/api/window";
 import { type Accessor, createSignal, Show } from "solid-js";
 import { generalSettingsStore } from "~/store";
+import { L } from "~/utils/i18n";
 import { getProPlanId } from "~/utils/plans";
 import { createLicenseQuery } from "~/utils/queries";
 import { commands } from "~/utils/tauri";
@@ -14,14 +15,14 @@ import { authStore } from "../../store";
 import { Dialog, DialogContent, Input } from "../editor/ui";
 
 const proFeatures = [
-	"包含商业许可证",
-	"无限云存储和分享链接",
-	"连接自定义 S3 存储桶",
-	"高级团队功能",
-	"无限观看次数",
-	"视频密码保护",
-	"高级数据分析",
-	"优先支持",
+	L("包含商业许可证", "Commercial license included"),
+	L("无限云存储和分享链接", "Unlimited cloud storage & shareable links"),
+	L("连接自定义 S3 存储桶", "Connect a custom S3 storage bucket"),
+	L("高级团队功能", "Advanced team features"),
+	L("无限观看次数", "Unlimited views"),
+	L("视频密码保护", "Password-protected videos"),
+	L("高级数据分析", "Advanced analytics"),
+	L("优先支持", "Priority support"),
 ];
 
 import { RuntimeLoader } from "@rive-app/canvas";
@@ -255,9 +256,14 @@ export default function Page() {
 			{upgradeComplete() && (
 				<div class="flex justify-center items-center h-full bg-opacity-75">
 					<div class="relative z-10 p-6 text-center bg-white rounded-lg shadow-lg">
-						<h2 class="mb-4 text-2xl font-bold">升级完成</h2>
+						<h2 class="mb-4 text-2xl font-bold">
+							{L("升级完成", "Upgrade Complete")}
+						</h2>
 						<p class="mb-4 text-sm text-gray-10">
-							现在可以关闭此窗口 - 感谢您的升级！
+							{L(
+								"现在可以关闭此窗口 - 感谢您的升级！",
+								"You can now close this window - thank you for upgrading!",
+							)}
 						</p>
 						<Button
 							onClick={() => {
@@ -268,7 +274,7 @@ export default function Page() {
 							variant="primary"
 							size="lg"
 						>
-							关闭窗口
+							{L("关闭窗口", "Close Window")}
 						</Button>
 					</div>
 				</div>
@@ -278,16 +284,21 @@ export default function Page() {
 					<div class="p-8 mx-auto w-full max-w-[700px] rounded-xl border shadow-sm bg-gray-2 border-gray-3">
 						<div class="space-y-6">
 							<div class="flex flex-col items-center mb-6 text-center">
-								<h3 class="text-2xl font-medium">商业许可证</h3>
+								<h3 class="text-2xl font-medium">
+									{L("商业许可证", "Commercial License")}
+								</h3>
 								<p class="text-sm text-gray-11">
-									您的 SparkVideo 商业使用许可证详情
+									{L(
+										"您的 Taple 商业使用许可证详情",
+										"Your license details for commercial use of Taple",
+									)}
 								</p>
 							</div>
 
 							<div class="space-y-6">
 								<div>
 									<label class="block mb-2 text-sm text-gray-12">
-										许可证密钥
+										{L("许可证密钥", "License Key")}
 									</label>
 									<p class="overflow-x-auto p-3 font-mono text-xs whitespace-pre-wrap break-all rounded-lg border border-gray-4 text-gray-9 bg-gray-3">
 										{license.data.licenseKey}
@@ -297,7 +308,9 @@ export default function Page() {
 								<Show when={license.data.expiryDate}>
 									{(expiryDate) => (
 										<div class="space-y-1">
-											<label class="text-sm text-gray-12">到期时间</label>
+											<label class="text-sm text-gray-12">
+												{L("到期时间", "Expires")}
+											</label>
 											<p class="text-gray-10">
 												{new Date(expiryDate()).toLocaleDateString(undefined, {
 													year: "numeric",
@@ -318,8 +331,8 @@ export default function Page() {
 										}}
 									>
 										{resetLicense.isPending
-											? "停用中..."
-											: "停用许可证"}
+											? L("停用中...", "Deactivating...")
+											: L("停用许可证", "Deactivate License")}
 									</Button>
 								</div>
 							</div>
@@ -329,7 +342,7 @@ export default function Page() {
 					<>
 						<div class="text-center">
 							<h1 class="text-4xl md:text-4xl mb-6 tracking-[-.05em] font-medium text-[--text-primary]">
-								早期用户专属价格
+								{L("早期用户专属价格", "Early Adopter Pricing")}
 							</h1>
 						</div>
 						<div class="flex gap-4 w-full">
@@ -359,10 +372,10 @@ export default function Page() {
 										<Commercial class="w-[250px]" />
 										<div class="space-y-1 text-center">
 											<h3 class="text-2xl font-medium tracking-tight leading-5">
-												商业许可证
+												{L("商业许可证", "Commercial License")}
 											</h3>
 											<p class="mt-2 text-sm text-[--text-tertiary]">
-												商业用途
+												{L("商业用途", "For commercial use")}
 											</p>
 										</div>
 										<div class="flex flex-col justify-center items-center">
@@ -372,12 +385,12 @@ export default function Page() {
 											</h3>
 											{isCommercialAnnual() && (
 												<p class="text-[16px] font-medium text-gray-11">
-													按年计费
+													{L("按年计费", "billed annually")}
 												</p>
 											)}
 											{!isCommercialAnnual() && (
 												<p class="text-[16px] font-medium text-gray-11">
-													一次性付款
+													{L("一次性付款", "one-time payment")}
 												</p>
 											)}
 										</div>
@@ -386,7 +399,10 @@ export default function Page() {
 											class="px-3 py-2 text-center rounded-full border border-transparent transition-all duration-200 cursor-pointer bg-gray-5 hover:border-gray-400"
 										>
 											<p class="text-xs text-gray-12">
-												切换到{isCommercialAnnual() ? "终身版" : "年付版"}：{" "}
+												{L(
+													`切换到${isCommercialAnnual() ? "终身版" : "年付版"}：`,
+													`Switch to ${isCommercialAnnual() ? "lifetime" : "yearly"}:`,
+												)}{" "}
 												<span class="font-medium">
 													{isCommercialAnnual() ? "$58" : "$29"}
 												</span>
@@ -394,10 +410,13 @@ export default function Page() {
 										</div>
 										<ul class="flex flex-col gap-2 justify-center list-none">
 											{[
-												"SparkVideo 录制器 + 编辑器的商业使用权",
-												"社区支持",
-												"仅限本地功能",
-												"终身许可证选项",
+												L(
+													"Taple 录制器 + 编辑器的商业使用权",
+													"Commercial use of Taple Recorder + Editor",
+												),
+												L("社区支持", "Community support"),
+												L("仅限本地功能", "Local-only features"),
+												L("终身许可证选项", "Perpetual license option"),
 											].map((feature) => (
 												<li class="flex justify-start items-center">
 													<div class="flex justify-center items-center p-0 m-0 w-6 h-6">
@@ -424,19 +443,19 @@ export default function Page() {
 										size="lg"
 									>
 										{openCommercialCheckout.isPending
-											? "加载中..."
-											: "购买许可证"}
+											? L("加载中...", "Loading...")
+											: L("购买许可证", "Buy License")}
 									</Button>
 									<p
 										onClick={() => setOpenLicenseDialog(true)}
 										class="mb-2 text-sm transition-colors cursor-pointer text-gray-11 hover:text-gray-12"
 									>
-										已有许可证密钥？
+										{L("已有许可证密钥？", "Already have a license key?")}
 									</p>
 								</div>
 							</div>
 
-							{/* SparkVideo Pro */}
+							{/* Taple Pro */}
 							<div
 								onMouseEnter={() => {
 									const riveInstance = ProRive();
@@ -463,10 +482,13 @@ export default function Page() {
 										<Pro class="w-[250px]" />
 										<div class="space-y-1 text-center">
 											<h3 class="text-2xl font-medium tracking-tight leading-5 text-gray-1">
-												SparkVideo Pro
+												Taple Pro
 											</h3>
 											<p class="text-[0.875rem] text-gray-9">
-												适合专业用户和团队。
+												{L(
+													"适合专业用户和团队。",
+													"For professional use and teams.",
+												)}
 											</p>
 										</div>
 										<div class="flex flex-col justify-center items-center">
@@ -476,12 +498,12 @@ export default function Page() {
 											</h3>
 											{isProAnnual() && (
 												<p class="text-[16px] font-medium text-gray-9">
-													每用户，按年计费
+													{L("每用户，按年计费", "per user, billed annually")}
 												</p>
 											)}
 											{!isProAnnual() && (
 												<p class="text-[16px] font-medium text-gray-9">
-													每用户，按月计费
+													{L("每用户，按月计费", "per user, billed monthly")}
 												</p>
 											)}
 										</div>
@@ -490,11 +512,20 @@ export default function Page() {
 											class="px-3 py-2 text-center bg-blue-500 rounded-full border border-transparent transition-all duration-200 cursor-pointer hover:border-blue-400"
 										>
 											<p class="text-xs text-gray-1 dark:text-gray-1">
-												切换到{isProAnnual() ? "月付" : "年付"}：{" "}
+												{L(
+													`切换到${isProAnnual() ? "月付" : "年付"}：`,
+													`Switch to ${isProAnnual() ? "monthly" : "annually"}:`,
+												)}{" "}
 												<span class="font-medium">
 													{isProAnnual()
-														? "每用户 $12，按月计费"
-														: "每用户 $8.16，按年计费"}
+														? L(
+																"每用户 $12，按月计费",
+																"$12/user, billed monthly",
+															)
+														: L(
+																"每用户 $8.16，按年计费",
+																"$8.16/user, billed annually",
+															)}
 												</span>
 											</p>
 										</div>
@@ -514,7 +545,9 @@ export default function Page() {
 										class="!rounded-full !text-lg w-full mx-auto"
 										onClick={openCheckoutInExternalBrowser}
 									>
-										{loading() ? "加载中..." : "升级到 SparkVideo Pro"}
+										{loading()
+											? L("加载中...", "Loading...")
+											: L("升级到 Taple Pro", "Upgrade to Taple Pro")}
 									</Button>
 								</div>
 							</div>
@@ -569,7 +602,7 @@ const ActivateLicenseDialog = ({ open, onOpenChange }: Props) => {
 	return (
 		<Dialog.Root open={open()} onOpenChange={onOpenChange}>
 			<DialogContent
-				title="激活许可证"
+				title={L("激活许可证", "Activate License")}
 				confirm={
 					<Dialog.ConfirmButton
 						disabled={activateLicenseKey.isPending}
@@ -579,13 +612,13 @@ const ActivateLicenseDialog = ({ open, onOpenChange }: Props) => {
 							})
 						}
 					>
-						激活
+						{L("激活", "Activate")}
 					</Dialog.ConfirmButton>
 				}
 			>
 				<Input
 					class="mt-2"
-					placeholder="输入许可证密钥..."
+					placeholder={L("输入许可证密钥...", "Enter license key...")}
 					value={licenseKey()}
 					onInput={(e) => setLicenseKey(e.currentTarget.value)}
 				/>

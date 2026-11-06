@@ -44,18 +44,13 @@ const Links = [
 			},
 			{
 				label: "Open Source",
-				sub: "SparkVideo is open source and available on GitHub",
-				href: "https://github.com/CapSoftware/Cap",
+				sub: "Taple is open source and available on GitHub",
+				href: "https://github.com/stimQQ/taple",
 			},
 			{
-				label: "Self-host SparkVideo",
-				sub: "Self-host SparkVideo on your own infrastructure",
+				label: "Self-host Taple",
+				sub: "Self-host Taple on your own infrastructure",
 				href: "/self-hosting",
-			},
-			{
-				label: "Join the community",
-				sub: "Join the SparkVideo community on Discord",
-				href: "https://discord.gg/y8gdQ3WRN3",
 			},
 		],
 	},
@@ -71,29 +66,20 @@ const Links = [
 		label: "Help",
 		dropdown: [
 			{
-				label: "Documentation",
-				sub: "Documentation for using SparkVideo",
-				href: "/docs",
-			},
-			{
 				label: "FAQs",
-				sub: "Frequently asked questions about SparkVideo",
+				sub: "Frequently asked questions about Taple",
 				href: "/faq",
 			},
 			{
-				label: "Chat support",
-				sub: "Support via chat",
-				href: "https://discord.gg/y8gdQ3WRN3",
+				label: "Email support",
+				sub: "Get help by email",
+				href: "mailto:hello@taple.app",
 			},
 		],
 	},
 	{
 		label: "About",
 		href: "/about",
-	},
-	{
-		label: "Blog",
-		href: "/blog",
 	},
 	{
 		label: "Pricing",
@@ -207,7 +193,7 @@ export const Navbar = () => {
 									/>
 								}
 								target="_blank"
-								href="https://github.com/CapSoftware/Cap"
+								href="https://github.com/stimQQ/taple"
 								size="sm"
 								className="w-full font-medium sm:w-auto"
 							>

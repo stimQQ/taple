@@ -4,7 +4,7 @@ import { ToolsPageTemplate } from "@/components/tools/ToolsPageTemplate";
 import type { ToolPageContent } from "@/components/tools/types";
 
 export const metadata: Metadata = {
-	title: "MP4 to MP3 Converter | Extract Audio from Video | SparkVideo",
+	title: "MP4 to MP3 Converter | Extract Audio from Video | Taple",
 	description:
 		"Extract audio from MP4 videos and save as MP3 files directly in your browser. No uploads required, completely private and secure.",
 	openGraph: {

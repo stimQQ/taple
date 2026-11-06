@@ -37,7 +37,7 @@ export function WelcomePage() {
 
 	return (
 		<Base
-			title="Welcome to SparkVideo"
+			title="Welcome to Taple"
 			description="Let's get you started"
 			hideBackButton
 		>

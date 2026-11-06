@@ -2,6 +2,7 @@ import { createQuery } from "@tanstack/solid-query";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { createSignal, For, Show } from "solid-js";
 
+import { L } from "~/utils/i18n";
 import { commands, events } from "~/utils/tauri";
 
 type MediaEntry = {
@@ -53,7 +54,7 @@ export default function Screenshots() {
 						when={fetchScreenshots.data && fetchScreenshots.data.length > 0}
 						fallback={
 							<p class="text-center text-[--text-tertiary] absolute flex items-center justify-center w-full h-full">
-								未找到截图
+								{L("未找到截图", "No screenshots found")}
 							</p>
 						}
 					>
@@ -89,7 +90,7 @@ function ScreenshotItem(props: {
 				>
 					<img
 						class="object-cover mr-4 w-8 h-8 rounded"
-						alt="截图缩略图"
+						alt={L("截图缩略图", "Screenshot thumbnail")}
 						src={`${convertFileSrc(
 							props.screenshot.thumbnailPath,
 						)}?t=${Date.now()}`}

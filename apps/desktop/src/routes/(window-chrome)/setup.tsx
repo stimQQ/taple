@@ -15,6 +15,7 @@ import {
 	startTransition,
 } from "solid-js";
 import { createStore } from "solid-js/store";
+import { L } from "~/utils/i18n";
 import {
 	commands,
 	type OSPermission,
@@ -27,16 +28,21 @@ function isPermitted(status?: OSPermissionStatus): boolean {
 
 const permissions = [
 	{
-		name: "屏幕录制",
+		name: L("屏幕录制", "Screen Recording"),
 		key: "screenRecording" as const,
-		description: "此权限用于录制你的屏幕。",
+		description: L(
+			"此权限用于录制你的屏幕。",
+			"Required to record your screen.",
+		),
 		canSkip: true,
 	},
 	{
-		name: "辅助功能",
+		name: L("辅助功能", "Accessibility"),
 		key: "accessibility" as const,
-		description:
-			"录制期间，SparkVideo 会在本地收集鼠标活动数据以生成自动缩放片段。",
+		description: L(
+			"录制期间，Taple 会在本地收集鼠标活动数据以生成自动缩放片段。",
+			"During recording, Taple collects mouse activity locally to create automatic zoom segments.",
+		),
 		canSkip: true,
 	},
 ] as const;
@@ -46,8 +52,12 @@ export default function () {
 	const [check, checkActions] = createResource(() =>
 		commands.doPermissionsCheck(initialCheck()),
 	);
-	const [skippedPermissions, setSkippedPermissions] = createSignal<Set<string>>(new Set());
-	const [clickedPermissions, setClickedPermissions] = createSignal<Set<string>>(new Set());
+	const [skippedPermissions, setSkippedPermissions] = createSignal<Set<string>>(
+		new Set(),
+	);
+	const [clickedPermissions, setClickedPermissions] = createSignal<Set<string>>(
+		new Set(),
+	);
 
 	const isPermissionOk = (key: string, status?: OSPermissionStatus) => {
 		return isPermitted(status) || skippedPermissions().has(key);
@@ -136,19 +146,22 @@ export default function () {
 			<div class="flex flex-col items-center">
 				<IconCapLogo class="size-14 mb-3" />
 				<h1 class="text-[1.2rem] font-[700] mb-1 text-[--text-primary]">
-					需要权限
+					{L("需要权限", "Permissions Required")}
 				</h1>
-				<p class="text-gray-11">SparkVideo 需要以下权限才能正常运行。</p>
+				<p class="text-gray-11">
+					{L(
+						"Taple 需要以下权限才能正常运行。",
+						"Taple needs the following permissions to work properly.",
+					)}
+				</p>
 			</div>
 
 			<div class="flex flex-col gap-4 py-8 w-full max-w-md">
 				<Show when={!allPermissionsGranted()}>
-					<Button
-						class="w-full"
-						size="lg"
-						onClick={requestAllPermissions}
-					>
-						{anyPermissionDenied() ? "打开设置并授权全部权限" : "一键授权全部权限"}
+					<Button class="w-full" size="lg" onClick={requestAllPermissions}>
+						{anyPermissionDenied()
+							? L("打开设置并授权全部权限", "Open Settings to Grant All")
+							: L("一键授权全部权限", "Grant All Permissions")}
 					</Button>
 				</Show>
 
@@ -158,7 +171,8 @@ export default function () {
 							const permissionCheck = () => check()?.[permission.key];
 							const hasClicked = () => clickedPermissions().has(permission.key);
 							const isSkipped = () => skippedPermissions().has(permission.key);
-							const isOk = () => isPermissionOk(permission.key, permissionCheck());
+							const isOk = () =>
+								isPermissionOk(permission.key, permissionCheck());
 
 							return (
 								<Show when={permissionCheck() !== "notNeeded"}>
@@ -167,7 +181,7 @@ export default function () {
 											<div class="flex flex-col flex-[2]">
 												<div class="flex items-center gap-2">
 													<span class="font-[500] text-[0.875rem] text-[--text-primary]">
-														{permission.name}权限
+														{L(`${permission.name}权限`, permission.name)}
 													</span>
 													<Show when={isOk()}>
 														<span class="text-xs text-green-500">&#10003;</span>
@@ -188,24 +202,43 @@ export default function () {
 													disabled={isOk()}
 												>
 													{isOk()
-														? "已授权"
+														? L("已授权", "Granted")
 														: permissionCheck() !== "denied"
-															? "授予权限"
-															: "打开设置"}
+															? L("授予权限", "Grant Permission")
+															: L("打开设置", "Open Settings")}
 												</Button>
-												<Show when={permission.canSkip && hasClicked() && !isPermitted(permissionCheck()) && !isSkipped()}>
+												<Show
+													when={
+														permission.canSkip &&
+														hasClicked() &&
+														!isPermitted(permissionCheck()) &&
+														!isSkipped()
+													}
+												>
 													<button
 														class="text-xs text-blue-500 hover:text-blue-400 underline"
 														onClick={() => skipPermission(permission.key)}
 													>
-														已在设置中开启？点此跳过
+														{L(
+															"已在设置中开启？点此跳过",
+															"Already enabled in Settings? Skip",
+														)}
 													</button>
 												</Show>
 											</div>
 										</div>
-										<Show when={permission.canSkip && hasClicked() && !isPermitted(permissionCheck())}>
+										<Show
+											when={
+												permission.canSkip &&
+												hasClicked() &&
+												!isPermitted(permissionCheck())
+											}
+										>
 											<p class="text-xs text-gray-10 bg-gray-3 rounded px-2 py-1">
-												提示：权限可能需要重启应用后才能生效
+												{L(
+													"提示：权限可能需要重启应用后才能生效",
+													"Tip: You may need to restart the app for permissions to take effect.",
+												)}
 											</p>
 										</Show>
 									</li>
@@ -225,7 +258,7 @@ export default function () {
 				}
 				onClick={handleContinue}
 			>
-				继续使用 SparkVideo
+				{L("继续使用 Taple", "Continue to Taple")}
 			</Button>
 		</div>
 	);
@@ -531,10 +564,13 @@ function Startup(props: { onClose: () => void }) {
 								/>
 							</div>
 							<h1 class="text-5xl md:text-5xl font-bold mb-4 drop-shadow-[0_0_20px_rgba(0,0,0,0.2)]">
-								欢迎使用 SparkVideo
+								{L("欢迎使用 Taple", "Welcome to Taple")}
 							</h1>
 							<p class="text-2xl opacity-80 max-w-md mx-auto drop-shadow-[0_0_20px_rgba(0,0,0,0.2)]">
-								精美的屏幕录制，由你掌控。
+								{L(
+									"精美的屏幕录制，由你掌控。",
+									"Beautiful screen recordings, owned by you.",
+								)}
 							</p>
 						</div>
 
@@ -546,7 +582,7 @@ function Startup(props: { onClose: () => void }) {
 									size="lg"
 									onClick={handleGetStarted}
 								>
-									开始使用
+									{L("开始使用", "Get Started")}
 								</Button>
 							</Match>
 							<Match when={ostype() === "windows"}>
@@ -561,7 +597,7 @@ function Startup(props: { onClose: () => void }) {
 										getCurrentWindow().close();
 									}}
 								>
-									继续使用 SparkVideo
+									{L("继续使用 Taple", "Continue to Taple")}
 								</Button>
 							</Match>
 						</Switch>

@@ -7,7 +7,7 @@ name: cap-so-docker-template
 services:
   cap-web:
     container_name: cap-web
-    image: ghcr.io/capsoftware/cap-web:latest
+    image: ghcr.io/stimqq/taple-web:latest
     restart: unless-stopped
     environment:
       DATABASE_URL: 'mysql://root:@ps-mysql:3306/planetscale?ssl={"rejectUnauthorized":false}'

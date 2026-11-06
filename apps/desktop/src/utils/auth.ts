@@ -36,7 +36,7 @@ async function createSessionRequestUrl(
 	platform: "web" | "desktop",
 ) {
 	const serverUrl =
-		(await generalSettingsStore.get())?.serverUrl ?? "https://sparkvideo.cc";
+		(await generalSettingsStore.get())?.serverUrl ?? "https://taple.app";
 	const callbackUrl = new URL(
 		`/api/desktop/session/request?type=api_key`,
 		serverUrl,

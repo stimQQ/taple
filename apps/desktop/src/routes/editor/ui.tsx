@@ -15,10 +15,12 @@ import {
 	type JSX,
 	mergeProps,
 	type ParentProps,
+	Show,
 	splitProps,
 	type ValidComponent,
 } from "solid-js";
 import Tooltip from "~/components/Tooltip";
+import { L } from "~/utils/i18n";
 import { useEditorContext } from "./context";
 import { TextInput } from "./TextInput";
 
@@ -33,12 +35,19 @@ export function Field(
 	}>,
 ) {
 	return (
-		<div class={cx(props.inline ? "flex flex-row items-center gap-3" : "flex flex-col gap-4", props.class)}>
+		<div
+			class={cx(
+				props.inline
+					? "flex flex-row items-center gap-3"
+					: "flex flex-col gap-4",
+				props.class,
+			)}
+		>
 			<span
 				data-disabled={props.disabled}
 				class={cx(
 					"flex flex-row items-center gap-[0.375rem] text-gray-12 data-[disabled='true']:text-gray-10 font-medium text-sm",
-					props.inline && "shrink-0"
+					props.inline && "shrink-0",
 				)}
 			>
 				{props.icon}
@@ -198,7 +207,7 @@ export const Dialog = {
 	CloseButton() {
 		return (
 			<KDialog.CloseButton as={Button} variant="gray">
-				取消
+				{L("取消", "Cancel")}
 			</KDialog.CloseButton>
 		);
 	},
@@ -406,7 +415,9 @@ export function EditorButton<T extends ValidComponent = "button">(
 			{local.tooltipText || local.comingSoon ? (
 				<Tooltip
 					kbd={local.kbd}
-					content={local.comingSoon ? "即将推出" : local.tooltipText}
+					content={
+						local.comingSoon ? L("即将推出", "Coming soon") : local.tooltipText
+					}
 				>
 					<Polymorphic
 						as="button"

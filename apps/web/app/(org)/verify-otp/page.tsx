@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { VerifyOTPForm } from "./form";
 
 export const metadata = {
-	title: "Verify Code | SparkVideo",
+	title: "Verify Code | Taple",
 };
 
 export default async function VerifyOTPPage(props: {

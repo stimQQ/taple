@@ -41,10 +41,10 @@ impl MainWindowRecordingStartBehaviour {
 }
 
 const DEFAULT_EXCLUDED_WINDOW_TITLES: &[&str] = &[
-    "SparkVideo",
-    "SparkVideo Settings",
-    "SparkVideo Recording Controls",
-    "SparkVideo Camera",
+    "Taple",
+    "Taple Settings",
+    "Taple Recording Controls",
+    "Taple Camera",
 ];
 
 pub fn default_excluded_windows() -> Vec<WindowExclusion> {
@@ -142,7 +142,7 @@ fn default_true() -> bool {
 
 fn default_server_url() -> String {
     std::option_env!("VITE_SERVER_URL")
-        .unwrap_or("https://sparkvideo.cc")
+        .unwrap_or("https://taple.app")
         .to_string()
 }
 

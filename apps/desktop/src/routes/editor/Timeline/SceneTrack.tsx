@@ -14,6 +14,7 @@ import {
 } from "solid-js";
 import { produce } from "solid-js/store";
 
+import { L } from "~/utils/i18n";
 import { useEditorContext } from "../context";
 import {
 	useSegmentContext,
@@ -73,11 +74,11 @@ export function SceneTrack(props: {
 	const getSceneLabel = (mode: string | undefined) => {
 		switch (mode) {
 			case "cameraOnly":
-				return "仅摄像头";
+				return L("仅摄像头", "Camera Only");
 			case "hideCamera":
-				return "隐藏摄像头";
+				return L("隐藏摄像头", "Hide Camera");
 			default:
-				return "默认";
+				return L("默认", "Default");
 		}
 	};
 
@@ -196,9 +197,17 @@ export function SceneTrack(props: {
 				each={project.timeline?.sceneSegments}
 				fallback={
 					<div class="text-center text-sm text-[--text-tertiary] flex flex-col justify-center items-center inset-0 w-full bg-gray-3/20 dark:bg-gray-3/10 hover:bg-gray-3/30 dark:hover:bg-gray-3/20 transition-colors rounded-xl pointer-events-none">
-						<div>点击添加摄像头布局片段</div>
+						<div>
+							{L(
+								"点击添加摄像头布局片段",
+								"Click to add a camera layout segment",
+							)}
+						</div>
 						<div class="text-[10px] text-[--text-tertiary]/40 mt-0.5">
-							（将摄像头全屏显示或隐藏）
+							{L(
+								"（将摄像头全屏显示或隐藏）",
+								"(Show the camera fullscreen or hide it)",
+							)}
 						</div>
 					</div>
 				}
@@ -475,7 +484,9 @@ export function SceneTrack(props: {
 									return (
 										<Show when={ctx.width() > 80}>
 											<div class="flex flex-col gap-1 justify-center items-center text-xs whitespace-nowrap text-gray-1 dark:text-gray-12 animate-in fade-in">
-												<span class="opacity-70">摄像头布局</span>
+												<span class="opacity-70">
+													{L("摄像头布局", "Camera Layout")}
+												</span>
 												<div class="flex gap-1 items-center text-md">
 													{getSceneIcon(segment.mode)}
 													{ctx.width() > 120 && (

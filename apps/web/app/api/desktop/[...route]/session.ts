@@ -69,7 +69,7 @@ app.get(
 		const returnUrl = new URL(
 			platform === "web"
 				? `http://127.0.0.1:${port}?${params}`
-				: `sparkvideo-desktop://signin?${params}`,
+				: `taple-desktop://signin?${params}`,
 		);
 
 		return Response.redirect(returnUrl.href);

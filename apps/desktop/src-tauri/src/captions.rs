@@ -67,9 +67,12 @@ pub async fn save_model_file(path: String, data: Vec<u8>) -> Result<(), String> 
 async fn extract_audio_from_video(video_path: &str, output_path: &PathBuf) -> Result<(), String> {
     log::info!("Attempting to extract audio from: {video_path}");
 
-    // Check if this is a .sparkvideo or .cap directory
-    if video_path.ends_with(".sparkvideo") || video_path.ends_with(".cap") {
-        log::info!("Detected .sparkvideo/.cap project directory");
+    // Check if this is a .taple, .sparkvideo or .cap directory
+    if video_path.ends_with(".taple")
+        || video_path.ends_with(".sparkvideo")
+        || video_path.ends_with(".cap")
+    {
+        log::info!("Detected .taple/.sparkvideo/.cap project directory");
 
         // Read the recording metadata
         let meta_path = std::path::Path::new(video_path).join("recording-meta.json");
@@ -653,7 +656,10 @@ fn process_with_whisper(
 fn load_audio_for_whisper(video_path: &str) -> Result<Vec<f32>, String> {
     let base_path = std::path::Path::new(video_path);
 
-    if video_path.ends_with(".sparkvideo") || video_path.ends_with(".cap") {
+    if video_path.ends_with(".taple")
+        || video_path.ends_with(".sparkvideo")
+        || video_path.ends_with(".cap")
+    {
         let meta_path = base_path.join("recording-meta.json");
         let meta_content = std::fs::read_to_string(&meta_path)
             .map_err(|e| format!("Failed to read recording metadata: {e}"))?;
@@ -680,8 +686,8 @@ fn load_audio_for_whisper(video_path: &str) -> Result<Vec<f32>, String> {
         let audio_path =
             audio_path.ok_or_else(|| "No audio sources found in recording metadata".to_string())?;
 
-        let audio = AudioData::from_file(&audio_path)
-            .map_err(|e| format!("Failed to read audio: {e}"))?;
+        let audio =
+            AudioData::from_file(&audio_path).map_err(|e| format!("Failed to read audio: {e}"))?;
 
         let samples = audio.samples();
         let channels = audio.channels() as usize;
@@ -757,7 +763,11 @@ pub async fn transcribe_audio(
     params.set_print_progress(false);
     params.set_print_realtime(false);
     params.set_token_timestamps(true);
-    params.set_language(Some(if language == "auto" { "auto" } else { &language }));
+    params.set_language(Some(if language == "auto" {
+        "auto"
+    } else {
+        &language
+    }));
     params.set_max_len(i32::MAX);
 
     let mut state = context
@@ -1125,8 +1135,9 @@ fn app_captions_dir(app: &AppHandle, video_id: &str) -> Result<PathBuf, String> 
         .map_err(|_| "Failed to get app data directory".to_string())?;
 
     // Create a dedicated captions directory
-    // Strip .sparkvideo or .cap extension if present in video_id
+    // Strip .taple, .sparkvideo or .cap extension if present in video_id
     let clean_video_id = video_id
+        .trim_end_matches(".taple")
         .trim_end_matches(".sparkvideo")
         .trim_end_matches(".cap");
     let captions_dir = app_dir.join("captions").join(clean_video_id);

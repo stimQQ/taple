@@ -7,7 +7,7 @@ export const metadata: Metadata = {
 		follow: false,
 	},
 	alternates: {
-		canonical: "https://sparkvideo.cc/",
+		canonical: "https://taple.app/",
 	},
 };
 

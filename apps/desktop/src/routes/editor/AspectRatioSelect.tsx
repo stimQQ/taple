@@ -1,6 +1,7 @@
 import { Select as KSelect } from "@kobalte/core/select";
 import { createSignal, Show } from "solid-js";
 import Tooltip from "~/components/Tooltip";
+import { L } from "~/utils/i18n";
 import type { AspectRatio } from "~/utils/tauri";
 import { useEditorContext } from "./context";
 import { ASPECT_RATIOS } from "./projectConfig";
@@ -18,7 +19,7 @@ function AspectRatioSelect() {
 	let triggerSelect: HTMLDivElement | undefined;
 
 	return (
-		<Tooltip content="宽高比">
+		<Tooltip content={L("宽高比", "Aspect Ratio")}>
 			<KSelect<AspectRatio | "auto">
 				open={open()}
 				onOpenChange={setOpen}
@@ -43,7 +44,7 @@ function AspectRatioSelect() {
 						<MenuItem<typeof KSelect.Item> as={KSelect.Item} item={props.item}>
 							<KSelect.ItemLabel class="flex-1">
 								{props.item.rawValue === "auto"
-									? "自动"
+									? L("自动", "Auto")
 									: ASPECT_RATIOS[props.item.rawValue].name}
 								<Show when={item()}>
 									{(item) => (
@@ -75,7 +76,9 @@ function AspectRatioSelect() {
 						{(state) => {
 							const text = () => {
 								const option = state.selectedOption();
-								return option === "auto" ? "自动" : ASPECT_RATIOS[option].name;
+								return option === "auto"
+									? L("自动", "Auto")
+									: ASPECT_RATIOS[option].name;
 							};
 							return <>{text()}</>;
 						}}

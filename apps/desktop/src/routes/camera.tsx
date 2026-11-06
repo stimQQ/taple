@@ -20,6 +20,7 @@ import {
 } from "solid-js";
 import { createStore } from "solid-js/store";
 import { generalSettingsStore } from "~/store";
+import { L } from "~/utils/i18n";
 import { createCameraMutation } from "~/utils/queries";
 import { createImageDataWS, createLazySignal } from "~/utils/socket";
 import { commands } from "~/utils/tauri";
@@ -121,7 +122,9 @@ function NativeCameraPreviewPage() {
 			{/* The camera preview is rendered in Rust by wgpu */}
 			<Show when={cameraPreviewReady.loading}>
 				<div class="w-full flex-1 flex items-center justify-center">
-					<div class="text-gray-11">正在加载摄像头...</div>
+					<div class="text-gray-11">
+						{L("正在加载摄像头...", "Loading camera...")}
+					</div>
 				</div>
 			</Show>
 		</div>
@@ -379,7 +382,9 @@ function LegacyCameraPreviewPage() {
 function CameraLoadingState() {
 	return (
 		<div class="w-full flex-1 flex items-center justify-center">
-			<div class="text-gray-11">正在加载摄像头...</div>
+			<div class="text-gray-11">
+				{L("正在加载摄像头...", "Loading camera...")}
+			</div>
 		</div>
 	);
 }

@@ -23,7 +23,7 @@ export function OTPEmail({
 	return (
 		<Html>
 			<Head />
-			<Preview>Your SparkVideo Verification Code: {code}</Preview>
+			<Preview>Your Taple Verification Code: {code}</Preview>
 			<Tailwind>
 				<Body className="mx-auto my-auto bg-gray-1 font-sans">
 					<Container className="mx-auto my-10 max-w-[500px] rounded border border-solid border-gray-200 px-10 py-5">
@@ -32,7 +32,7 @@ export function OTPEmail({
 								src={CAP_LOGO_URL}
 								width="40"
 								height="40"
-								alt="SparkVideo"
+								alt="Taple"
 								className="mx-auto my-0"
 							/>
 						</Section>

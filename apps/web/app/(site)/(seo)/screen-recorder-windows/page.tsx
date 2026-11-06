@@ -9,14 +9,14 @@ export const metadata: Metadata = {
 		title: "Best Screen Recorder for Windows: Easy, Powerful & Free (2025)",
 		description:
 			"Cap is the best screen recorder for Windows, offering HD quality recording, unlimited free usage, and seamless sharing. A perfect OBS alternative for tutorials, presentations, and more.",
-		url: "https://sparkvideo.cc/screen-recorder-windows",
-		siteName: "SparkVideo",
+		url: "https://taple.app/screen-recorder-windows",
+		siteName: "Taple",
 		images: [
 			{
-				url: "https://sparkvideo.cc/og.png",
+				url: "https://taple.app/og.png",
 				width: 1200,
 				height: 630,
-				alt: "SparkVideo: Best Screen Recorder for Windows",
+				alt: "Taple: Best Screen Recorder for Windows",
 			},
 		],
 		locale: "en_US",
@@ -24,10 +24,10 @@ export const metadata: Metadata = {
 	},
 	twitter: {
 		card: "summary_large_image",
-		title: "Best Screen Recorder for Windows | SparkVideo",
+		title: "Best Screen Recorder for Windows | Taple",
 		description:
 			"Cap is the best screen recorder for Windows, offering HD quality recording, unlimited free usage, and seamless sharing. A perfect OBS alternative for tutorials, presentations, and more.",
-		images: ["https://sparkvideo.cc/og.png"],
+		images: ["https://taple.app/og.png"],
 	},
 };
 

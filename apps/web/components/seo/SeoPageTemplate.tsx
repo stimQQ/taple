@@ -112,7 +112,7 @@ export const SeoPageTemplate = ({
 							WebkitMaskSize: "100% 100%",
 							maskSize: "100% 100%",
 						}}
-						src="/logos/logo-solo.svg"
+						src="/logo.png"
 					/>
 
 					<MotionImage

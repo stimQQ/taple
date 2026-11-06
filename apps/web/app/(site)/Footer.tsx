@@ -11,18 +11,11 @@ type FooterLink = {
 
 const footerLinks = {
 	product: [
-		{ label: "Blog", href: "/blog" },
-		{ label: "Docs", href: "/docs" },
 		{ label: "Pricing", href: "/pricing" },
 		{ label: "Download", href: "/download" },
 		{
 			label: "Open Source",
-			href: "https://github.com/CapSoftware/Cap",
-			isExternal: true,
-		},
-		{
-			label: "Join the community",
-			href: "https://discord.gg/y8gdQ3WRN3",
+			href: "https://github.com/stimQQ/taple",
 			isExternal: true,
 		},
 		{
@@ -35,30 +28,7 @@ const footerLinks = {
 		{ label: "Testimonials", href: "/testimonials" },
 		{ label: "FAQs", href: "/faq" },
 		{ label: "Self-hosting", href: "/self-hosting" },
-		{ label: "Email Support", href: "mailto:hello@sparkvideo.cc" },
-		{
-			label: "Chat Support",
-			href: "https://discord.gg/y8gdQ3WRN3",
-			isExternal: true,
-		},
-		{
-			label: "System Status",
-			href: "https://cap.openstatus.dev/",
-			isExternal: true,
-		},
-	] as FooterLink[],
-	socials: [
-		{ label: "X (@Cap)", href: "https://x.com/cap", isExternal: true },
-		{
-			label: "Discord",
-			href: "https://discord.gg/y8gdQ3WRN3",
-			isExternal: true,
-		},
-		{
-			label: "LinkedIn",
-			href: "https://www.linkedin.com/company/caprecorder/",
-			isExternal: true,
-		},
+		{ label: "Email Support", href: "mailto:hello@taple.app" },
 	] as FooterLink[],
 	tools: [
 		{ label: "WebM to MP4", href: "/tools/convert/webm-to-mp4" },
@@ -194,24 +164,6 @@ export const Footer = () => {
 							<h3 className="text-lg font-semibold text-gray-12">Use Cases</h3>
 							<ul className="grid grid-cols-1 gap-2 pt-2">
 								{footerLinks.useCases.map((link, index) => (
-									<li key={index.toString()}>
-										<Link
-											className="text-gray-10"
-											href={link.href}
-											target={link.isExternal ? "_blank" : undefined}
-										>
-											{link.label}
-										</Link>
-									</li>
-								))}
-							</ul>
-						</div>
-
-						{/* Socials Column */}
-						<div className="space-y-2">
-							<h3 className="text-lg font-semibold text-gray-12">Socials</h3>
-							<ul className="grid grid-cols-1 gap-2 pt-2">
-								{footerLinks.socials.map((link, index) => (
 									<li key={index.toString()}>
 										<Link
 											className="text-gray-10"

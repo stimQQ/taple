@@ -2,6 +2,7 @@ import { Button } from "@cap/ui-solid";
 
 import type { ComponentProps } from "solid-js";
 import { createSignInMutation } from "~/utils/auth";
+import { L } from "~/utils/i18n";
 
 export function SignInButton(
 	props: Omit<ComponentProps<typeof Button>, "onClick">,
@@ -23,7 +24,9 @@ export function SignInButton(
 				}
 			}}
 		>
-			{signIn.isPending ? "取消登录" : (props.children ?? "登录")}
+			{signIn.isPending
+				? L("取消登录", "Cancel Sign In")
+				: (props.children ?? L("登录", "Sign In"))}
 		</Button>
 	);
 }

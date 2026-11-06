@@ -222,7 +222,7 @@ const studioModeConfig: FeaturePageConfig = {
 		video: {
 			title: "See Studio Mode in Action",
 			iframe: {
-				src: "https://sparkvideo.cc/embed/qk8gt56e1q1r735",
+				src: "https://taple.app/embed/qk8gt56e1q1r735",
 				title: "Studio Mode Demo - Cap Screen Recording",
 			},
 		},

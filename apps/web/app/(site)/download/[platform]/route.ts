@@ -9,17 +9,16 @@ export async function GET(
 	const params = await props.params;
 	const platform = params.platform.toLowerCase();
 
-	// Define download URLs for different platforms
-	const REPO = "YOUR_GITHUB_ORG/YOUR_REPO_NAME";
+	const REPO = "stimQQ/taple";
 	const BASE = `https://github.com/${REPO}/releases/latest/download`;
 	const downloadUrls: Record<string, string> = {
-		"apple-intel": `${BASE}/SparkVideo_x86_64.dmg`,
-		intel: `${BASE}/SparkVideo_x86_64.dmg`,
-		mac: `${BASE}/SparkVideo_aarch64.dmg`,
-		macos: `${BASE}/SparkVideo_aarch64.dmg`,
-		"apple-silicon": `${BASE}/SparkVideo_aarch64.dmg`,
-		aarch64: `${BASE}/SparkVideo_aarch64.dmg`,
-		x86_64: `${BASE}/SparkVideo_x86_64.dmg`,
+		"apple-intel": `${BASE}/Taple_x86_64.dmg`,
+		intel: `${BASE}/Taple_x86_64.dmg`,
+		mac: `${BASE}/Taple_aarch64.dmg`,
+		macos: `${BASE}/Taple_aarch64.dmg`,
+		"apple-silicon": `${BASE}/Taple_aarch64.dmg`,
+		aarch64: `${BASE}/Taple_aarch64.dmg`,
+		x86_64: `${BASE}/Taple_x86_64.dmg`,
 	};
 
 	// Get the download URL for the requested platform

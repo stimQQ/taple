@@ -20,6 +20,7 @@ import Cropper, { cropToFloor } from "~/components/Cropper";
 import { Toggle } from "~/components/Toggle";
 import Tooltip from "~/components/Tooltip";
 import { createTauriEventListener } from "~/utils/createEventListener";
+import { L } from "~/utils/i18n";
 import { type Crop, events } from "~/utils/tauri";
 import { ConfigSidebar } from "./ConfigSidebar";
 import {
@@ -179,24 +180,27 @@ function Dialogs() {
 
 								return (
 									<DialogContent
-										title="创建预设"
+										title={L("创建预设", "Create Preset")}
 										confirm={
 											<Dialog.ConfirmButton
 												disabled={createPreset.isPending}
 												onClick={() => createPreset.mutate()}
 											>
-												创建
+												{L("创建", "Create")}
 											</Dialog.ConfirmButton>
 										}
 									>
-										<Subfield name="名称" required />
+										<Subfield name={L("名称", "Name")} required />
 										<Input
 											class="mt-2"
 											value={form.name}
-											placeholder="输入预设名称..."
+											placeholder={L("输入预设名称...", "Enter preset name...")}
 											onInput={(e) => setForm("name", e.currentTarget.value)}
 										/>
-										<Subfield name="设为默认" class="mt-4">
+										<Subfield
+											name={L("设为默认", "Set as Default")}
+											class="mt-4"
+										>
 											<Toggle
 												checked={form.default}
 												onChange={(checked) => setForm("default", checked)}
@@ -227,17 +231,17 @@ function Dialogs() {
 
 								return (
 									<DialogContent
-										title="重命名预设"
+										title={L("重命名预设", "Rename Preset")}
 										confirm={
 											<Dialog.ConfirmButton
 												disabled={renamePreset.isPending}
 												onClick={() => renamePreset.mutate()}
 											>
-												重命名
+												{L("重命名", "Rename")}
 											</Dialog.ConfirmButton>
 										}
 									>
-										<Subfield name="名称" required />
+										<Subfield name={L("名称", "Name")} required />
 										<Input
 											class="mt-2"
 											value={name()}
@@ -266,19 +270,22 @@ function Dialogs() {
 
 								return (
 									<DialogContent
-										title="删除预设"
+										title={L("删除预设", "Delete Preset")}
 										confirm={
 											<Dialog.ConfirmButton
 												variant="destructive"
 												onClick={() => deletePreset.mutate()}
 												disabled={deletePreset.isPending}
 											>
-												删除
+												{L("删除", "Delete")}
 											</Dialog.ConfirmButton>
 										}
 									>
 										<p class="text-gray-11">
-											确定要删除此预设吗？
+											{L(
+												"确定要删除此预设吗？",
+												"Are you sure you want to delete this preset?",
+											)}
 										</p>
 									</DialogContent>
 								);
@@ -313,7 +320,7 @@ function Dialogs() {
 										<Dialog.Header>
 											<div class="flex flex-row space-x-[2rem]">
 												<div class="flex flex-row items-center space-x-[0.75rem] text-gray-11">
-													<span>大小</span>
+													<span>{L("大小", "Size")}</span>
 													<div class="w-[3.25rem]">
 														<Input
 															class="bg-transparent dark:!text-[#ababab]"
@@ -347,7 +354,7 @@ function Dialogs() {
 													</div>
 												</div>
 												<div class="flex flex-row items-center space-x-[0.75rem] text-gray-11">
-													<span>位置</span>
+													<span>{L("位置", "Position")}</span>
 													<div class="w-[3.25rem]">
 														<Input
 															class="bg-transparent dark:!text-[#ababab]"
@@ -383,7 +390,9 @@ function Dialogs() {
 											</div>
 											<div class="flex flex-row gap-3 justify-end items-center w-full">
 												<div class="flex flex-row items-center space-x-[0.5rem] text-gray-11">
-													<Tooltip content="三分法参考线">
+													<Tooltip
+														content={L("三分法参考线", "Rule of thirds")}
+													>
 														<Button
 															variant="gray"
 															size="xs"
@@ -420,7 +429,7 @@ function Dialogs() {
 														})
 													}
 												>
-													重置
+													{L("重置", "Reset")}
 												</EditorButton>
 											</div>
 										</Dialog.Header>
@@ -454,7 +463,7 @@ function Dialogs() {
 													setDialog((d) => ({ ...d, open: false }));
 												}}
 											>
-												保存
+												{L("保存", "Save")}
 											</Button>
 										</Dialog.Footer>
 									</>

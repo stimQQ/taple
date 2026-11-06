@@ -2,12 +2,13 @@ import { createQuery } from "@tanstack/solid-query";
 import { CheckMenuItem, Menu, PredefinedMenuItem } from "@tauri-apps/api/menu";
 import { createSignal, onCleanup, onMount, Show } from "solid-js";
 import { trackEvent } from "~/utils/analytics";
+import { L } from "~/utils/i18n";
 import { createCurrentRecordingQuery, getPermissions } from "~/utils/queries";
 import { events } from "~/utils/tauri";
 import TargetSelectInfoPill from "./TargetSelectInfoPill";
 import useRequestPermission from "./useRequestPermission";
 
-const NO_MICROPHONE = "未选择麦克风";
+const NO_MICROPHONE = L("未选择麦克风", "No Microphone");
 
 export default function MicrophoneSelect(props: {
 	disabled?: boolean;
@@ -70,7 +71,7 @@ export default function MicrophoneSelect(props: {
 				onClick={() => {
 					Promise.all([
 						CheckMenuItem.new({
-							text: "关闭麦克风",
+							text: L("关闭麦克风", "No Microphone"),
 							checked: props.value === null,
 							action: () => handleMicrophoneChange(null),
 						}),

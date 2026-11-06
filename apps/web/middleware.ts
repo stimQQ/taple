@@ -10,7 +10,7 @@ export async function middleware(request: NextRequest) {
 		response.headers.set("X-Frame-Options", "SAMEORIGIN");
 		response.headers.set(
 			"Content-Security-Policy",
-			"frame-ancestors https://sparkvideo.cc",
+			"frame-ancestors https://taple.app",
 		);
 		return response;
 	}

@@ -42,6 +42,7 @@ import imageBg from "~/assets/illustrations/image.webp";
 import transparentBg from "~/assets/illustrations/transparent.webp";
 import { Toggle } from "~/components/Toggle";
 import { generalSettingsStore } from "~/store";
+import { L } from "~/utils/i18n";
 import {
 	type BackgroundSource,
 	type CameraShape,
@@ -79,10 +80,10 @@ import {
 } from "./ui";
 
 const BACKGROUND_SOURCES = {
-	wallpaper: "壁纸",
-	image: "图片",
-	color: "纯色",
-	gradient: "渐变",
+	wallpaper: L("壁纸", "Wallpaper"),
+	image: L("图片", "Image"),
+	color: L("纯色", "Color"),
+	gradient: L("渐变", "Gradient"),
 } satisfies Record<BackgroundSource["type"], string>;
 
 const BACKGROUND_ICONS = {
@@ -194,28 +195,28 @@ const WALLPAPER_NAMES = [
 ] as const;
 
 const STEREO_MODES = [
-	{ name: "立体声", value: "stereo" },
-	{ name: "单声道左", value: "monoL" },
-	{ name: "单声道右", value: "monoR" },
+	{ name: L("立体声", "Stereo"), value: "stereo" },
+	{ name: L("单声道左", "Mono Left"), value: "monoL" },
+	{ name: L("单声道右", "Mono Right"), value: "monoR" },
 ] satisfies Array<{ name: string; value: StereoMode }>;
 
 const CAMERA_SHAPES = [
 	{
-		name: "正方形",
+		name: L("正方形", "Square"),
 		value: "square",
 	},
 	{
-		name: "原始比例",
+		name: L("原始比例", "Source"),
 		value: "source",
 	},
 ] satisfies Array<{ name: string; value: CameraShape }>;
 
 const BACKGROUND_THEMES = {
 	macOS: "macOS",
-	dark: "深色",
-	blue: "蓝色",
-	purple: "紫色",
-	orange: "橙色",
+	dark: L("深色", "Dark"),
+	blue: L("蓝色", "Blue"),
+	purple: L("紫色", "Purple"),
+	orange: L("橙色", "Orange"),
 };
 
 const TAB_IDS = {
@@ -247,7 +248,7 @@ export function ConfigSidebar() {
 		if (!editorInstance) return;
 		setIsDenoising(true);
 		setDenoiseProgress(0);
-		setDenoiseStatus("正在准备...");
+		setDenoiseStatus(L("正在准备...", "Preparing..."));
 
 		const unlisten = await events.denoiseProgress.listen((event) => {
 			setDenoiseProgress(event.payload.progress * 100);
@@ -256,12 +257,18 @@ export function ConfigSidebar() {
 
 		try {
 			await commands.denoiseRecordingAudio(editorInstance.path);
-			toast.success("降噪处理完成，正在刷新...");
+			toast.success(
+				L(
+					"降噪处理完成，正在刷新...",
+					"Noise reduction complete. Refreshing...",
+				),
+			);
 			setTimeout(() => window.location.reload(), 500);
 			return;
 		} catch (error) {
 			toast.error(
-				"降噪失败：" + (typeof error === "string" ? error : String(error)),
+				L("降噪失败：", "Noise reduction failed: ") +
+					(typeof error === "string" ? error : String(error)),
 			);
 		} finally {
 			unlisten();
@@ -295,7 +302,10 @@ export function ConfigSidebar() {
 	// Auto-switch to segments tab when a zoom or scene segment is selected
 	createEffect(() => {
 		const selection = editorState.timeline.selection;
-		if (selection && (selection.type === "zoom" || selection.type === "scene")) {
+		if (
+			selection &&
+			(selection.type === "zoom" || selection.type === "scene")
+		) {
 			setState("selectedTab", "segments");
 		}
 	});
@@ -311,30 +321,38 @@ export function ConfigSidebar() {
 						{
 							id: TAB_IDS.segments,
 							icon: IconLucideLayers,
-							label: "画面片段",
+							label: L("画面片段", "Clips"),
 						},
 						{
 							id: TAB_IDS.cursor,
 							icon: IconCapCursor,
-							label: "光标",
+							label: L("光标", "Cursor"),
 							disabled: !(
 								meta().type === "multiple" && (meta() as any).segments[0].cursor
 							),
 						},
-						{ id: TAB_IDS.audio, icon: IconCapAudioOn, label: "音频" },
+						{
+							id: TAB_IDS.audio,
+							icon: IconCapAudioOn,
+							label: L("音频", "Audio"),
+						},
 						{
 							id: TAB_IDS.camera,
 							icon: IconCapCamera,
-							label: "摄像头",
+							label: L("摄像头", "Camera"),
 							disabled: editorInstance.recordings.segments.every(
 								(s) => s.camera === null,
 							),
 						},
-						{ id: TAB_IDS.background, icon: IconCapImage, label: "背景" },
+						{
+							id: TAB_IDS.background,
+							icon: IconCapImage,
+							label: L("背景", "Style"),
+						},
 						window.FLAGS.captions && {
 							id: "captions" as const,
 							icon: IconCapMessageBubble,
-							label: "字幕",
+							label: L("字幕", "Captions"),
 						},
 					].filter(Boolean)}
 				>
@@ -373,17 +391,15 @@ export function ConfigSidebar() {
 					<SegmentsConfig />
 				</KTabs.Content>
 				<KTabs.Content value="audio" class="flex flex-col gap-6">
-					<Field
-						name="音频控制"
-					>
-						<Subfield name="静音">
+					<Field name={L("音频控制", "Audio Controls")}>
+						<Subfield name={L("静音", "Mute Audio")}>
 							<Toggle
 								checked={project.audio.mute}
 								onChange={(v) => setProject("audio", "mute", v)}
 							/>
 						</Subfield>
 						{editorInstance.recordings.segments[0].mic?.channels === 2 && (
-							<Subfield name="麦克风立体声模式">
+							<Subfield name={L("麦克风立体声模式", "Microphone Stereo Mode")}>
 								<KSelect<{ name: string; value: StereoMode }>
 									options={STEREO_MODES}
 									optionValue="value"
@@ -451,10 +467,7 @@ export function ConfigSidebar() {
               </ComingSoonTooltip> */}
 					</Field>
 					{meta().hasMicrophone && (
-						<Field
-							name="麦克风音量"
-							inline
-						>
+						<Field name={L("麦克风音量", "Microphone Volume")} inline>
 							<Slider
 								disabled={project.audio.mute}
 								value={[project.audio.micVolumeDb ?? 0]}
@@ -463,16 +476,15 @@ export function ConfigSidebar() {
 								maxValue={20}
 								step={0.1}
 								formatTooltip={(v) =>
-									v <= -30 ? "已静音" : `${v > 0 ? "+" : ""}${v.toFixed(1)} dB`
+									v <= -30
+										? L("已静音", "Muted")
+										: `${v > 0 ? "+" : ""}${v.toFixed(1)} dB`
 								}
 							/>
 						</Field>
 					)}
 					{meta().hasSystemAudio && (
-						<Field
-							name="系统音频音量"
-							inline
-						>
+						<Field name={L("系统音频音量", "System Audio Volume")} inline>
 							<Slider
 								disabled={project.audio.mute}
 								value={[project.audio.systemVolumeDb ?? 0]}
@@ -481,19 +493,21 @@ export function ConfigSidebar() {
 								maxValue={20}
 								step={0.1}
 								formatTooltip={(v) =>
-									v <= -30 ? "已静音" : `${v > 0 ? "+" : ""}${v.toFixed(1)} dB`
+									v <= -30
+										? L("已静音", "Muted")
+										: `${v > 0 ? "+" : ""}${v.toFixed(1)} dB`
 								}
 							/>
 						</Field>
 					)}
 					{meta().hasMicrophone && (
-						<Field name="音频降噪">
+						<Field name={L("音频降噪", "Noise Reduction")}>
 							<div class="flex flex-col gap-3">
 								<Show
 									when={isDenoising()}
 									fallback={
 										<Button class="w-full" onClick={runDenoise}>
-											开始降噪
+											{L("开始降噪", "Reduce Noise")}
 										</Button>
 									}
 								>
@@ -515,7 +529,7 @@ export function ConfigSidebar() {
 				</KTabs.Content>
 				<KTabs.Content value="cursor" class="flex flex-col gap-6">
 					<Field
-						name="光标"
+						name={L("光标", "Cursor")}
 						value={
 							<Toggle
 								checked={!project.cursor.hide}
@@ -526,7 +540,7 @@ export function ConfigSidebar() {
 						}
 					/>
 					<Show when={!project.cursor.hide}>
-						<Field name="大小" inline>
+						<Field name={L("大小", "Size")} inline>
 							<Slider
 								value={[project.cursor.size]}
 								onChange={(v) => setProject("cursor", "size", v[0])}
@@ -535,12 +549,16 @@ export function ConfigSidebar() {
 								step={1}
 							/>
 						</Field>
-						<KCollapsible open={(project.cursor as any).clickEffect?.enabled ?? true}>
+						<KCollapsible
+							open={(project.cursor as any).clickEffect?.enabled ?? true}
+						>
 							<Field
-								name="点击效果"
+								name={L("点击效果", "Click Effect")}
 								value={
 									<Toggle
-										checked={(project.cursor as any).clickEffect?.enabled ?? true}
+										checked={
+											(project.cursor as any).clickEffect?.enabled ?? true
+										}
 										onChange={(value) => {
 											setProject("cursor", "clickEffect" as any, {
 												...((project.cursor as any).clickEffect ?? {}),
@@ -552,7 +570,7 @@ export function ConfigSidebar() {
 							/>
 							<KCollapsible.Content class="overflow-hidden border-b opacity-0 transition-opacity border-gray-3 animate-collapsible-up ui-expanded:animate-collapsible-down ui-expanded:opacity-100">
 								<div class="flex flex-col gap-4 pt-4 pb-6">
-									<Field name="圆环大小" inline>
+									<Field name={L("圆环大小", "Ring Size")} inline>
 										<Slider
 											value={[(project.cursor as any).clickEffect?.size ?? 60]}
 											onChange={(v) => {
@@ -566,9 +584,11 @@ export function ConfigSidebar() {
 											step={1}
 										/>
 									</Field>
-									<Field name="持续时间" inline>
+									<Field name={L("持续时间", "Duration")} inline>
 										<Slider
-											value={[(project.cursor as any).clickEffect?.duration ?? 0.4]}
+											value={[
+												(project.cursor as any).clickEffect?.duration ?? 0.4,
+											]}
 											onChange={(v) => {
 												setProject("cursor", "clickEffect" as any, {
 													...((project.cursor as any).clickEffect ?? {}),
@@ -581,9 +601,11 @@ export function ConfigSidebar() {
 											formatTooltip={(value) => `${value.toFixed(2)}s`}
 										/>
 									</Field>
-									<Field name="不透明度" inline>
+									<Field name={L("不透明度", "Opacity")} inline>
 										<Slider
-											value={[(project.cursor as any).clickEffect?.opacity ?? 0.6]}
+											value={[
+												(project.cursor as any).clickEffect?.opacity ?? 0.6,
+											]}
 											onChange={(v) => {
 												setProject("cursor", "clickEffect" as any, {
 													...((project.cursor as any).clickEffect ?? {}),
@@ -595,10 +617,12 @@ export function ConfigSidebar() {
 											step={0.05}
 										/>
 									</Field>
-									<Field name="颜色" inline>
+									<Field name={L("颜色", "Color")} inline>
 										<input
 											type="color"
-											value={(project.cursor as any).clickEffect?.color ?? "#FFCB03"}
+											value={
+												(project.cursor as any).clickEffect?.color ?? "#FFCB03"
+											}
 											onChange={(e) => {
 												setProject("cursor", "clickEffect" as any, {
 													...((project.cursor as any).clickEffect ?? {}),
@@ -612,7 +636,7 @@ export function ConfigSidebar() {
 							</KCollapsible.Content>
 						</KCollapsible>
 						<Field
-							name="空闲时隐藏"
+							name={L("空闲时隐藏", "Hide When Idle")}
 							value={
 								<Toggle
 									checked={project.cursor.hideWhenIdle}
@@ -623,7 +647,10 @@ export function ConfigSidebar() {
 							}
 						/>
 						<Show when={project.cursor.hideWhenIdle}>
-							<Subfield name="空闲延迟" class="gap-4 items-center">
+							<Subfield
+								name={L("空闲延迟", "Idle Delay")}
+								class="gap-4 items-center"
+							>
 								<div class="flex flex-1 gap-3 items-center">
 									<Slider
 										class="flex-1"
@@ -645,7 +672,7 @@ export function ConfigSidebar() {
 						</Show>
 						<KCollapsible open={!project.cursor.raw}>
 							<Field
-								name="平滑移动"
+								name={L("平滑移动", "Smooth Movement")}
 								value={
 									<Toggle
 										checked={!project.cursor.raw}
@@ -657,7 +684,7 @@ export function ConfigSidebar() {
 							/>
 							<KCollapsible.Content class="overflow-hidden border-b opacity-0 transition-opacity border-gray-3 animate-collapsible-up ui-expanded:animate-collapsible-down ui-expanded:opacity-100">
 								<div class="flex flex-col gap-4 pt-4 pb-6">
-									<Field name="张力" inline>
+									<Field name={L("张力", "Tension")} inline>
 										<Slider
 											value={[project.cursor.tension]}
 											onChange={(v) => setProject("cursor", "tension", v[0])}
@@ -666,7 +693,7 @@ export function ConfigSidebar() {
 											step={1}
 										/>
 									</Field>
-									<Field name="阻力" inline>
+									<Field name={L("阻力", "Friction")} inline>
 										<Slider
 											value={[project.cursor.friction]}
 											onChange={(v) => setProject("cursor", "friction", v[0])}
@@ -675,7 +702,7 @@ export function ConfigSidebar() {
 											step={0.1}
 										/>
 									</Field>
-									<Field name="质量" inline>
+									<Field name={L("质量", "Mass")} inline>
 										<Slider
 											value={[project.cursor.mass]}
 											onChange={(v) => setProject("cursor", "mass", v[0])}
@@ -688,7 +715,7 @@ export function ConfigSidebar() {
 							</KCollapsible.Content>
 						</KCollapsible>
 						<Field
-							name="高质量SVG光标"
+							name={L("高质量SVG光标", "High-Quality SVG Cursor")}
 							value={
 								<Toggle
 									checked={(project.cursor as any).useSvg ?? true}
@@ -756,9 +783,9 @@ export function ConfigSidebar() {
           </Field> */}
 				</KTabs.Content>
 				<KTabs.Content value="hotkeys">
-					<Field name="快捷键" icon={<IconCapHotkeys />}>
+					<Field name={L("快捷键", "Shortcuts")} icon={<IconCapHotkeys />}>
 						<ComingSoonTooltip>
-							<Subfield name="显示快捷键">
+							<Subfield name={L("显示快捷键", "Show Shortcuts")}>
 								<Toggle disabled />
 							</Subfield>
 						</ComingSoonTooltip>
@@ -843,7 +870,7 @@ function BackgroundConfig(props: { scrollRef: HTMLDivElement }) {
 
 								debouncedSetProject(rawPath);
 							} catch (err) {
-								toast.error("设置壁纸失败");
+								toast.error(L("设置壁纸失败", "Failed to set wallpaper"));
 							}
 						};
 
@@ -945,7 +972,7 @@ function BackgroundConfig(props: { scrollRef: HTMLDivElement }) {
 
 	return (
 		<KTabs.Content value={TAB_IDS.background} class="flex flex-col gap-6">
-			<Field name="背景图像">
+			<Field name={L("背景图像", "Background")}>
 				<KTabs
 					value={project.background.source.type}
 					onChange={(v) => {
@@ -1185,7 +1212,7 @@ function BackgroundConfig(props: { scrollRef: HTMLDivElement }) {
 
 									ensurePaddingForBackground();
 								} catch (err) {
-									toast.error("设置壁纸失败");
+									toast.error(L("设置壁纸失败", "Failed to set wallpaper"));
 								}
 							}}
 							class="grid grid-cols-7 gap-2 h-auto"
@@ -1196,7 +1223,9 @@ function BackgroundConfig(props: { scrollRef: HTMLDivElement }) {
 									<div class="flex col-span-7 justify-center items-center h-32 text-gray-11">
 										<div class="flex flex-col gap-2 items-center">
 											<div class="w-6 h-6 rounded-full border-2 animate-spin border-gray-5 border-t-blue-400" />
-											<span>正在加载壁纸...</span>
+											<span>
+												{L("正在加载壁纸...", "Loading wallpapers...")}
+											</span>
 										</div>
 									</div>
 								}
@@ -1312,7 +1341,9 @@ function BackgroundConfig(props: { scrollRef: HTMLDivElement }) {
 								];
 								const extension = file.name.split(".").pop()?.toLowerCase();
 								if (!extension || !validExtensions.includes(extension)) {
-									toast.error("无效的图片文件类型");
+									toast.error(
+										L("无效的图片文件类型", "Invalid image file type"),
+									);
 									return;
 								}
 
@@ -1332,7 +1363,7 @@ function BackgroundConfig(props: { scrollRef: HTMLDivElement }) {
 										path: fullPath,
 									});
 								} catch (err) {
-									toast.error("保存图片失败");
+									toast.error(L("保存图片失败", "Failed to save image"));
 								}
 							}}
 						/>
@@ -1546,7 +1577,7 @@ function BackgroundConfig(props: { scrollRef: HTMLDivElement }) {
 				</KTabs>
 			</Field>
 
-			<Field name="背景模糊" inline>
+			<Field name={L("背景模糊", "Background Blur")} inline>
 				<Slider
 					value={[project.background.blur]}
 					onChange={(v) => setProject("background", "blur", v[0])}
@@ -1558,7 +1589,7 @@ function BackgroundConfig(props: { scrollRef: HTMLDivElement }) {
 			</Field>
 			{/** Dashed divider */}
 			<div class="w-full border-t border-gray-300 border-dashed" />
-			<Field name="视频内边距" inline>
+			<Field name={L("视频内边距", "Padding")} inline>
 				<Slider
 					value={[project.background.padding]}
 					onChange={(v) => setProject("background", "padding", v[0])}
@@ -1568,7 +1599,7 @@ function BackgroundConfig(props: { scrollRef: HTMLDivElement }) {
 					formatTooltip="%"
 				/>
 			</Field>
-			<Field name="视频框圆角" inline>
+			<Field name={L("视频框圆角", "Rounded Corners")} inline>
 				<Slider
 					value={[project.background.rounding]}
 					onChange={(v) => setProject("background", "rounding", v[0])}
@@ -1579,7 +1610,7 @@ function BackgroundConfig(props: { scrollRef: HTMLDivElement }) {
 				/>
 			</Field>
 			<Field
-				name="视频边框"
+				name={L("视频边框", "Border")}
 				value={
 					<Toggle
 						checked={project.background.border?.enabled ?? false}
@@ -1600,7 +1631,7 @@ function BackgroundConfig(props: { scrollRef: HTMLDivElement }) {
 				}
 			/>
 			<Show when={project.background.border?.enabled}>
-				<Field name="边框宽度" inline>
+				<Field name={L("边框宽度", "Border Width")} inline>
 					<Slider
 						value={[project.background.border?.width ?? 5.0]}
 						onChange={(v) =>
@@ -1620,7 +1651,7 @@ function BackgroundConfig(props: { scrollRef: HTMLDivElement }) {
 						formatTooltip="px"
 					/>
 				</Field>
-				<Field name="边框颜色" inline>
+				<Field name={L("边框颜色", "Border Color")} inline>
 					<RgbInput
 						value={project.background.border?.color ?? [0, 0, 0]}
 						onChange={(color) =>
@@ -1636,7 +1667,7 @@ function BackgroundConfig(props: { scrollRef: HTMLDivElement }) {
 						}
 					/>
 				</Field>
-				<Field name="边框不透明度" inline>
+				<Field name={L("边框不透明度", "Border Opacity")} inline>
 					<Slider
 						value={[project.background.border?.opacity ?? 50.0]}
 						onChange={(v) =>
@@ -1657,7 +1688,7 @@ function BackgroundConfig(props: { scrollRef: HTMLDivElement }) {
 					/>
 				</Field>
 			</Show>
-			<Field name="阴影" inline>
+			<Field name={L("阴影", "Shadow")} inline>
 				<Slider
 					value={[project.background.shadow!]}
 					onChange={(v) => {
@@ -1740,10 +1771,10 @@ function CameraConfig(props: { scrollRef: HTMLDivElement }) {
 
 	return (
 		<KTabs.Content value={TAB_IDS.camera} class="flex flex-col gap-6">
-			<Field name="摄像头">
+			<Field name={L("摄像头", "Camera")}>
 				<div class="flex flex-col gap-6">
 					<div>
-						<Subfield name="位置" />
+						<Subfield name={L("位置", "Position")} />
 						<KRadioGroup
 							value={`${project.camera.position.x}:${project.camera.position.y}`}
 							onChange={(v) => {
@@ -1784,19 +1815,19 @@ function CameraConfig(props: { scrollRef: HTMLDivElement }) {
 							</For>
 						</KRadioGroup>
 					</div>
-					<Subfield name="隐藏摄像头">
+					<Subfield name={L("隐藏摄像头", "Hide Camera")}>
 						<Toggle
 							checked={project.camera.hide}
 							onChange={(hide) => setProject("camera", "hide", hide)}
 						/>
 					</Subfield>
-					<Subfield name="镜像摄像头">
+					<Subfield name={L("镜像摄像头", "Mirror Camera")}>
 						<Toggle
 							checked={project.camera.mirror}
 							onChange={(mirror) => setProject("camera", "mirror", mirror)}
 						/>
 					</Subfield>
-					<Subfield name="形状">
+					<Subfield name={L("形状", "Shape")}>
 						<KSelect<{ name: string; value: CameraShape }>
 							options={CAMERA_SHAPES}
 							optionValue="value"
@@ -1859,7 +1890,7 @@ function CameraConfig(props: { scrollRef: HTMLDivElement }) {
 			</Field>
 			{/** Dashed divider */}
 			<div class="w-full border-t border-dashed border-gray-5" />
-			<Field name="大小" inline>
+			<Field name={L("大小", "Size")} inline>
 				<Slider
 					value={[project.camera.size]}
 					onChange={(v) => setProject("camera", "size", v[0])}
@@ -1869,7 +1900,7 @@ function CameraConfig(props: { scrollRef: HTMLDivElement }) {
 					formatTooltip="%"
 				/>
 			</Field>
-			<Field name="缩放时大小" inline>
+			<Field name={L("缩放时大小", "Size When Zoomed")} inline>
 				<Slider
 					value={[project.camera.zoom_size ?? 60]}
 					onChange={(v) => setProject("camera", "zoom_size", v[0])}
@@ -1879,7 +1910,7 @@ function CameraConfig(props: { scrollRef: HTMLDivElement }) {
 					formatTooltip="%"
 				/>
 			</Field>
-			<Field name="圆角" inline>
+			<Field name={L("圆角", "Rounded Corners")} inline>
 				<Slider
 					value={[project.camera.rounding!]}
 					onChange={(v) => setProject("camera", "rounding", v[0])}
@@ -1932,7 +1963,7 @@ function SegmentsConfig() {
 	return (
 		<>
 			{/* Zoom Segments Section */}
-			<Field name="缩放片段" icon={<IconLucideSearch />}>
+			<Field name={L("缩放片段", "Zoom Segments")} icon={<IconLucideSearch />}>
 				<Show
 					when={selectedZoomSegment()}
 					fallback={
@@ -1940,7 +1971,10 @@ function SegmentsConfig() {
 							when={zoomSegments().length > 0}
 							fallback={
 								<div class="text-sm text-gray-10 py-2">
-									在时间轴上点击"缩放"轨道添加缩放片段
+									{L(
+										'在时间轴上点击"缩放"轨道添加缩放片段',
+										'Click the "Zoom" track on the timeline to add zoom segments',
+									)}
 								</div>
 							}
 						>
@@ -1956,7 +1990,9 @@ function SegmentsConfig() {
 												});
 											}}
 										>
-											<span class="text-sm">缩放片段 {index() + 1}</span>
+											<span class="text-sm">
+												{L("缩放片段", "Zoom Segment")} {index() + 1}
+											</span>
 											<span class="text-xs text-gray-10">
 												{segment.amount.toFixed(1)}x
 											</span>
@@ -1977,7 +2013,10 @@ function SegmentsConfig() {
 			</Field>
 
 			{/* Camera Layout Segments Section */}
-			<Field name="摄像头布局片段" icon={<IconLucideLayout />}>
+			<Field
+				name={L("摄像头布局片段", "Camera Layout Segments")}
+				icon={<IconLucideLayout />}
+			>
 				<Show
 					when={selectedSceneSegment()}
 					fallback={
@@ -1985,7 +2024,10 @@ function SegmentsConfig() {
 							when={sceneSegments().length > 0}
 							fallback={
 								<div class="text-sm text-gray-10 py-2">
-									在时间轴上点击"摄像头布局"轨道添加片段
+									{L(
+										'在时间轴上点击"摄像头布局"轨道添加片段',
+										'Click the "Camera Layout" track on the timeline to add segments',
+									)}
 								</div>
 							}
 						>
@@ -2001,13 +2043,16 @@ function SegmentsConfig() {
 												});
 											}}
 										>
-											<span class="text-sm">摄像头布局片段 {index() + 1}</span>
+											<span class="text-sm">
+												{L("摄像头布局片段", "Camera Layout Segment")}{" "}
+												{index() + 1}
+											</span>
 											<span class="text-xs text-gray-10">
 												{segment.mode === "cameraOnly"
-													? "仅摄像头"
+													? L("仅摄像头", "Camera Only")
 													: segment.mode === "hideCamera"
-														? "隐藏摄像头"
-														: "默认"}
+														? L("隐藏摄像头", "Hide Camera")
+														: L("默认", "Default")}
 											</span>
 										</div>
 									)}
@@ -2053,7 +2098,7 @@ function ZoomSegmentConfigInline(props: {
 		<div class="flex flex-col gap-4">
 			{/* Zoom Mode - Top row */}
 			<div class="flex items-center justify-between">
-				<span class="text-sm text-gray-11">缩放模式</span>
+				<span class="text-sm text-gray-11">{L("缩放模式", "Zoom Mode")}</span>
 				<KTabs
 					value={props.segment.mode === "auto" ? "auto" : "manual"}
 					onChange={(v) => {
@@ -2072,13 +2117,13 @@ function ZoomSegmentConfigInline(props: {
 							class="z-10 px-3 py-1.5 text-sm text-gray-11 transition-colors duration-100 outline-none ui-selected:text-gray-12"
 							disabled={!generalSettings.data?.custom_cursor_capture2}
 						>
-							自动
+							{L("自动", "Auto")}
 						</KTabs.Trigger>
 						<KTabs.Trigger
 							value="manual"
 							class="z-10 px-3 py-1.5 text-sm text-gray-11 transition-colors duration-100 outline-none ui-selected:text-gray-12"
 						>
-							手动
+							{L("手动", "Manual")}
 						</KTabs.Trigger>
 						<KTabs.Indicator class="absolute flex p-px inset-0 transition-transform rounded-[0.5rem] overflow-hidden">
 							<div class="flex-1 bg-gray-3" />
@@ -2214,7 +2259,8 @@ function ZoomSegmentConfigInline(props: {
 						),
 					);
 
-					const [containerRef, setContainerRef] = createSignal<HTMLDivElement>();
+					const [containerRef, setContainerRef] =
+						createSignal<HTMLDivElement>();
 					const bounds = createElementBounds(containerRef);
 					const visualHeight = () =>
 						(bounds.width! / croppedSize().x) * croppedSize().y;
@@ -2280,7 +2326,7 @@ function ZoomSegmentConfigInline(props: {
 								<Show when={!loaded()}>
 									<div class="flex absolute inset-0 justify-center items-center bg-gray-2">
 										<div class="text-sm text-gray-11">
-											加载预览中...
+											{L("加载预览中...", "Loading preview...")}
 										</div>
 									</div>
 								</Show>
@@ -2293,7 +2339,7 @@ function ZoomSegmentConfigInline(props: {
 			{/* Zoom amount - Same row */}
 			<div class="flex items-center justify-between gap-4">
 				<span class="text-sm text-gray-11 shrink-0">
-					缩放倍数
+					{L("缩放倍数", "Zoom Amount")}
 				</span>
 				<div class="flex-1">
 					<Slider
@@ -2322,7 +2368,7 @@ function ZoomSegmentConfigInline(props: {
 					size="sm"
 					onClick={() => setEditorState("timeline", "selection", null)}
 				>
-					完成
+					{L("完成", "Done")}
 				</Button>
 				<button
 					type="button"
@@ -2332,7 +2378,7 @@ function ZoomSegmentConfigInline(props: {
 					}}
 				>
 					<IconCapTrash class="size-4" />
-					删除
+					{L("删除", "Delete")}
 				</button>
 			</div>
 		</div>
@@ -2349,7 +2395,7 @@ function SceneSegmentConfigInline(props: {
 		<div class="flex flex-col gap-4">
 			{/* Camera Layout Mode */}
 			<div class="flex items-center justify-between">
-				<span class="text-sm text-gray-11">布局模式</span>
+				<span class="text-sm text-gray-11">{L("布局模式", "Layout Mode")}</span>
 				<KTabs
 					value={props.segment.mode || "default"}
 					onChange={(v) => {
@@ -2367,19 +2413,19 @@ function SceneSegmentConfigInline(props: {
 							value="default"
 							class="z-10 px-2 py-1.5 text-sm text-gray-11 transition-colors duration-100 outline-none ui-selected:text-gray-12"
 						>
-							默认
+							{L("默认", "Default")}
 						</KTabs.Trigger>
 						<KTabs.Trigger
 							value="cameraOnly"
 							class="z-10 px-2 py-1.5 text-sm text-gray-11 transition-colors duration-100 outline-none ui-selected:text-gray-12"
 						>
-							仅摄像头
+							{L("仅摄像头", "Camera Only")}
 						</KTabs.Trigger>
 						<KTabs.Trigger
 							value="hideCamera"
 							class="z-10 px-2 py-1.5 text-sm text-gray-11 transition-colors duration-100 outline-none ui-selected:text-gray-12"
 						>
-							隐藏
+							{L("隐藏", "Hide")}
 						</KTabs.Trigger>
 						<KTabs.Indicator class="absolute flex p-px inset-0 transition-transform rounded-[0.5rem] overflow-hidden">
 							<div class="flex-1 bg-gray-3" />
@@ -2390,7 +2436,7 @@ function SceneSegmentConfigInline(props: {
 
 			{/* Segment info */}
 			<div class="text-sm text-gray-10">
-				摄像头布局片段 {props.segmentIndex + 1}
+				{L("摄像头布局片段", "Camera Layout Segment")} {props.segmentIndex + 1}
 			</div>
 
 			{/* Bottom buttons */}
@@ -2400,7 +2446,7 @@ function SceneSegmentConfigInline(props: {
 					size="sm"
 					onClick={() => setEditorState("timeline", "selection", null)}
 				>
-					完成
+					{L("完成", "Done")}
 				</Button>
 				<button
 					type="button"
@@ -2410,7 +2456,7 @@ function SceneSegmentConfigInline(props: {
 					}}
 				>
 					<IconCapTrash class="size-4" />
-					删除
+					{L("删除", "Delete")}
 				</button>
 			</div>
 		</div>
@@ -2510,7 +2556,7 @@ function ZoomSegmentPreview(props: {
 		<>
 			<div class="space-y-1.5">
 				<div class="text-xs font-medium text-center text-gray-12">
-					缩放 {props.segmentIndex + 1}
+					{L("缩放", "Zoom")} {props.segmentIndex + 1}
 				</div>
 				<div class="overflow-hidden relative rounded border aspect-video border-gray-3 bg-gray-3">
 					<canvas
@@ -2522,7 +2568,7 @@ function ZoomSegmentPreview(props: {
 					/>
 					<Show when={!loaded()}>
 						<p class="flex absolute inset-0 justify-center items-center text-xs text-gray-11">
-							加载中...
+							{L("加载中...", "Loading...")}
 						</p>
 					</Show>
 				</div>
@@ -2558,7 +2604,10 @@ function ZoomSegmentConfig(props: {
 	return (
 		<>
 			<Field
-				name={`缩放 ${props.segmentIndex + 1}`}
+				name={L(
+					`缩放 ${props.segmentIndex + 1}`,
+					`Zoom ${props.segmentIndex + 1}`,
+				)}
 				icon={<IconLucideSearch />}
 			>
 				<Slider
@@ -2578,7 +2627,7 @@ function ZoomSegmentConfig(props: {
 					formatTooltip="x"
 				/>
 			</Field>
-			<Field name="缩放模式" icon={<IconCapSettings />}>
+			<Field name={L("缩放模式", "Zoom Mode")} icon={<IconCapSettings />}>
 				<KTabs
 					class="space-y-6"
 					value={props.segment.mode === "auto" ? "auto" : "manual"}
@@ -2598,13 +2647,13 @@ function ZoomSegmentConfig(props: {
 							class="z-10 flex-1 py-2.5 text-gray-11 transition-colors duration-100 outline-none ui-selected:text-gray-12 peer"
 							disabled={!generalSettings.data?.custom_cursor_capture2}
 						>
-							自动
+							{L("自动", "Auto")}
 						</KTabs.Trigger>
 						<KTabs.Trigger
 							value="manual"
 							class="z-10 flex-1 py-2.5 text-gray-11 transition-colors duration-100 outline-none ui-selected:text-gray-12 peer"
 						>
-							手动
+							{L("手动", "Manual")}
 						</KTabs.Trigger>
 						<KTabs.Indicator class="absolute flex p-px inset-0 transition-transform peer-focus-visible:outline outline-2 outline-blue-9 outline-offset-2 rounded-[0.6rem] overflow-hidden">
 							<div class="flex-1 bg-gray-3" />
@@ -2876,7 +2925,7 @@ function ClipSegmentConfig(props: {
 						onClick={() => setEditorState("timeline", "selection", null)}
 						leftIcon={<IconLucideCheck />}
 					>
-						完成
+						{L("完成", "Done")}
 					</EditorButton>
 				</div>
 				<EditorButton
@@ -2898,15 +2947,20 @@ function ClipSegmentConfig(props: {
 			</div>
 
 			<div class="space-y-1">
-				<h3 class="font-medium text-gray-12">片段设置</h3>
+				<h3 class="font-medium text-gray-12">
+					{L("片段设置", "Clip Settings")}
+				</h3>
 				<p class="text-gray-11">
-					这些设置适用于当前片段的所有段
+					{L(
+						"这些设置适用于当前片段的所有段",
+						"These settings apply to all segments of this clip",
+					)}
 				</p>
 			</div>
 
 			{meta().hasSystemAudio && (
 				<SourceOffsetField
-					name="系统音频偏移"
+					name={L("系统音频偏移", "System Audio Offset")}
 					value={offsets().system_audio}
 					onChange={(offset) => {
 						setOffset("system_audio", offset);
@@ -2915,7 +2969,7 @@ function ClipSegmentConfig(props: {
 			)}
 			{meta().hasMicrophone && (
 				<SourceOffsetField
-					name="麦克风偏移"
+					name={L("麦克风偏移", "Microphone Offset")}
 					value={offsets().mic}
 					onChange={(offset) => {
 						setOffset("mic", offset);
@@ -2924,7 +2978,7 @@ function ClipSegmentConfig(props: {
 			)}
 			{meta().hasCamera && (
 				<SourceOffsetField
-					name="摄像头偏移"
+					name={L("摄像头偏移", "Camera Offset")}
 					value={offsets().camera}
 					onChange={(offset) => {
 						setOffset("camera", offset);
@@ -3015,7 +3069,7 @@ function SceneSegmentConfig(props: {
 						onClick={() => setEditorState("timeline", "selection", null)}
 						leftIcon={<IconLucideCheck />}
 					>
-						完成
+						{L("完成", "Done")}
 					</EditorButton>
 				</div>
 				<EditorButton
@@ -3025,10 +3079,13 @@ function SceneSegmentConfig(props: {
 					}}
 					leftIcon={<IconCapTrash />}
 				>
-					删除
+					{L("删除", "Delete")}
 				</EditorButton>
 			</div>
-			<Field name="摄像头布局" icon={<IconLucideLayout />}>
+			<Field
+				name={L("摄像头布局", "Camera Layout")}
+				icon={<IconLucideLayout />}
+			>
 				<KTabs
 					class="space-y-6"
 					value={props.segment.mode || "default"}
@@ -3048,19 +3105,19 @@ function SceneSegmentConfig(props: {
 								value="default"
 								class="z-10 flex-1 py-2.5 text-gray-11 transition-colors duration-100 outline-none ui-selected:text-gray-12 peer"
 							>
-								默认
+								{L("默认", "Default")}
 							</KTabs.Trigger>
 							<KTabs.Trigger
 								value="cameraOnly"
 								class="z-10 flex-1 py-2.5 text-gray-11 transition-colors duration-100 outline-none ui-selected:text-gray-12 peer"
 							>
-								仅摄像头
+								{L("仅摄像头", "Camera Only")}
 							</KTabs.Trigger>
 							<KTabs.Trigger
 								value="hideCamera"
 								class="z-10 flex-1 py-2.5 text-gray-11 transition-colors duration-100 outline-none ui-selected:text-gray-12 peer"
 							>
-								隐藏摄像头
+								{L("隐藏摄像头", "Hide Camera")}
 							</KTabs.Trigger>
 							<KTabs.Indicator class="absolute flex p-px inset-0 transition-transform peer-focus-visible:outline outline-2 outline-blue-9 outline-offset-2 rounded-[0.6rem] overflow-hidden">
 								<div class="flex-1 bg-gray-3" />
@@ -3093,10 +3150,13 @@ function SceneSegmentConfig(props: {
 							<div class="p-2.5 rounded-md bg-gray-2 border border-gray-3">
 								<div class="text-xs text-center text-gray-11">
 									{props.segment.mode === "cameraOnly"
-										? "仅显示摄像头画面"
+										? L("仅显示摄像头画面", "Show camera only")
 										: props.segment.mode === "hideCamera"
-											? "仅显示屏幕录制"
-											: "同时显示屏幕和摄像头"}
+											? L("仅显示屏幕录制", "Show screen recording only")
+											: L(
+													"同时显示屏幕和摄像头",
+													"Show both screen and camera",
+												)}
 								</div>
 							</div>
 						</div>

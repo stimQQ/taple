@@ -2,6 +2,7 @@ import { DropdownMenu as KDropdownMenu } from "@kobalte/core/dropdown-menu";
 import { cx } from "cva";
 import { createSignal, For, Show, Suspense } from "solid-js";
 import { reconcile } from "solid-js/store";
+import { L } from "~/utils/i18n";
 import { useEditorContext } from "./context";
 import {
 	DropdownItem,
@@ -23,7 +24,7 @@ export function PresetsDropdown() {
 				leftIcon={<IconCapPresets />}
 				rightIcon={<IconCapChevronDown />}
 			>
-				预设模版
+				{L("预设模版", "Presets")}
 			</EditorButton>
 			<KDropdownMenu.Portal>
 				<Suspense>
@@ -39,7 +40,7 @@ export function PresetsDropdown() {
 								each={presets.query.data?.presets ?? []}
 								fallback={
 									<div class="py-1 w-full text-sm text-center text-gray-11">
-										暂无预设
+										{L("暂无预设", "No presets")}
 									</div>
 								}
 							>
@@ -69,7 +70,7 @@ export function PresetsDropdown() {
 												<span class="mr-auto">{preset.name}</span>
 												<Show when={presets.query.data?.default === i()}>
 													<span class="px-2 py-1 text-[11px] rounded-full bg-gray-2 text-gray-11">
-														默认
+														{L("默认", "Default")}
 													</span>
 												</Show>
 												<button
@@ -101,12 +102,12 @@ export function PresetsDropdown() {
 																applyPreset();
 															}}
 														>
-															应用
+															{L("应用", "Apply")}
 														</DropdownItem>
 														<DropdownItem
 															onSelect={() => presets.setDefault(i())}
 														>
-															设为默认
+															{L("设为默认", "Set as Default")}
 														</DropdownItem>
 														<DropdownItem
 															onSelect={() =>
@@ -117,7 +118,7 @@ export function PresetsDropdown() {
 																})
 															}
 														>
-															重命名
+															{L("重命名", "Rename")}
 														</DropdownItem>
 														<DropdownItem
 															onClick={() =>
@@ -128,7 +129,7 @@ export function PresetsDropdown() {
 																})
 															}
 														>
-															删除
+															{L("删除", "Delete")}
 														</DropdownItem>
 													</MenuItemList>
 												)}
@@ -147,10 +148,17 @@ export function PresetsDropdown() {
 								class="!flex-col !items-start gap-1"
 							>
 								<div class="flex flex-row items-center w-full">
-									<span class="text-gray-12 font-medium">创建新预设</span>
+									<span class="text-gray-12 font-medium">
+										{L("创建新预设", "Create New Preset")}
+									</span>
 									<IconCapCirclePlus class="ml-auto text-gray-12" />
 								</div>
-								<span class="text-xs text-gray-11 text-left">将背景、音频、光标、头像等设置成模版</span>
+								<span class="text-xs text-gray-11 text-left">
+									{L(
+										"将背景、音频、光标、头像等设置成模版",
+										"Save background, audio, cursor, camera and more as a preset",
+									)}
+								</span>
 							</DropdownItem>
 						</MenuItemList>
 					</PopperContent>

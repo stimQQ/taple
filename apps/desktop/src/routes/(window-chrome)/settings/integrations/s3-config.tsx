@@ -4,6 +4,7 @@ import { createWritableMemo } from "@solid-primitives/memo";
 import { useMutation } from "@tanstack/solid-query";
 import { createResource, Suspense } from "solid-js";
 import { Input } from "~/routes/editor/ui";
+import { L } from "~/utils/i18n";
 import { commands } from "~/utils/tauri";
 import { apiClient, protectedHeaders } from "~/utils/web-api";
 
@@ -50,7 +51,9 @@ export default function S3ConfigPage() {
 		},
 		onSuccess: async () => {
 			await refetch();
-			await commands.globalMessageDialog("S3 配置保存成功");
+			await commands.globalMessageDialog(
+				L("S3 配置保存成功", "S3 configuration saved"),
+			);
 		},
 	}));
 
@@ -67,7 +70,7 @@ export default function S3ConfigPage() {
 		onSuccess: async () => {
 			await refetch();
 			await commands.globalMessageDialog(
-				"S3 配置已删除",
+				L("S3 配置已删除", "S3 configuration deleted"),
 			);
 		},
 	}));
@@ -88,7 +91,10 @@ export default function S3ConfigPage() {
 
 				if (response.status !== 200)
 					throw new Error(
-						`S3 连接测试失败。请检查你的配置和网络连接。`,
+						L(
+							"S3 连接测试失败。请检查你的配置和网络连接。",
+							"S3 connection test failed. Check your configuration and network connection.",
+						),
 					);
 
 				return response;
@@ -98,7 +104,10 @@ export default function S3ConfigPage() {
 				if (error instanceof Error) {
 					if (error.name === "AbortError")
 						throw new Error(
-							"连接测试超时（5秒）。请检查你的端点 URL 和网络连接。",
+							L(
+								"连接测试超时（5秒）。请检查你的端点 URL 和网络连接。",
+								"Connection test timed out (5s). Check your endpoint URL and network connection.",
+							),
 						);
 				}
 
@@ -107,7 +116,10 @@ export default function S3ConfigPage() {
 		},
 		onSuccess: async () => {
 			await commands.globalMessageDialog(
-				"S3 配置测试成功！连接正常。",
+				L(
+					"S3 配置测试成功！连接正常。",
+					"S3 configuration test passed. Connection is working.",
+				),
 			);
 		},
 	}));
@@ -168,22 +180,25 @@ export default function S3ConfigPage() {
 								<div class="p-4 space-y-4 animate-in fade-in">
 									<div class="pb-4 border-b border-gray-3">
 										<p class="text-sm text-gray-11">
-											设置并连接你的存储桶到 SparkVideo 只需不到 10 分钟。查看{" "}
+											{L(
+												"设置并连接你的存储桶到 Taple 只需不到 10 分钟。查看",
+												"Setting up and connecting your storage bucket to Taple takes under 10 minutes. See the",
+											)}{" "}
 											<a
-												href="https://sparkvideo.cc/docs/s3-config"
+												href="https://taple.app/docs/s3-config"
 												target="_blank"
 												class="underline text-gray-12"
 												rel="noopener"
 											>
-												存储配置指南
+												{L("存储配置指南", "Storage Config Guide")}
 											</a>{" "}
-											开始使用。
+											{L("开始使用。", "to get started.")}
 										</p>
 									</div>
 
 									<div class="space-y-2">
 										<label class="text-[13px] text-gray-12">
-											存储提供商
+											{L("存储提供商", "Storage Provider")}
 										</label>
 										<div class="relative">
 											<select
@@ -200,7 +215,9 @@ export default function S3ConfigPage() {
 												<option value="cloudflare">Cloudflare R2</option>
 												<option value="supabase">Supabase</option>
 												<option value="minio">MinIO</option>
-												<option value="other">其他 S3 兼容服务</option>
+												<option value="other">
+													{L("其他 S3 兼容服务", "Other S3-Compatible")}
+												</option>
 											</select>
 											<div class="flex absolute inset-y-0 right-0 items-center px-2 pointer-events-none">
 												<svg
@@ -220,24 +237,28 @@ export default function S3ConfigPage() {
 									</div>
 
 									{renderInput(
-										"访问密钥 ID",
+										L("访问密钥 ID", "Access Key ID"),
 										"accessKeyId",
 										"PL31OADSQNK",
 										"password",
 									)}
 									{renderInput(
-										"访问密钥",
+										L("访问密钥", "Secret Access Key"),
 										"secretAccessKey",
 										"PL31OADSQNK",
 										"password",
 									)}
 									{renderInput(
-										"端点",
+										L("端点", "Endpoint"),
 										"endpoint",
 										"https://s3.amazonaws.com",
 									)}
-									{renderInput("存储桶名称", "bucketName", "my-bucket")}
-									{renderInput("区域", "region", "us-east-1")}
+									{renderInput(
+										L("存储桶名称", "Bucket Name"),
+										"bucketName",
+										"my-bucket",
+									)}
+									{renderInput(L("区域", "Region"), "region", "us-east-1")}
 								</div>
 							);
 						})()}
@@ -260,11 +281,15 @@ export default function S3ConfigPage() {
 								variant="destructive"
 								onClick={() => deleteConfig.mutate()}
 							>
-								{deleteConfig.isPending ? "删除中..." : "删除配置"}
+								{deleteConfig.isPending
+									? L("删除中...", "Deleting...")
+									: L("删除配置", "Delete Config")}
 							</Button>
 						)}
 						<Button variant="gray" onClick={() => events.emit("test")}>
-							{testConfig.isPending ? "测试中..." : "测试连接"}
+							{testConfig.isPending
+								? L("测试中...", "Testing...")
+								: L("测试连接", "Test Connection")}
 						</Button>
 					</div>
 					<Button
@@ -272,7 +297,9 @@ export default function S3ConfigPage() {
 						variant="primary"
 						onClick={() => events.emit("save")}
 					>
-						{saveConfig.isPending ? "保存中..." : "保存"}
+						{saveConfig.isPending
+							? L("保存中...", "Saving...")
+							: L("保存", "Save")}
 					</Button>
 				</fieldset>
 			</div>

@@ -9,14 +9,14 @@ export const metadata: Metadata = {
 		title: "Free Screen Recorder: High-Quality Recording at No Cost",
 		description:
 			"Cap offers a top-rated, free screen recorder with high-quality video capture, making it perfect for creating tutorials, educational content, and professional demos without any hidden fees.",
-		url: "https://sparkvideo.cc/free-screen-recorder",
-		siteName: "SparkVideo",
+		url: "https://taple.app/free-screen-recorder",
+		siteName: "Taple",
 		images: [
 			{
-				url: "https://sparkvideo.cc/og.png",
+				url: "https://taple.app/og.png",
 				width: 1200,
 				height: 630,
-				alt: "SparkVideo: Free Screen Recorder",
+				alt: "Taple: Free Screen Recorder",
 			},
 		],
 		locale: "en_US",
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
 		title: "Free Screen Recorder: High-Quality Recording at No Cost",
 		description:
 			"Cap offers a top-rated, free screen recorder with high-quality video capture, making it perfect for creating tutorials, educational content, and professional demos without any hidden fees.",
-		images: ["https://sparkvideo.cc/og.png"],
+		images: ["https://taple.app/og.png"],
 	},
 };
 

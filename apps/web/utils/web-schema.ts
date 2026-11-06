@@ -1,26 +1,20 @@
 export const createOrganizationSchema = () => ({
 	"@context": "https://schema.org",
 	"@type": "Organization",
-	"@id": "https://sparkvideo.cc/#organization",
-	name: "SparkVideo",
-	url: "https://sparkvideo.cc",
+	"@id": "https://taple.app/#organization",
+	name: "Taple",
+	url: "https://taple.app",
 	logo: {
 		"@type": "ImageObject",
-		url: "https://sparkvideo.cc/cap-logo.png",
+		url: "https://taple.app/logo.png",
 		width: 512,
 		height: 512,
 	},
-	description:
-		"Cap is the open source alternative to Loom. Lightweight, powerful, and cross-platform screen recorder.",
-	sameAs: [
-		"https://github.com/capsoftware/cap",
-		"https://twitter.com/cap",
-		"https://x.com/cap",
-		"https://www.producthunt.com/products/cap-3",
-	],
+	description: "Taple is an open source screen recorder and editor for macOS.",
+	sameAs: ["https://github.com/stimQQ/taple"],
 	contactPoint: {
 		"@type": "ContactPoint",
-		email: "hello@sparkvideo.cc",
+		email: "hello@taple.app",
 		contactType: "customer service",
 	},
 });
@@ -28,13 +22,13 @@ export const createOrganizationSchema = () => ({
 export const createWebSiteSchema = () => ({
 	"@context": "https://schema.org",
 	"@type": "WebSite",
-	"@id": "https://sparkvideo.cc/#website",
-	url: "https://sparkvideo.cc",
-	name: "SparkVideo",
+	"@id": "https://taple.app/#website",
+	url: "https://taple.app",
+	name: "Taple",
 	description:
 		"Beautiful screen recordings, owned by you. The open source alternative to Loom.",
 	publisher: {
-		"@id": "https://sparkvideo.cc/#organization",
+		"@id": "https://taple.app/#organization",
 	},
 });
 
@@ -76,18 +70,18 @@ export const createSoftwareApplicationSchema = (
 	return {
 		"@context": "https://schema.org",
 		"@type": "SoftwareApplication",
-		"@id": "https://sparkvideo.cc/#software",
-		name: "SparkVideo",
+		"@id": "https://taple.app/#software",
+		name: "Taple",
 		applicationCategory: "MultimediaApplication",
 		operatingSystem: ["macOS", "Windows"],
 		description:
 			"Cap is a powerful, open-source screen recording software that offers instant sharing, studio mode, and privacy-focused features.",
-		url: "https://sparkvideo.cc",
-		downloadUrl: "https://sparkvideo.cc/download",
+		url: "https://taple.app",
+		downloadUrl: "https://taple.app/download",
 		screenshot: [
 			{
 				"@type": "ImageObject",
-				url: "https://sparkvideo.cc/og.png",
+				url: "https://taple.app/og.png",
 				caption: "Cap screen recorder interface",
 			},
 		],
@@ -133,7 +127,7 @@ export const createSoftwareApplicationSchema = (
 		},
 		review: reviews,
 		creator: {
-			"@id": "https://sparkvideo.cc/#organization",
+			"@id": "https://taple.app/#organization",
 		},
 	};
 };
@@ -168,7 +162,7 @@ export const createVideoObjectSchema = (video: {
 	duration: video.duration || "PT2M",
 	embedUrl: video.embedUrl,
 	publisher: {
-		"@id": "https://sparkvideo.cc/#organization",
+		"@id": "https://taple.app/#organization",
 	},
 });
 
@@ -190,12 +184,12 @@ export const createFAQSchema = (
 export const createProductSchema = () => ({
 	"@context": "https://schema.org",
 	"@type": "Product",
-	name: "SparkVideo Screen Recorder",
+	name: "Taple Screen Recorder",
 	description:
 		"Open-source screen recording software with instant sharing and studio mode capabilities",
 	brand: {
 		"@type": "Brand",
-		name: "SparkVideo",
+		name: "Taple",
 	},
 	offers: {
 		"@type": "AggregateOffer",
@@ -224,7 +218,7 @@ export const createComparisonTableSchema = () => ({
 				name: "Open Source",
 				item: {
 					"@type": "PropertyValue",
-					name: "SparkVideo",
+					name: "Taple",
 					value: "Yes",
 				},
 			},
@@ -234,7 +228,7 @@ export const createComparisonTableSchema = () => ({
 				name: "Pricing",
 				item: {
 					"@type": "PropertyValue",
-					name: "SparkVideo",
+					name: "Taple",
 					value: "$8.16/month per user",
 				},
 			},
@@ -244,7 +238,7 @@ export const createComparisonTableSchema = () => ({
 				name: "4K Recording",
 				item: {
 					"@type": "PropertyValue",
-					name: "SparkVideo",
+					name: "Taple",
 					value: "Available in free & paid plans",
 				},
 			},
@@ -255,10 +249,10 @@ export const createComparisonTableSchema = () => ({
 export const createLocalBusinessSchema = () => ({
 	"@context": "https://schema.org",
 	"@type": "LocalBusiness",
-	name: "SparkVideo",
-	image: "https://sparkvideo.cc/og.png",
-	"@id": "https://sparkvideo.cc",
-	url: "https://sparkvideo.cc",
+	name: "Taple",
+	image: "https://taple.app/og.png",
+	"@id": "https://taple.app",
+	url: "https://taple.app",
 	priceRange: "$0-$8.16",
 	address: {
 		"@type": "PostalAddress",

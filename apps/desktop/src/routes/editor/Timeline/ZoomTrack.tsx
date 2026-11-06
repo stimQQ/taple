@@ -13,6 +13,7 @@ import {
 	Switch,
 } from "solid-js";
 import { produce } from "solid-js/store";
+import { L } from "~/utils/i18n";
 import { commands } from "~/utils/tauri";
 import { useEditorContext } from "../context";
 import {
@@ -149,7 +150,10 @@ export function ZoomTrack(props: {
 					items: [
 						{
 							id: "generateZoomSegments",
-							text: "从点击生成缩放片段",
+							text: L(
+								"从点击生成缩放片段",
+								"Generate Zoom Segments from Clicks",
+							),
 							action: handleGenerateZoomSegments,
 						},
 					],
@@ -270,9 +274,9 @@ export function ZoomTrack(props: {
 				each={project.timeline?.zoomSegments}
 				fallback={
 					<div class="text-center text-sm text-[--text-tertiary] flex flex-col justify-center items-center inset-0 w-full bg-gray-3/20 dark:bg-gray-3/10 hover:bg-gray-3/30 dark:hover:bg-gray-3/20 transition-colors rounded-xl pointer-events-none">
-						<div>点击添加缩放片段</div>
+						<div>{L("点击添加缩放片段", "Click to add a zoom segment")}</div>
 						<div class="text-[10px] text-[--text-tertiary]/40 mt-0.5">
-							（平滑放大重点区域）
+							{L("（平滑放大重点区域）", "(Smoothly zoom in on key areas)")}
 						</div>
 					</div>
 				}
@@ -542,7 +546,7 @@ export function ZoomTrack(props: {
 											</Match>
 											<Match when={true}>
 												<div class="flex flex-col gap-1 justify-center items-center text-xs whitespace-nowrap text-gray-1 dark:text-gray-12 animate-in fade-in">
-													<span class="opacity-70">缩放</span>
+													<span class="opacity-70">{L("缩放", "Zoom")}</span>
 													<div class="flex gap-1 items-center text-md">
 														<IconLucideSearch class="size-3.5" />
 														{zoomPercentage()}
