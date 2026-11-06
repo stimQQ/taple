@@ -19,6 +19,7 @@ import { trackEvent } from "~/utils/analytics";
 import { L } from "~/utils/i18n";
 import { commands, events } from "~/utils/tauri";
 import { initializeTitlebar } from "~/utils/titlebar-state";
+import { aiPanelOpen, aiRunBusy, setAIPanelOpen } from "./AIEditPanel";
 import { useEditorContext } from "./context";
 import PresetsDropdown from "./PresetsDropdown";
 import { EditorButton } from "./ui";
@@ -119,6 +120,26 @@ export function Header() {
 					ostype() !== "windows" && "pr-2",
 				)}
 			>
+				<EditorButton
+					onClick={() => {
+						clearTimelineSelection();
+						setAIPanelOpen(!aiPanelOpen());
+					}}
+					class={cx(aiPanelOpen() && "bg-gray-3")}
+					tooltipText={L(
+						"让 AI 帮你剪辑这段录制",
+						"Let AI edit this recording",
+					)}
+					leftIcon={
+						aiRunBusy() ? (
+							<IconLucideLoaderCircle class="w-4 animate-spin text-blue-11" />
+						) : (
+							<IconLucideSparkles class="w-4 text-blue-11" />
+						)
+					}
+				>
+					{L("AI 剪辑", "AI Edit")}
+				</EditorButton>
 				<PresetsDropdown />
 				<Button
 					variant="dark"

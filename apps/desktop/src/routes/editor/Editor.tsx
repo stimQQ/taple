@@ -22,6 +22,7 @@ import Tooltip from "~/components/Tooltip";
 import { createTauriEventListener } from "~/utils/createEventListener";
 import { L } from "~/utils/i18n";
 import { type Crop, events } from "~/utils/tauri";
+import { AIEditPanel, aiPanelOpen } from "./AIEditPanel";
 import { ConfigSidebar } from "./ConfigSidebar";
 import {
 	EditorContextProvider,
@@ -121,7 +122,10 @@ function Inner() {
 				<div class="flex overflow-hidden flex-col flex-1 min-h-0">
 					<div class="flex overflow-y-hidden flex-row flex-1 min-h-0 gap-2 px-2 pb-0.5">
 						<Player />
-						<ConfigSidebar />
+						<div class={aiPanelOpen() ? "hidden" : "contents"}>
+							<ConfigSidebar />
+						</div>
+						<AIEditPanel />
 					</div>
 					<Timeline />
 				</div>

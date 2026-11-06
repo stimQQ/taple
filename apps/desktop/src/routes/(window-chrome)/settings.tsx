@@ -39,6 +39,11 @@ export default function Settings(props: RouteSectionProps) {
 								name: L("快捷键", "Shortcuts"),
 								icon: IconCapHotkeys,
 							},
+							{
+								href: "ai",
+								name: L("AI 剪辑", "AI Edit"),
+								icon: IconLucideSparkles,
+							},
 						].filter(Boolean)}
 					>
 						{(item) => (

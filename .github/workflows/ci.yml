@@ -58,6 +58,9 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+      - name: Desktop unit tests
+        run: pnpm --filter @taple/desktop test
+
   format-biome:
     name: Format (Biome)
     runs-on: ubuntu-latest

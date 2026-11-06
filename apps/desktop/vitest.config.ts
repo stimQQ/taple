@@ -1,13 +1,13 @@
-import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
-	test: {
-		includeSource: ["src/**/*.{js,ts,jsx,tsx}"],
-	},
 	resolve: {
-		alias: {
-			"~": join(process.cwd(), "src"),
-		},
+		alias: { "~": fileURLToPath(new URL("./src", import.meta.url)) },
+	},
+	test: {
+		includeSource: ["src/**/*.{ts,tsx}"],
+		include: ["src/**/*.test.{ts,tsx}"],
+		environment: "node",
 	},
 });

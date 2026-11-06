@@ -7,12 +7,16 @@
 		"preparescript": "node scripts/prepare.js",
 		"localdev": "dotenv -e ../../.env -- vinxi dev --port 3002",
 		"build": "vinxi build",
-		"tauri": "tauri"
+		"tauri": "tauri",
+		"test": "vitest run"
 	},
 	"dependencies": {
 		"@aerofoil/rive-solid-canvas": "^2.1.4",
 		"@cap/ui-solid": "workspace:*",
 		"@corvu/tooltip": "^0.2.1",
+		"@earendil-works/pi-agent-core": "1.5.0",
+		"@earendil-works/pi-ai": "1.5.0",
+		"@earendil-works/pi-schema": "1.5.0",
 		"@intercom/messenger-js-sdk": "^0.0.14",
 		"@kobalte/core": "^0.13.7",
 		"@radix-ui/colors": "^3.0.0",

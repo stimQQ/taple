@@ -40,7 +40,7 @@ interface FontOption {
 	label: string;
 }
 
-const MODEL_OPTIONS: ModelOption[] = [
+export const MODEL_OPTIONS: ModelOption[] = [
 	{
 		name: "tiny",
 		label: L(
@@ -96,7 +96,7 @@ const LANGUAGE_OPTIONS: LanguageOption[] = [
 ];
 
 const DEFAULT_MODEL = "small";
-const MODEL_FOLDER = "transcription_models";
+export const MODEL_FOLDER = "transcription_models";
 
 // Custom flat button component since we can't import it
 function FlatButton(props: {

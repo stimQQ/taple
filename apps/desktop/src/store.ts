@@ -60,3 +60,13 @@ export const generalSettingsStore =
 	declareStore<GeneralSettingsStore>("general_settings");
 export const recordingSettingsStore =
 	declareStore<RecordingSettingsStore>("recording_settings");
+
+export type AIProviderId = "apimodels" | "anthropic" | "openai";
+
+export type AISettingsStore = {
+	provider?: AIProviderId;
+	models?: Partial<Record<AIProviderId, string>>;
+	keysUpdatedAt?: number;
+};
+
+export const aiSettingsStore = declareStore<AISettingsStore>("ai_settings");
