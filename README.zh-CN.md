@@ -4,7 +4,7 @@
 
 [English](README.md) | 简体中文
 
-专门录产品演示和教程的开源 Mac 录屏工具，免费使用：录完直接剪辑、放大重点、加字幕、降噪，导出成视频或 GIF。
+专门录产品演示和教程的开源 Mac 录屏工具，免费使用：录完直接剪辑、放大重点、加字幕、降噪，导出成视频或 GIF。也可以让 AI 先帮你粗剪一遍，或者用 Claude Code、Codex 这类 AI Agent 来剪。
 
 **下载 macOS 版：[GitHub Releases](https://github.com/stimQQ/taple/releases/latest)**（需要 macOS 13.1 或更新版本）
 
@@ -14,6 +14,8 @@
 - **剪辑**：录完自动打开剪辑器，可以裁剪、调整画面和背景
 - **AI 字幕**：用 Whisper 在本机生成字幕，不需要联网
 - **降噪**：用 DeepFilterNet 去掉录音里的环境噪音
+- **AI 剪辑**：填入 apimodels.app、Anthropic 或 OpenAI 的密钥后，AI 会剪掉口头禅和长停顿、加放大和字幕，但只要画面上有操作就不会剪。每处改动都显示在时间轴上，可以撤销
+- **接入 AI Agent**：在「设置 → AI 剪辑 → 接入 Agent」里一键连接 Claude Code、Codex、Claude Desktop 或 Cursor，通过 MCP 让 Agent 帮你剪
 - **导出**：导出 MP4 或 GIF 文件，或者直接复制到剪贴板
 - **中英双语**：界面语言跟随系统，中文系统显示中文，其他系统显示英文
 

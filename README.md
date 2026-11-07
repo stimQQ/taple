@@ -4,7 +4,7 @@
 
 English | [简体中文](README.zh-CN.md)
 
-Taple is a free, open source screen recorder for product demos and tutorials on macOS. Record your screen, camera and voice, then trim, zoom in, add captions and clean up the audio in the built-in editor before exporting to video or GIF. It is a fork of [Cap](https://github.com/CapSoftware/Cap).
+Taple is a free, open source screen recorder for product demos and tutorials on macOS. Record your screen, camera and voice, then trim, zoom in, add captions and clean up the audio in the built-in editor before exporting to video or GIF. AI Edit can make the first cut for you, and AI agents like Claude Code and Codex can edit your recordings too. It is a fork of [Cap](https://github.com/CapSoftware/Cap).
 
 **Download for macOS: [GitHub Releases](https://github.com/stimQQ/taple/releases/latest)** (requires macOS 13.1 or later)
 
@@ -14,6 +14,8 @@ Taple is a free, open source screen recorder for product demos and tutorials on 
 - **Editing**: the editor opens as soon as you stop recording, so you can trim clips and adjust the frame and background
 - **AI captions**: captions are generated on your Mac with Whisper, with no internet connection required
 - **Noise reduction**: DeepFilterNet removes background noise from your recordings
+- **AI Edit**: with an apimodels.app, Anthropic or OpenAI key, AI cuts filler words and long pauses, adds zooms and captions, and keeps every moment where something happens on screen. Every change shows up on the timeline and can be undone
+- **AI agents**: connect Claude Code, Codex, Claude Desktop or Cursor in one click (Settings → AI Edit → AI Agents) and edit recordings from your agent over MCP
 - **Export**: save as MP4 or GIF, or copy straight to the clipboard
 - **English and Chinese**: the interface follows your system language
 
