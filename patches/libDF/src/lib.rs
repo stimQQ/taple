@@ -32,6 +32,8 @@ mod capi;
 pub mod logging;
 #[cfg(feature = "tract")]
 pub mod tract;
+#[cfg(feature = "tract")]
+pub mod offline;
 #[cfg(feature = "ort-denoise")]
 pub mod ort_impl;
 

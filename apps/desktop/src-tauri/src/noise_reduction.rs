@@ -1,7 +1,10 @@
 use crate::i18n::tr;
 use cap_audio::AudioData;
 use cap_project::{RecordingMeta, StudioRecordingMeta};
-use df::ort_impl::DfOrt;
+#[cfg(not(target_arch = "aarch64"))]
+use df::offline::DfOffline as Denoiser;
+#[cfg(target_arch = "aarch64")]
+use df::ort_impl::DfOrt as Denoiser;
 use df::tract::{DfParams, RuntimeParams};
 use ffmpeg::{
     ChannelLayout, codec as avcodec,
@@ -70,7 +73,7 @@ async fn reload_editors(app: &AppHandle, recording_dir: &Path) -> Result<(), Str
 }
 
 fn denoise_samples(
-    model: &mut DfOrt,
+    model: &mut Denoiser,
     samples: &[f32],
     channels: usize,
 ) -> Result<Vec<f32>, String> {
@@ -83,12 +86,9 @@ fn denoise_samples(
             .collect()
     };
 
-    let enhanced = model.process_audio(&mono).map_err(|e| {
-        format!(
-            "{}: {e}",
-            tr("ORT 降噪处理失败", "ORT noise reduction failed")
-        )
-    })?;
+    let enhanced = model
+        .process_audio(&mono)
+        .map_err(|e| format!("{}: {e}", tr("降噪处理失败", "Noise reduction failed")))?;
 
     if channels <= 1 {
         return Ok(enhanced);
@@ -137,12 +137,12 @@ pub async fn denoise_recording_audio(app: AppHandle, recording_path: String) -> 
     let outputs =
         tokio::task::spawn_blocking(move || -> Result<Vec<(PathBuf, PathBuf)>, String> {
             let params = RuntimeParams::default_with_ch(1).with_thresholds(-15., 35., 35.);
-            let mut model = DfOrt::new(DfParams::default(), &params).map_err(|e| {
+            let mut model = Denoiser::new(DfParams::default(), &params).map_err(|e| {
                 format!(
                     "{}: {e}",
                     tr(
-                        "加载 DeepFilterNet ORT 模型失败",
-                        "Failed to load DeepFilterNet ORT model"
+                        "加载降噪模型失败",
+                        "Failed to load the noise reduction model"
                     )
                 )
             })?;

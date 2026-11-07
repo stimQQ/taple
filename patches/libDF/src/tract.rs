@@ -114,6 +114,7 @@ impl TryFrom<i32> for ReduceMask {
         }
     }
 }
+#[derive(Clone)]
 pub struct RuntimeParams {
     pub n_ch: usize,
     pub post_filter: bool,
@@ -797,7 +798,7 @@ fn init_encoder_impl(
     let pulsed = PulsedModel::new(&m, s, &1.to_dim())?;
     log::info!("Init encoder");
     let mut m = pulsed.into_typed()?;
-    m.declutter()?;
+    m.optimize()?;
     Ok(m)
 }
 fn init_encoder(m: &Path, df_cfg: &ini::Properties, n_ch: usize) -> Result<TypedModel> {
@@ -904,7 +905,7 @@ fn init_erb_decoder_impl(
     m = m.with_output_names(&[output_name])?;
 
     let mut m = m;
-    m.declutter()?;
+    m.optimize()?;
 
     Ok(m)
 }
@@ -967,7 +968,7 @@ fn init_df_decoder_impl(
     let pulsed = PulsedModel::new(&m, s, &1.to_dim())?;
     log::info!("Init DF decoder");
     let mut m = pulsed.into_typed()?;
-    m.declutter()?;
+    m.optimize()?;
     Ok(m)
 }
 fn init_df_decoder(
