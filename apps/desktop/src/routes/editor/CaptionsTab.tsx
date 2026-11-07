@@ -11,6 +11,8 @@ import { Toggle } from "~/components/Toggle";
 import { L } from "~/utils/i18n";
 import type { CaptionSegment, CaptionSettings } from "~/utils/tauri";
 import { commands, events } from "~/utils/tauri";
+import { CaptionFontPicker } from "./CaptionFontPicker";
+import { DEFAULT_CAPTION_SETTINGS } from "./captionDefaults";
 import { FPS, OUTPUT_SIZE, useEditorContext } from "./context";
 import { TextInput } from "./TextInput";
 import {
@@ -32,11 +34,6 @@ interface ModelOption {
 
 interface LanguageOption {
 	code: string;
-	label: string;
-}
-
-interface FontOption {
-	value: string;
 	label: string;
 }
 
@@ -95,6 +92,12 @@ const LANGUAGE_OPTIONS: LanguageOption[] = [
 	{ code: "zh", label: L("中文", "Chinese") },
 ];
 
+const POSITION_LABELS: Record<string, string> = {
+	top: L("顶部", "Top"),
+	middle: L("中间", "Middle"),
+	bottom: L("底部", "Bottom"),
+};
+
 const DEFAULT_MODEL = "small";
 export const MODEL_FOLDER = "transcription_models";
 
@@ -117,15 +120,6 @@ function FlatButton(props: {
 		</button>
 	);
 }
-
-const fontOptions = [
-	{
-		value: "System Sans-Serif",
-		label: L("系统无衬线字体", "System Sans-Serif"),
-	},
-	{ value: "System Serif", label: L("系统衬线字体", "System Serif") },
-	{ value: "System Monospace", label: L("系统等宽字体", "System Monospace") },
-];
 
 // Add type definitions at the top
 interface CaptionsResponse {
@@ -214,21 +208,8 @@ export function CaptionsTab() {
 	const size = createElementSize(() => scrollContainerRef);
 
 	// Create a local store for caption settings to avoid direct project mutations
-	const [captionSettings, setCaptionSettings] = createStore(
-		project?.captions?.settings || {
-			enabled: true,
-			font: "System Sans-Serif",
-			size: 24,
-			color: "#FFFFFF",
-			backgroundColor: "#000000",
-			backgroundOpacity: 80,
-			position: "bottom",
-			bold: true,
-			italic: false,
-			outline: true,
-			outlineColor: "#000000",
-			exportWithSubtitles: false,
-		},
+	const [captionSettings, setCaptionSettings] = createStore<CaptionSettings>(
+		project?.captions?.settings || { ...DEFAULT_CAPTION_SETTINGS },
 	);
 
 	// Sync caption settings with project and update player
@@ -325,20 +306,7 @@ export function CaptionsTab() {
 			// Initialize captions with default settings
 			setProject("captions", {
 				segments: [],
-				settings: {
-					enabled: true,
-					font: "System Sans-Serif",
-					size: 24,
-					color: "#FFFFFF",
-					backgroundColor: "#000000",
-					backgroundOpacity: 80,
-					position: "bottom",
-					bold: true,
-					italic: false,
-					outline: true,
-					outlineColor: "#000000",
-					exportWithSubtitles: false,
-				},
+				settings: { ...DEFAULT_CAPTION_SETTINGS },
 			});
 		}
 	});
@@ -888,52 +856,12 @@ export function CaptionsTab() {
 										<span class="text-xs text-gray-500">
 											{L("字体", "Font")}
 										</span>
-										<KSelect<string>
-											options={fontOptions.map((f) => f.value)}
+										<CaptionFontPicker
 											value={captionSettings.font}
-											onChange={(value) => {
-												if (value === null) return;
-												updateCaptionSetting("font", value);
-											}}
-											itemComponent={(props) => (
-												<MenuItem<typeof KSelect.Item>
-													as={KSelect.Item}
-													item={props.item}
-												>
-													<KSelect.ItemLabel class="flex-1">
-														{
-															fontOptions.find(
-																(f) => f.value === props.item.rawValue,
-															)?.label
-														}
-													</KSelect.ItemLabel>
-												</MenuItem>
-											)}
-										>
-											<KSelect.Trigger class="flex flex-row items-center h-8 px-2 gap-1 border rounded-lg border-gray-200 w-[140px] text-gray-700 text-xs">
-												<KSelect.Value<string> class="flex-1 text-left truncate">
-													{(state) =>
-														fontOptions.find(
-															(f) => f.value === state.selectedOption(),
-														)?.label
-													}
-												</KSelect.Value>
-												<KSelect.Icon>
-													<IconCapChevronDown class="size-3 shrink-0" />
-												</KSelect.Icon>
-											</KSelect.Trigger>
-											<KSelect.Portal>
-												<PopperContent<typeof KSelect.Content>
-													as={KSelect.Content}
-													class={topLeftAnimateClasses}
-												>
-													<MenuItemList<typeof KSelect.Listbox>
-														class="max-h-48 overflow-y-auto"
-														as={KSelect.Listbox}
-													/>
-												</PopperContent>
-											</KSelect.Portal>
-										</KSelect>
+											onChange={(family) =>
+												updateCaptionSetting("font", family)
+											}
+										/>
 									</div>
 
 									<div class="flex flex-row justify-between items-center">
@@ -942,10 +870,10 @@ export function CaptionsTab() {
 										</span>
 										<div class="w-[140px]">
 											<Slider
-												value={[captionSettings.size || 24]}
+												value={[captionSettings.size || 40]}
 												onChange={(v) => updateCaptionSetting("size", v[0])}
-												minValue={12}
-												maxValue={48}
+												minValue={16}
+												maxValue={96}
 												step={1}
 											/>
 										</div>
@@ -959,35 +887,6 @@ export function CaptionsTab() {
 											value={captionSettings.color || "#FFFFFF"}
 											onChange={(value) => updateCaptionSetting("color", value)}
 										/>
-									</div>
-
-									<div class="flex flex-row justify-between items-center">
-										<span class="text-xs text-gray-500">
-											{L("背景颜色", "Background Color")}
-										</span>
-										<RgbInput
-											value={captionSettings.backgroundColor || "#000000"}
-											onChange={(value) =>
-												updateCaptionSetting("backgroundColor", value)
-											}
-										/>
-									</div>
-
-									<div class="flex flex-row justify-between items-center">
-										<span class="text-xs text-gray-500">
-											{L("背景不透明度", "Background Opacity")}
-										</span>
-										<div class="w-[140px]">
-											<Slider
-												value={[captionSettings.backgroundOpacity || 80]}
-												onChange={(v) =>
-													updateCaptionSetting("backgroundOpacity", v[0])
-												}
-												minValue={0}
-												maxValue={100}
-												step={1}
-											/>
-										</div>
 									</div>
 
 									<div class="flex flex-row justify-between items-center">
@@ -1006,25 +905,20 @@ export function CaptionsTab() {
 													as={KSelect.Item}
 													item={props.item}
 												>
-													<KSelect.ItemLabel class="flex-1 capitalize">
-														{props.item.rawValue}
+													<KSelect.ItemLabel class="flex-1">
+														{POSITION_LABELS[props.item.rawValue] ??
+															props.item.rawValue}
 													</KSelect.ItemLabel>
 												</MenuItem>
 											)}
 										>
 											<KSelect.Trigger class="flex flex-row items-center h-8 px-2 gap-1 border rounded-lg border-gray-200 w-[140px] text-gray-700 text-xs">
-												<KSelect.Value<string> class="flex-1 text-left truncate capitalize">
-													{(state) => {
-														const labels: Record<string, string> = {
-															top: L("顶部", "Top"),
-															middle: L("中间", "Middle"),
-															bottom: L("底部", "Bottom"),
-														};
-														return (
-															labels[state.selectedOption() ?? "bottom"] ??
-															state.selectedOption()
-														);
-													}}
+												<KSelect.Value<string> class="flex-1 text-left truncate">
+													{(state) =>
+														POSITION_LABELS[
+															state.selectedOption() ?? "bottom"
+														] ?? state.selectedOption()
+													}
 												</KSelect.Value>
 												<KSelect.Icon>
 													<IconCapChevronDown class="size-3 shrink-0" />
@@ -1097,6 +991,49 @@ export function CaptionsTab() {
 											/>
 										</div>
 									</Show>
+
+									<div class="flex flex-row justify-between items-center">
+										<span class="text-xs text-gray-500">
+											{L("背景框", "Background Box")}
+										</span>
+										<Toggle
+											checked={captionSettings.background}
+											onChange={(checked) =>
+												updateCaptionSetting("background", checked)
+											}
+										/>
+									</div>
+
+									<Show when={captionSettings.background}>
+										<div class="flex flex-row justify-between items-center">
+											<span class="text-xs text-gray-500">
+												{L("背景颜色", "Background Color")}
+											</span>
+											<RgbInput
+												value={captionSettings.backgroundColor || "#000000"}
+												onChange={(value) =>
+													updateCaptionSetting("backgroundColor", value)
+												}
+											/>
+										</div>
+
+										<div class="flex flex-row justify-between items-center">
+											<span class="text-xs text-gray-500">
+												{L("背景不透明度", "Background Opacity")}
+											</span>
+											<div class="w-[140px]">
+												<Slider
+													value={[captionSettings.backgroundOpacity ?? 80]}
+													onChange={(v) =>
+														updateCaptionSetting("backgroundOpacity", v[0])
+													}
+													minValue={0}
+													maxValue={100}
+													step={1}
+												/>
+											</div>
+										</div>
+									</Show>
 								</div>
 							</Field>
 
@@ -1104,7 +1041,10 @@ export function CaptionsTab() {
 							<Field name={L("导出选项", "Export Options")}>
 								<div class="flex flex-row justify-between items-center">
 									<span class="text-xs text-gray-500">
-										{L("导出时包含字幕", "Include captions in export")}
+										{L(
+											"同时导出字幕文件 (.vtt)",
+											"Also export a subtitle file (.vtt)",
+										)}
 									</span>
 									<Toggle
 										checked={captionSettings.exportWithSubtitles}

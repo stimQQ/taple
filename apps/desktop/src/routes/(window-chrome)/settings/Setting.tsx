@@ -1,3 +1,5 @@
+import { cx } from "cva";
+import type { ParentProps } from "solid-js";
 import { Toggle } from "~/components/Toggle";
 
 export function SettingItem(props: {
@@ -36,5 +38,30 @@ export function ToggleSettingItem(props: {
 				onChange={(v) => props.onChange(v)}
 			/>
 		</SettingItem>
+	);
+}
+
+export function Group(
+	props: ParentProps<{
+		title: string;
+		id?: string;
+		highlighted?: boolean;
+		ref?: (element: HTMLDivElement) => void;
+	}>,
+) {
+	return (
+		<div ref={props.ref} id={props.id} class="scroll-mt-4">
+			<h3 class="mb-3 text-sm text-gray-12 w-fit">{props.title}</h3>
+			<div
+				class={cx(
+					"px-3 rounded-xl border divide-y divide-gray-3 bg-gray-2 transition-[box-shadow,border-color] duration-500",
+					props.highlighted
+						? "border-blue-9 ring-2 ring-blue-9/40"
+						: "border-gray-3",
+				)}
+			>
+				{props.children}
+			</div>
+		</div>
 	);
 }

@@ -351,6 +351,15 @@ pub enum StereoMode {
     MonoR,
 }
 
+#[derive(Type, Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct AudioMuteRange {
+    #[serde(default)]
+    pub recording_segment: u32,
+    pub start: f64,
+    pub end: f64,
+}
+
 #[derive(Type, Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct AudioConfiguration {
@@ -362,6 +371,14 @@ pub struct AudioConfiguration {
     pub mic_stereo_mode: StereoMode,
     #[serde(default)]
     pub system_volume_db: f32,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub mute_ranges: Vec<AudioMuteRange>,
+    #[serde(skip_serializing_if = "std::ops::Not::not", default)]
+    pub enhance_pending: bool,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub auto_level_db: Option<f32>,
+    #[serde(skip_serializing_if = "std::ops::Not::not", default)]
+    pub keep_original_audio: bool,
 }
 
 impl Default for AudioConfiguration {
@@ -372,6 +389,10 @@ impl Default for AudioConfiguration {
             mic_volume_db: 20.0,
             mic_stereo_mode: StereoMode::default(),
             system_volume_db: 0.0,
+            mute_ranges: Vec::new(),
+            enhance_pending: false,
+            auto_level_db: None,
+            keep_original_audio: false,
         }
     }
 }
@@ -596,11 +617,21 @@ pub const WALLPAPERS_PATH: &str = "assets/backgrounds/macOS";
 
 #[derive(Type, Serialize, Deserialize, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
+pub struct CaptionWord {
+    pub text: String,
+    pub start: f32,
+    pub end: f32,
+}
+
+#[derive(Type, Serialize, Deserialize, Clone, Debug, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct CaptionSegment {
     pub id: String,
     pub start: f32,
     pub end: f32,
     pub text: String,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub words: Vec<CaptionWord>,
 }
 
 #[derive(Type, Serialize, Deserialize, Clone, Debug)]
@@ -620,6 +651,8 @@ pub struct CaptionSettings {
     pub outline: bool,
     #[serde(alias = "outlineColor")]
     pub outline_color: String,
+    #[serde(default)]
+    pub background: bool,
     #[serde(alias = "exportWithSubtitles")]
     pub export_with_subtitles: bool,
 }
@@ -629,7 +662,7 @@ impl Default for CaptionSettings {
         Self {
             enabled: false,
             font: "System Sans-Serif".to_string(),
-            size: 24,
+            size: 40,
             color: "#FFFFFF".to_string(),
             background_color: "#000000".to_string(),
             background_opacity: 80,
@@ -638,6 +671,7 @@ impl Default for CaptionSettings {
             italic: false,
             outline: true,
             outline_color: "#000000".to_string(),
+            background: false,
             export_with_subtitles: false,
         }
     }

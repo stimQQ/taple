@@ -9,7 +9,8 @@
 		"includes": [
 			"**",
 			"!apps/desktop/src/utils/tauri.ts",
-			"!packages/ui-solid/src/auto-imports.d.ts"
+			"!packages/ui-solid/src/auto-imports.d.ts",
+			"!apps/desktop/src-tauri/mcp-catalog.json"
 		],
 		"ignoreUnknown": false
 	},

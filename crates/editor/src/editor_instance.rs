@@ -8,7 +8,10 @@ use cap_rendering::{
     RenderedFrame, SegmentVideoPaths, get_duration,
 };
 use std::ops::Deref;
-use std::{path::PathBuf, sync::Arc};
+use std::{
+    path::PathBuf,
+    sync::{Arc, PoisonError, RwLock},
+};
 use tokio::sync::{Mutex, watch};
 use tracing::{trace, warn};
 
@@ -127,6 +130,35 @@ impl EditorInstance {
         drop(state);
 
         println!("EditorInstance disposed");
+    }
+
+    pub async fn reload_microphone_audio(&self) -> Result<(), String> {
+        let paths = microphone_paths(&self.meta);
+        let loaded = tokio::task::spawn_blocking(move || {
+            paths
+                .into_iter()
+                .map(|path| {
+                    path.map(|path| AudioData::from_file(&path).map(Arc::new))
+                        .transpose()
+                })
+                .collect::<Result<Vec<_>, String>>()
+        })
+        .await
+        .map_err(|e| e.to_string())??;
+
+        {
+            let mut state = self.state.lock().await;
+            if let Some(handle) = state.playback_task.take() {
+                handle.stop();
+            }
+            (self.on_state_change)(&state);
+        }
+
+        for (segment, audio) in self.segments.iter().zip(loaded) {
+            segment.set_audio(audio);
+        }
+
+        Ok(())
     }
 
     pub async fn modify_and_emit_state(&self, modify: impl Fn(&mut EditorState)) {
@@ -274,10 +306,46 @@ pub struct EditorState {
 }
 
 pub struct Segment {
-    pub audio: Option<Arc<AudioData>>,
+    audio: RwLock<Option<Arc<AudioData>>>,
+    pub audio_offset: f64,
     pub system_audio: Option<Arc<AudioData>>,
+    pub system_audio_offset: f64,
     pub cursor: Arc<CursorEvents>,
     pub decoders: RecordingSegmentDecoders,
+}
+
+impl Segment {
+    pub fn audio(&self) -> Option<Arc<AudioData>> {
+        self.audio
+            .read()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
+    }
+
+    fn set_audio(&self, audio: Option<Arc<AudioData>>) {
+        *self.audio.write().unwrap_or_else(PoisonError::into_inner) = audio;
+    }
+}
+
+fn microphone_paths(recording_meta: &RecordingMeta) -> Vec<Option<PathBuf>> {
+    match recording_meta.studio_meta() {
+        StudioRecordingMeta::SingleSegment { segment } => vec![
+            segment
+                .audio
+                .as_ref()
+                .map(|audio| recording_meta.path(&audio.path)),
+        ],
+        StudioRecordingMeta::MultipleSegments { inner, .. } => inner
+            .segments
+            .iter()
+            .map(|segment| {
+                segment
+                    .mic
+                    .as_ref()
+                    .map(|mic| recording_meta.path(&mic.path))
+            })
+            .collect(),
+    }
 }
 
 pub async fn create_segments(
@@ -309,8 +377,10 @@ pub async fn create_segments(
             .map_err(|e| format!("SingleSegment / {e}"))?;
 
             Ok(vec![Segment {
-                audio,
+                audio: RwLock::new(audio),
+                audio_offset: 0.0,
                 system_audio: None,
+                system_audio_offset: 0.0,
                 cursor: Default::default(),
                 decoders,
             }])
@@ -340,6 +410,13 @@ pub async fn create_segments(
                     .map(Arc::new);
 
                 let cursor = Arc::new(s.cursor_events(recording_meta));
+                let latest_start_time = s.latest_start_time();
+                let stream_offset = |start_time: Option<f64>| {
+                    latest_start_time
+                        .zip(start_time)
+                        .map(|(latest, start)| (latest - start).max(0.0))
+                        .unwrap_or(0.0)
+                };
 
                 let decoders = RecordingSegmentDecoders::new(
                     recording_meta,
@@ -354,8 +431,12 @@ pub async fn create_segments(
                 .map_err(|e| format!("MultipleSegments {i} / {e}"))?;
 
                 segments.push(Segment {
-                    audio,
+                    audio: RwLock::new(audio),
+                    audio_offset: stream_offset(s.mic.as_ref().and_then(|mic| mic.start_time)),
                     system_audio,
+                    system_audio_offset: stream_offset(
+                        s.system_audio.as_ref().and_then(|audio| audio.start_time),
+                    ),
                     cursor,
                     decoders,
                 });

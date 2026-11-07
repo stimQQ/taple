@@ -1,9 +1,10 @@
 use cap_audio::{
     AudioData, AudioRendererTrack, FromSampleBytes, StereoMode, cast_f32_slice_to_bytes,
+    render_audio, render_audio_at,
 };
 use cap_media::MediaError;
 use cap_media_info::AudioInfo;
-use cap_project::{AudioConfiguration, ClipOffsets, ProjectConfiguration, TimelineConfiguration};
+use cap_project::{AudioConfiguration, AudioMuteRange, ClipOffsets, ProjectConfiguration};
 use ffmpeg::{ChannelLayout, format as avformat, frame::Audio as FFAudio, software::resampling};
 use ringbuf::{
     HeapRb,
@@ -11,19 +12,13 @@ use ringbuf::{
 };
 use std::sync::Arc;
 
+const CUT_FADE_SECS: f64 = 0.02;
+const MUTE_FADE_SECS: f64 = 0.015;
+const CONTIGUOUS_EPSILON_SECS: f64 = 0.001;
+
 pub struct AudioRenderer {
     data: Vec<AudioSegment>,
-    cursor: AudioRendererCursor,
-    // sum of `frame.samples()` that have elapsed
-    // this * channel count = cursor
     elapsed_samples: usize,
-}
-
-#[derive(Clone, Copy, Debug)]
-pub struct AudioRendererCursor {
-    segment_index: u32,
-    // excludes channels
-    samples: usize,
 }
 
 #[derive(Clone)]
@@ -31,10 +26,10 @@ pub struct AudioSegment {
     pub tracks: Vec<AudioSegmentTrack>,
 }
 
-// yeah this is cursed oh well
 #[derive(Clone)]
 pub struct AudioSegmentTrack {
     data: Arc<AudioData>,
+    start_offset: f64,
     get_gain: fn(&AudioConfiguration) -> f32,
     get_stereo_mode: fn(&AudioConfiguration) -> StereoMode,
     get_offset: fn(&ClipOffsets) -> f32,
@@ -43,12 +38,14 @@ pub struct AudioSegmentTrack {
 impl AudioSegmentTrack {
     pub fn new(
         data: Arc<AudioData>,
+        start_offset: f64,
         get_gain: fn(&AudioConfiguration) -> f32,
         get_stereo_mode: fn(&AudioConfiguration) -> StereoMode,
         get_offset: fn(&ClipOffsets) -> f32,
     ) -> Self {
         Self {
             data,
+            start_offset,
             get_gain,
             get_stereo_mode,
             get_offset,
@@ -70,6 +67,44 @@ impl AudioSegmentTrack {
     pub fn offset(&self, offsets: &ClipOffsets) -> f32 {
         (self.get_offset)(offsets)
     }
+
+    fn duration(&self) -> f64 {
+        (self.data.sample_count() as f64 / f64::from(AudioData::SAMPLE_RATE) - self.start_offset)
+            .max(0.0)
+    }
+}
+
+struct TimelinePiece {
+    recording_segment: u32,
+    start: f64,
+    timescale: f64,
+    first_sample: usize,
+    end_sample: usize,
+    fade_in: bool,
+    fade_out: bool,
+}
+
+impl TimelinePiece {
+    fn source_time(&self, output_sample: usize) -> f64 {
+        self.start
+            + (output_sample - self.first_sample) as f64 / f64::from(AudioData::SAMPLE_RATE)
+                * self.timescale
+    }
+}
+
+fn seconds_to_samples(seconds: f64) -> usize {
+    (seconds.max(0.0) * f64::from(AudioData::SAMPLE_RATE)).round() as usize
+}
+
+fn mute_gain(ranges: &[&AudioMuteRange], source_time: f64) -> f32 {
+    ranges
+        .iter()
+        .filter(|range| source_time >= range.start && source_time <= range.end)
+        .map(|range| {
+            let depth = (source_time - range.start).min(range.end - source_time);
+            1.0 - (depth / MUTE_FADE_SECS).min(1.0) as f32
+        })
+        .fold(1.0, f32::min)
 }
 
 impl AudioRenderer {
@@ -84,53 +119,12 @@ impl AudioRenderer {
     pub fn new(data: Vec<AudioSegment>) -> Self {
         Self {
             data,
-            cursor: AudioRendererCursor {
-                segment_index: 0,
-                samples: 0,
-            },
             elapsed_samples: 0,
         }
     }
 
-    pub fn set_playhead(&mut self, playhead: f64, project: &ProjectConfiguration) {
+    pub fn set_playhead(&mut self, playhead: f64, _project: &ProjectConfiguration) {
         self.elapsed_samples = self.playhead_to_samples(playhead);
-
-        self.cursor = match project.get_segment_time(playhead) {
-            Some((segment_time, segment_i)) => AudioRendererCursor {
-                segment_index: segment_i,
-                samples: self.playhead_to_samples(segment_time),
-            },
-            None => AudioRendererCursor {
-                segment_index: 0,
-                samples: self.elapsed_samples,
-            },
-        };
-    }
-
-    fn adjust_cursor(&mut self, timeline: &TimelineConfiguration) {
-        let playhead = self.elapsed_samples_to_playhead();
-
-        // ! Basically, to allow for some slop in the float -> usize and back conversions,
-        // this will only seek if there is a significant change in actual vs expected next sample
-        // (corresponding to a trim or split point). Currently this change is at least 0.2 seconds
-        // - not sure we offer that much precision in the editor even!
-        let new_cursor = match timeline.get_segment_time(playhead) {
-            Some((segment_time, segment_i)) => AudioRendererCursor {
-                segment_index: segment_i,
-                samples: self.playhead_to_samples(segment_time),
-            },
-            None => AudioRendererCursor {
-                segment_index: 0,
-                samples: 0,
-            },
-        };
-
-        let cursor_diff = new_cursor.samples as isize - self.cursor.samples as isize;
-        if new_cursor.segment_index != self.cursor.segment_index
-            || cursor_diff.unsigned_abs() > (AudioData::SAMPLE_RATE as usize) / 5
-        {
-            self.cursor = new_cursor;
-        }
     }
 
     fn playhead_to_samples(&self, playhead: f64) -> usize {
@@ -139,6 +133,73 @@ impl AudioRenderer {
 
     pub fn elapsed_samples_to_playhead(&self) -> f64 {
         self.elapsed_samples as f64 / AudioData::SAMPLE_RATE as f64
+    }
+
+    fn timeline_pieces(&self, project: &ProjectConfiguration) -> Vec<TimelinePiece> {
+        let segments = project
+            .timeline
+            .as_ref()
+            .map(|timeline| timeline.segments.as_slice())
+            .unwrap_or_default();
+
+        if segments.is_empty() {
+            let duration = self
+                .data
+                .first()
+                .and_then(|segment| {
+                    segment
+                        .tracks
+                        .iter()
+                        .map(AudioSegmentTrack::duration)
+                        .reduce(f64::max)
+                })
+                .unwrap_or(0.0);
+
+            return vec![TimelinePiece {
+                recording_segment: 0,
+                start: 0.0,
+                timescale: 1.0,
+                first_sample: 0,
+                end_sample: seconds_to_samples(duration),
+                fade_in: false,
+                fade_out: false,
+            }];
+        }
+
+        let mut pieces = Vec::with_capacity(segments.len());
+        let mut output_time = 0.0;
+
+        for (index, segment) in segments.iter().enumerate() {
+            let duration = segment.duration();
+            if duration.is_nan() || duration <= 0.0 {
+                continue;
+            }
+
+            let previous = index.checked_sub(1).and_then(|i| segments.get(i));
+            let next = segments.get(index + 1);
+            let joins = |a: &cap_project::TimelineSegment, b: &cap_project::TimelineSegment| {
+                a.recording_segment == b.recording_segment
+                    && (a.end - b.start).abs() < CONTIGUOUS_EPSILON_SECS
+                    && (a.timescale - b.timescale).abs() < f64::EPSILON
+            };
+
+            let first_sample = seconds_to_samples(output_time);
+            output_time += duration;
+
+            pieces.push(TimelinePiece {
+                recording_segment: segment.recording_segment,
+                start: segment.start,
+                timescale: segment.timescale,
+                first_sample,
+                end_sample: seconds_to_samples(output_time),
+                fade_in: previous.map_or(segment.start > CONTIGUOUS_EPSILON_SECS, |previous| {
+                    !joins(previous, segment)
+                }),
+                fade_out: next.is_none_or(|next| !joins(segment, next)),
+            });
+        }
+
+        pieces
     }
 
     pub fn render_frame(
@@ -163,69 +224,146 @@ impl AudioRenderer {
         samples: usize,
         project: &ProjectConfiguration,
     ) -> Option<(usize, Vec<f32>)> {
-        if let Some(timeline) = &project.timeline {
-            self.adjust_cursor(timeline);
-        }
-        let channels: usize = 2;
-
-        let tracks = &self.data[self.cursor.segment_index as usize].tracks;
-
-        if tracks.is_empty() {
-            return None;
-        }
-
-        let max_samples = tracks
-            .iter()
-            .map(|t| t.data().sample_count())
-            .max()
-            .unwrap();
-
-        if self.cursor.samples >= max_samples {
+        if self.data.iter().all(|segment| segment.tracks.is_empty()) {
             self.elapsed_samples += samples;
             return None;
         }
 
-        let samples = samples.min(max_samples - self.cursor.samples);
+        let pieces = self.timeline_pieces(project);
+        let total_samples = pieces.last().map_or(0, |piece| piece.end_sample);
 
-        let start = self.cursor;
+        if self.elapsed_samples >= total_samples {
+            return None;
+        }
 
-        let mut ret = vec![0.0; samples * 2];
+        let count = samples.min(total_samples - self.elapsed_samples);
+        let mut out = vec![0.0; count * 2];
+        let fade_samples = CUT_FADE_SECS * f64::from(AudioData::SAMPLE_RATE);
+        let mut position = 0;
 
-        let track_datas = tracks
-            .iter()
-            .map(|t| {
-                let offsets = project
-                    .clips
-                    .iter()
-                    .find(|c| c.index == start.segment_index)
-                    .map(|c| c.offsets)
-                    .unwrap_or_default();
+        while position < count {
+            let output_sample = self.elapsed_samples + position;
+            let Some(piece) = pieces.iter().find(|piece| {
+                output_sample >= piece.first_sample && output_sample < piece.end_sample
+            }) else {
+                position += 1;
+                continue;
+            };
 
-                AudioRendererTrack {
-                    data: t.data().as_ref(),
+            let chunk = (count - position).min(piece.end_sample - output_sample);
+            let Some(segment) = self.data.get(piece.recording_segment as usize) else {
+                position += chunk;
+                continue;
+            };
+
+            let offsets = project
+                .clips
+                .iter()
+                .find(|clip| clip.index == piece.recording_segment)
+                .map(|clip| clip.offsets)
+                .unwrap_or_default();
+
+            let tracks = segment
+                .tracks
+                .iter()
+                .map(|track| AudioRendererTrack {
+                    data: track.data().as_ref(),
                     gain: if project.audio.mute {
                         f32::NEG_INFINITY
                     } else {
-                        let g = t.gain(&project.audio);
-                        if g < -30.0 { f32::NEG_INFINITY } else { g }
+                        let gain = track.gain(&project.audio);
+                        if gain < -30.0 {
+                            f32::NEG_INFINITY
+                        } else {
+                            gain
+                        }
                     },
-                    stereo_mode: t.stereo_mode(&project.audio),
-                    offset: (t.offset(&offsets) * Self::SAMPLE_RATE as f32) as isize,
+                    stereo_mode: track.stereo_mode(&project.audio),
+                    offset: ((f64::from(track.offset(&offsets)) + track.start_offset)
+                        * f64::from(Self::SAMPLE_RATE))
+                    .round() as isize,
+                })
+                .collect::<Vec<_>>();
+
+            let rate = f64::from(Self::SAMPLE_RATE);
+            let output = &mut out[position * 2..(position + chunk) * 2];
+
+            if (piece.timescale - 1.0).abs() < f64::EPSILON {
+                let source_start = seconds_to_samples(piece.source_time(output_sample));
+                render_audio(&tracks, source_start, chunk, 0, output);
+            } else {
+                for (index, frame) in output.as_chunks_mut::<2>().0.iter_mut().enumerate() {
+                    let (left, right) =
+                        render_audio_at(&tracks, piece.source_time(output_sample + index) * rate);
+                    frame[0] = left;
+                    frame[1] = right;
                 }
-            })
-            .collect::<Vec<_>>();
+            }
 
-        let actual_sample_count =
-            cap_audio::render_audio(&track_datas, start.samples, samples, 0, &mut ret);
+            let span_start = piece.source_time(output_sample);
+            let span_end = piece.source_time(output_sample + chunk);
+            let mute_ranges: Vec<&AudioMuteRange> = project
+                .audio
+                .mute_ranges
+                .iter()
+                .filter(|range| {
+                    range.recording_segment == piece.recording_segment
+                        && range.end > range.start
+                        && range.end >= span_start
+                        && range.start <= span_end
+                })
+                .collect();
 
-        self.elapsed_samples += actual_sample_count;
-        self.cursor.samples += actual_sample_count;
+            let fades_here = (piece.fade_in
+                && output_sample < piece.first_sample + fade_samples as usize)
+                || (piece.fade_out
+                    && output_sample + chunk + fade_samples as usize > piece.end_sample);
 
-        if actual_sample_count * channels < ret.len() {
-            ret.resize(actual_sample_count * channels, 0.0);
-        };
+            if fades_here || !mute_ranges.is_empty() {
+                for (index, frame) in output.as_chunks_mut::<2>().0.iter_mut().enumerate() {
+                    let sample = output_sample + index;
+                    let mut gain = 1.0_f64;
 
-        Some((actual_sample_count, ret))
+                    if piece.fade_in {
+                        gain = gain.min((sample - piece.first_sample) as f64 / fade_samples);
+                    }
+
+                    if piece.fade_out {
+                        gain = gain.min((piece.end_sample - sample) as f64 / fade_samples);
+                    }
+
+                    let gain = (gain.clamp(0.0, 1.0) as f32)
+                        * mute_gain(&mute_ranges, piece.source_time(sample));
+
+                    if gain < 1.0 {
+                        frame[0] *= gain;
+                        frame[1] *= gain;
+                    }
+                }
+            }
+
+            position += chunk;
+        }
+
+        self.elapsed_samples += count;
+        soft_limit(&mut out);
+
+        Some((count, out))
+    }
+}
+
+const LIMIT_THRESHOLD: f32 = 0.891_250_9;
+const LIMIT_CEILING: f32 = 0.995;
+
+fn soft_limit(samples: &mut [f32]) {
+    let headroom = LIMIT_CEILING - LIMIT_THRESHOLD;
+    for sample in samples.iter_mut() {
+        let magnitude = sample.abs();
+        if magnitude > LIMIT_THRESHOLD {
+            let limited =
+                LIMIT_THRESHOLD + headroom * ((magnitude - LIMIT_THRESHOLD) / headroom).tanh();
+            *sample = limited.copysign(*sample);
+        }
     }
 }
 
@@ -387,5 +525,31 @@ impl AudioResampler {
         self.delay = self.context.flush(&mut self.output_frame).unwrap();
 
         Some(self.current_frame_data())
+    }
+}
+
+#[cfg(test)]
+mod limiter_tests {
+    use super::{LIMIT_THRESHOLD, soft_limit};
+
+    #[test]
+    fn leaves_normal_levels_untouched() {
+        let mut samples = [0.0, 0.25, -0.5, 0.89, -0.89];
+        let original = samples;
+        soft_limit(&mut samples);
+        assert_eq!(samples, original);
+    }
+
+    #[test]
+    fn keeps_loud_peaks_below_full_scale() {
+        let mut samples = [0.95, -1.2, 2.0, -8.0, 30.0];
+        soft_limit(&mut samples);
+        for (limited, raw) in samples.iter().zip([0.95_f32, -1.2, 2.0, -8.0, 30.0]) {
+            assert!(limited.abs() < 1.0);
+            assert!(limited.abs() > LIMIT_THRESHOLD);
+            assert_eq!(limited.signum(), raw.signum());
+        }
+        assert!(samples[0] < samples[2]);
+        assert!(samples[2] <= samples[4]);
     }
 }

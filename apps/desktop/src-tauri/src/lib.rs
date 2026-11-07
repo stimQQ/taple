@@ -6,17 +6,23 @@ mod auth;
 mod camera;
 mod camera_legacy;
 mod captions;
+mod changelog;
 mod deeplink_actions;
 mod editor_window;
 mod export;
 mod fake_window;
+mod feedback;
 mod flags;
+mod fonts;
 mod frame_ws;
 mod general_settings;
 mod hotkeys;
 mod http_client;
 mod i18n;
 mod logging;
+mod mcp;
+pub mod mcp_bridge;
+mod mcp_install;
 mod noise_reduction;
 mod notifications;
 mod permissions;
@@ -229,12 +235,6 @@ async fn set_mic_input(state: MutableState<'_, App>, label: Option<String>) -> R
 
 #[tauri::command]
 #[specta::specta]
-async fn upload_logs(app_handle: AppHandle) -> Result<(), String> {
-    logging::upload_log_file(&app_handle).await
-}
-
-#[tauri::command]
-#[specta::specta]
 #[instrument(skip(app_handle, state))]
 async fn set_camera_input(
     app_handle: AppHandle,
@@ -305,6 +305,11 @@ pub struct RequestOpenRecordingPicker {
 #[derive(Deserialize, specta::Type, Serialize, tauri_specta::Event, Debug, Clone)]
 pub struct RequestOpenSettings {
     page: String,
+}
+
+#[derive(Deserialize, specta::Type, Serialize, tauri_specta::Event, Debug, Clone)]
+pub struct NavigateSettings {
+    pub page: String,
 }
 
 #[derive(Deserialize, specta::Type, Serialize, tauri_specta::Event, Debug, Clone)]
@@ -1697,8 +1702,8 @@ async fn get_mic_waveforms(editor_instance: WindowEditorInstance) -> Result<Vec<
     let mut out = Vec::new();
 
     for segment in editor_instance.segments.iter() {
-        if let Some(audio) = &segment.audio {
-            out.push(audio::get_waveform(audio));
+        if let Some(audio) = segment.audio() {
+            out.push(audio::get_waveform(&audio, segment.audio_offset));
         } else {
             out.push(Vec::new());
         }
@@ -1717,7 +1722,7 @@ async fn get_system_audio_waveforms(
 
     for segment in editor_instance.segments.iter() {
         if let Some(audio) = &segment.system_audio {
-            out.push(audio::get_waveform(audio));
+            out.push(audio::get_waveform(audio, segment.system_audio_offset));
         } else {
             out.push(Vec::new());
         }
@@ -1902,7 +1907,6 @@ pub async fn run(recording_logging_handle: LoggingHandle, logs_dir: PathBuf) {
         .commands(tauri_specta::collect_commands![
             set_mic_input,
             set_camera_input,
-            upload_logs,
             recording::start_recording,
             recording::stop_recording,
             recording::pause_recording,
@@ -1988,11 +1992,28 @@ pub async fn run(recording_logging_handle: LoggingHandle, logs_dir: PathBuf) {
             target_select_overlay::focus_window,
             editor_delete_project,
             noise_reduction::denoise_recording_audio,
+            noise_reduction::has_original_audio,
+            noise_reduction::restore_original_audio,
+            noise_reduction::analyze_mic_level,
+            mcp::mcp_tool_result,
+            mcp::mcp_editor_ready,
+            mcp::mcp_editor_closed,
+            mcp_install::mcp_client_statuses,
+            mcp_install::mcp_connect_client,
+            mcp_install::mcp_disconnect_client,
             ai::get_frame_jpeg,
             ai::get_cursor_clicks,
             ai::ai_get_api_key,
             ai::ai_set_api_key,
-            ai::ai_delete_api_key
+            ai::ai_delete_api_key,
+            ai::storyboard::get_screen_storyboard,
+            ai::speech::get_speech_activity,
+            ai::activity::get_visual_activity,
+            fonts::list_caption_fonts,
+            fonts::download_caption_font,
+            feedback::system_diagnostics,
+            feedback::send_feedback,
+            changelog::list_release_notes
         ])
         .events(tauri_specta::collect_events![
             RecordingOptionsChanged,
@@ -2006,6 +2027,7 @@ pub async fn run(recording_logging_handle: LoggingHandle, logs_dir: PathBuf) {
             RequestStartRecording,
             RequestOpenRecordingPicker,
             RequestOpenSettings,
+            NavigateSettings,
             RequestScreenCapturePrewarm,
             NewNotification,
             audio_meter::AudioInputLevelChange,
@@ -2016,6 +2038,8 @@ pub async fn run(recording_logging_handle: LoggingHandle, logs_dir: PathBuf) {
             hotkeys::OnEscapePress,
             upload::UploadProgressEvent,
             noise_reduction::DenoiseProgress,
+            fonts::CaptionFontDownloadProgress,
+            mcp::McpToolCall,
         ])
         .error_handling(tauri_specta::ErrorHandlingMode::Throw)
         .typ::<ProjectConfiguration>()
@@ -2130,6 +2154,7 @@ pub async fn run(recording_logging_handle: LoggingHandle, logs_dir: PathBuf) {
                     CapWindowId::RecordingControls.label().as_str(),
                     CapWindowId::Upgrade.label().as_str(),
                     "teleprompter",
+                    "editor",
                 ])
                 .map_label(|label| match label {
                     label if label.starts_with("editor-") => "editor",
@@ -2154,6 +2179,12 @@ pub async fn run(recording_logging_handle: LoggingHandle, logs_dir: PathBuf) {
             app.manage(crate::platform::ScreenCapturePrewarmer::default());
             app.manage(http_client::HttpClient::default());
             app.manage(http_client::RetryableHttpClient::default());
+
+            if let Ok(dir) = fonts::font_dir(&app) {
+                cap_rendering::set_caption_font_dir(dir);
+            }
+
+            mcp::start(app.clone());
 
             tokio::spawn({
                 let camera_feed = camera_feed.clone();

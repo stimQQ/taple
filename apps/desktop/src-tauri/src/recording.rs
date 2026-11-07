@@ -986,6 +986,12 @@ fn project_config_from_recording(
         scene_segments: Vec::new(),
     });
 
+    config.audio.enhance_pending = settings.auto_enhance_audio
+        && recordings
+            .segments
+            .iter()
+            .any(|segment| segment.mic.is_some());
+
     config
 }
 

@@ -11,10 +11,12 @@ import {
 	createSignal,
 	Match,
 	on,
+	onMount,
 	Show,
 	Switch,
 } from "solid-js";
 import { createStore } from "solid-js/store";
+import toast from "solid-toast";
 
 import Cropper, { cropToFloor } from "~/components/Cropper";
 import { Toggle } from "~/components/Toggle";
@@ -22,7 +24,7 @@ import Tooltip from "~/components/Tooltip";
 import { createTauriEventListener } from "~/utils/createEventListener";
 import { L } from "~/utils/i18n";
 import { type Crop, events } from "~/utils/tauri";
-import { AIEditPanel, aiPanelOpen } from "./AIEditPanel";
+import { formatVolumeDb } from "./audioEnhancement";
 import { ConfigSidebar } from "./ConfigSidebar";
 import {
 	EditorContextProvider,
@@ -34,6 +36,7 @@ import {
 } from "./context";
 import { ExportDialog } from "./ExportDialog";
 import { Header } from "./Header";
+import { useMcpHost } from "./mcpHost";
 import { Player } from "./Player";
 import { Timeline } from "./Timeline";
 import { Dialog, DialogContent, EditorButton, Input, Subfield } from "./ui";
@@ -75,7 +78,49 @@ export function Editor() {
 }
 
 function Inner() {
-	const { project, editorState, setEditorState } = useEditorContext();
+	const { project, setProject, editorState, setEditorState, audioEnhancement } =
+		useEditorContext();
+
+	useMcpHost();
+
+	onMount(() => {
+		if (!project.audio.enhancePending) return;
+		void (async () => {
+			try {
+				const outcome = await audioEnhancement.prepare();
+				setProject("audio", "enhancePending", false);
+				if (outcome.errors.length > 0) {
+					toast.error(
+						L("自动优化声音失败：", "Automatic audio cleanup failed: ") +
+							outcome.errors.join("; "),
+					);
+					return;
+				}
+				const parts = [
+					outcome.denoise === "done" ? L("已降噪", "reduced noise") : null,
+					typeof outcome.level === "object"
+						? L(
+								`人声已调到标准音量（麦克风 ${formatVolumeDb(outcome.level.volumeDb)}）`,
+								`set the voice to standard loudness (microphone ${formatVolumeDb(outcome.level.volumeDb)})`,
+							)
+						: null,
+				].filter(Boolean);
+				if (parts.length > 0)
+					toast.success(
+						L(
+							`已自动优化声音：${parts.join("，")}`,
+							`Audio cleaned up automatically: ${parts.join(", ")}`,
+						),
+					);
+			} catch (error) {
+				setProject("audio", "enhancePending", false);
+				toast.error(
+					L("自动优化声音失败：", "Automatic audio cleanup failed: ") +
+						String(error),
+				);
+			}
+		})();
+	});
 
 	createTauriEventListener(events.editorStateChanged, (payload) => {
 		renderFrame.clear();
@@ -122,10 +167,7 @@ function Inner() {
 				<div class="flex overflow-hidden flex-col flex-1 min-h-0">
 					<div class="flex overflow-y-hidden flex-row flex-1 min-h-0 gap-2 px-2 pb-0.5">
 						<Player />
-						<div class={aiPanelOpen() ? "hidden" : "contents"}>
-							<ConfigSidebar />
-						</div>
-						<AIEditPanel />
+						<ConfigSidebar />
 					</div>
 					<Timeline />
 				</div>

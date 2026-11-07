@@ -17,7 +17,6 @@ import {
 	on,
 } from "solid-js";
 import { createStore, produce, reconcile, unwrap } from "solid-js/store";
-
 import { createPresets } from "~/utils/createPresets";
 import { createImageDataWS, createLazySignal } from "~/utils/socket";
 import {
@@ -31,6 +30,7 @@ import {
 	type SingleSegment,
 	type XY,
 } from "~/utils/tauri";
+import { createAudioEnhancement } from "./audioEnhancement";
 import { createProgressBar } from "./utils";
 
 export type CurrentDialog =
@@ -328,10 +328,25 @@ export const [EditorContextProvider, useEditorContext] = createContextProvider(
 			},
 		});
 
-		const [micWaveforms] = createResource(() => commands.getMicWaveforms());
+		const [micWaveforms, { refetch: refetchMicWaveforms }] = createResource(
+			() => commands.getMicWaveforms(),
+		);
 		const [systemAudioWaveforms] = createResource(() =>
 			commands.getSystemAudioWaveforms(),
 		);
+
+		const audioEnhancement = createAudioEnhancement({
+			projectPath: props.editorInstance.path,
+			hasMicrophone: () => props.meta().hasMicrophone,
+			project,
+			setProject,
+			pausePlayback: async () => {
+				if (!editorState.playing) return;
+				await commands.stopPlayback().catch(() => undefined);
+				setEditorState("playing", false);
+			},
+			refetchMicWaveforms,
+		});
 
 		return {
 			...editorInstanceContext,
@@ -353,7 +368,9 @@ export const [EditorContextProvider, useEditorContext] = createContextProvider(
 			exportState,
 			setExportState,
 			micWaveforms,
+			refetchMicWaveforms,
 			systemAudioWaveforms,
+			audioEnhancement,
 		};
 	},
 	// biome-ignore lint/style/noNonNullAssertion: it's ok

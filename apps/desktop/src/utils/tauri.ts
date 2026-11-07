@@ -11,9 +11,6 @@ async setMicInput(label: string | null) : Promise<null> {
 async setCameraInput(id: DeviceOrModelID | null) : Promise<null> {
     return await TAURI_INVOKE("set_camera_input", { id });
 },
-async uploadLogs() : Promise<null> {
-    return await TAURI_INVOKE("upload_logs");
-},
 async startRecording(inputs: StartRecordingInputs) : Promise<RecordingAction> {
     return await TAURI_INVOKE("start_recording", { inputs });
 },
@@ -305,6 +302,33 @@ async editorDeleteProject() : Promise<null> {
 async denoiseRecordingAudio(recordingPath: string) : Promise<null> {
     return await TAURI_INVOKE("denoise_recording_audio", { recordingPath });
 },
+async hasOriginalAudio(recordingPath: string) : Promise<boolean> {
+    return await TAURI_INVOKE("has_original_audio", { recordingPath });
+},
+async restoreOriginalAudio(recordingPath: string) : Promise<null> {
+    return await TAURI_INVOKE("restore_original_audio", { recordingPath });
+},
+async analyzeMicLevel(recordingPath: string) : Promise<MicLevel | null> {
+    return await TAURI_INVOKE("analyze_mic_level", { recordingPath });
+},
+async mcpToolResult(requestId: string, resultJson: string) : Promise<null> {
+    return await TAURI_INVOKE("mcp_tool_result", { requestId, resultJson });
+},
+async mcpEditorReady(projectPath: string) : Promise<null> {
+    return await TAURI_INVOKE("mcp_editor_ready", { projectPath });
+},
+async mcpEditorClosed(projectPath: string) : Promise<null> {
+    return await TAURI_INVOKE("mcp_editor_closed", { projectPath });
+},
+async mcpClientStatuses() : Promise<McpClientStatus[]> {
+    return await TAURI_INVOKE("mcp_client_statuses");
+},
+async mcpConnectClient(client: McpClient) : Promise<null> {
+    return await TAURI_INVOKE("mcp_connect_client", { client });
+},
+async mcpDisconnectClient(client: McpClient) : Promise<null> {
+    return await TAURI_INVOKE("mcp_disconnect_client", { client });
+},
 async getFrameJpeg(projectPath: string, segmentIndex: number, timeSecs: number, maxWidth: number) : Promise<string> {
     return await TAURI_INVOKE("get_frame_jpeg", { projectPath, segmentIndex, timeSecs, maxWidth });
 },
@@ -319,6 +343,30 @@ async aiSetApiKey(provider: string, apiKey: string) : Promise<null> {
 },
 async aiDeleteApiKey(provider: string) : Promise<null> {
     return await TAURI_INVOKE("ai_delete_api_key", { provider });
+},
+async getScreenStoryboard(projectPath: string, sampleIntervalSecs: number) : Promise<StoryboardEntry[]> {
+    return await TAURI_INVOKE("get_screen_storyboard", { projectPath, sampleIntervalSecs });
+},
+async getSpeechActivity(projectPath: string) : Promise<SpeechActivity> {
+    return await TAURI_INVOKE("get_speech_activity", { projectPath });
+},
+async getVisualActivity(projectPath: string) : Promise<VisualActivity> {
+    return await TAURI_INVOKE("get_visual_activity", { projectPath });
+},
+async listCaptionFonts() : Promise<CaptionFont[]> {
+    return await TAURI_INVOKE("list_caption_fonts");
+},
+async downloadCaptionFont(fontId: string) : Promise<CaptionFont> {
+    return await TAURI_INVOKE("download_caption_font", { fontId });
+},
+async systemDiagnostics() : Promise<SystemDiagnostics> {
+    return await TAURI_INVOKE("system_diagnostics");
+},
+async sendFeedback(input: FeedbackInput) : Promise<null> {
+    return await TAURI_INVOKE("send_feedback", { input });
+},
+async listReleaseNotes() : Promise<ReleaseNote[]> {
+    return await TAURI_INVOKE("list_release_notes");
 }
 }
 
@@ -327,10 +375,13 @@ async aiDeleteApiKey(provider: string) : Promise<null> {
 
 export const events = __makeEvents__<{
 audioInputLevelChange: AudioInputLevelChange,
+captionFontDownloadProgress: CaptionFontDownloadProgress,
 currentRecordingChanged: CurrentRecordingChanged,
 denoiseProgress: DenoiseProgress,
 downloadProgress: DownloadProgress,
 editorStateChanged: EditorStateChanged,
+mcpToolCall: McpToolCall,
+navigateSettings: NavigateSettings,
 newNotification: NewNotification,
 newScreenshotAdded: NewScreenshotAdded,
 newStudioRecordingAdded: NewStudioRecordingAdded,
@@ -349,10 +400,13 @@ targetUnderCursor: TargetUnderCursor,
 uploadProgressEvent: UploadProgressEvent
 }>({
 audioInputLevelChange: "audio-input-level-change",
+captionFontDownloadProgress: "caption-font-download-progress",
 currentRecordingChanged: "current-recording-changed",
 denoiseProgress: "denoise-progress",
 downloadProgress: "download-progress",
 editorStateChanged: "editor-state-changed",
+mcpToolCall: "mcp-tool-call",
+navigateSettings: "navigate-settings",
 newNotification: "new-notification",
 newScreenshotAdded: "new-screenshot-added",
 newStudioRecordingAdded: "new-studio-recording-added",
@@ -377,16 +431,18 @@ uploadProgressEvent: "upload-progress-event"
 
 /** user-defined types **/
 
+export type ActivityRegion = { segment_index: number; start: number; end: number; cursor_moving: boolean; clicked: boolean; screen_changing: boolean }
 export type AppTheme = "system" | "light" | "dark"
 export type AspectRatio = "wide" | "vertical" | "square" | "classic" | "tall"
 export type Audio = { duration: number; sample_rate: number; channels: number; start_time: number }
-export type AudioConfiguration = { mute: boolean; improve: boolean; micVolumeDb?: number; micStereoMode?: StereoMode; systemVolumeDb?: number }
+export type AudioConfiguration = { mute: boolean; improve: boolean; micVolumeDb?: number; micStereoMode?: StereoMode; systemVolumeDb?: number; muteRanges?: AudioMuteRange[]; enhancePending?: boolean; autoLevelDb?: number | null; keepOriginalAudio?: boolean }
 export type AudioInputLevelChange = number
 export type AudioMeta = { path: string; 
 /**
  * unix time of the first frame
  */
 start_time?: number | null }
+export type AudioMuteRange = { recordingSegment?: number; start: number; end: number }
 export type AuthSecret = { api_key: string } | { token: string; expires: number }
 export type AuthStore = { secret: AuthSecret; user_id: string | null; plan: Plan | null; intercom_hash: string | null; organizations?: Organization[] }
 export type BackgroundConfiguration = { source: BackgroundSource; blur: number; padding: number; rounding: number; inset: number; crop: Crop | null; shadow?: number; advancedShadow?: ShadowConfiguration | null; border?: BorderConfiguration | null }
@@ -402,8 +458,11 @@ export type CameraShape = "square" | "source"
 export type CameraXPosition = "left" | "center" | "right"
 export type CameraYPosition = "top" | "bottom"
 export type CaptionData = { segments: CaptionSegment[]; settings: CaptionSettings | null }
-export type CaptionSegment = { id: string; start: number; end: number; text: string }
-export type CaptionSettings = { enabled: boolean; font: string; size: number; color: string; backgroundColor: string; backgroundOpacity: number; position: string; bold: boolean; italic: boolean; outline: boolean; outlineColor: string; exportWithSubtitles: boolean }
+export type CaptionFont = { id: string; family: string; name: string; category: FontCategory; cjk: boolean; sizeBytes: number; downloaded: boolean; files: string[] }
+export type CaptionFontDownloadProgress = { fontId: string; progress: number }
+export type CaptionSegment = { id: string; start: number; end: number; text: string; words?: CaptionWord[] }
+export type CaptionSettings = { enabled: boolean; font: string; size: number; color: string; backgroundColor: string; backgroundOpacity: number; position: string; bold: boolean; italic: boolean; outline: boolean; outlineColor: string; background?: boolean; exportWithSubtitles: boolean }
+export type CaptionWord = { text: string; start: number; end: number }
 export type CaptionsData = { segments: CaptionSegment[]; settings: CaptionSettings }
 export type CaptureDisplay = { id: DisplayId; name: string; refresh_rate: number }
 export type CaptureDisplayWithThumbnail = { id: DisplayId; name: string; refresh_rate: number; thumbnail: string | null }
@@ -432,10 +491,13 @@ export type EditorStateChanged = { playhead_position: number }
 export type ExportCompression = "Minimal" | "Social" | "Web" | "Potato"
 export type ExportEstimates = { duration_seconds: number; estimated_time_seconds: number; estimated_size_mb: number }
 export type ExportSettings = ({ format: "Mp4" } & Mp4ExportSettings) | ({ format: "Gif" } & GifExportSettings)
+export type FeedbackError = "invalid" | "rateLimited" | "unavailable" | "network"
+export type FeedbackInput = { message: string; email: string | null; includeDiagnostics: boolean; includeLog: boolean }
 export type FileType = "recording" | "screenshot"
 export type Flags = { captions: boolean }
+export type FontCategory = "sans" | "serif" | "display" | "handwriting" | "mono"
 export type FramesRendered = { renderedCount: number; totalFrames: number; type: "FramesRendered" }
-export type GeneralSettingsStore = { instanceId?: string; uploadIndividualFiles?: boolean; hideDockIcon?: boolean; hapticsEnabled?: boolean; autoCreateShareableLink?: boolean; enableNotifications?: boolean; disableAutoOpenLinks?: boolean; hasCompletedStartup?: boolean; permissionsGrantedOverride?: boolean; theme?: AppTheme; commercialLicense?: CommercialLicense | null; lastVersion?: string | null; windowTransparency?: boolean; postStudioRecordingBehaviour?: PostStudioRecordingBehaviour; mainWindowRecordingStartBehaviour?: MainWindowRecordingStartBehaviour; custom_cursor_capture2?: boolean; serverUrl?: string; recordingCountdown?: number | null; enableNativeCameraPreview: boolean; autoZoomOnClicks?: boolean; enableNewRecordingFlow: boolean; postDeletionBehaviour?: PostDeletionBehaviour; excludedWindows?: WindowExclusion[] }
+export type GeneralSettingsStore = { instanceId?: string; uploadIndividualFiles?: boolean; hideDockIcon?: boolean; hapticsEnabled?: boolean; autoCreateShareableLink?: boolean; enableNotifications?: boolean; disableAutoOpenLinks?: boolean; hasCompletedStartup?: boolean; permissionsGrantedOverride?: boolean; theme?: AppTheme; commercialLicense?: CommercialLicense | null; lastVersion?: string | null; windowTransparency?: boolean; postStudioRecordingBehaviour?: PostStudioRecordingBehaviour; mainWindowRecordingStartBehaviour?: MainWindowRecordingStartBehaviour; custom_cursor_capture2?: boolean; serverUrl?: string; recordingCountdown?: number | null; enableNativeCameraPreview: boolean; autoZoomOnClicks?: boolean; autoEnhanceAudio?: boolean; enableNewRecordingFlow: boolean; postDeletionBehaviour?: PostDeletionBehaviour; excludedWindows?: WindowExclusion[] }
 export type GifExportSettings = { fps: number; resolution_base: XY<number>; quality: GifQuality | null }
 export type GifQuality = { 
 /**
@@ -457,10 +519,15 @@ export type LogicalBounds = { position: LogicalPosition; size: LogicalSize }
 export type LogicalPosition = { x: number; y: number }
 export type LogicalSize = { width: number; height: number }
 export type MainWindowRecordingStartBehaviour = "close" | "minimise"
+export type McpClient = "claudeCode" | "codex" | "claudeDesktop" | "cursor"
+export type McpClientStatus = { client: McpClient; available: boolean; connected: boolean; needsUpdate: boolean }
+export type McpToolCall = { requestId: string; projectPath: string; client: string; name: string; argumentsJson: string }
+export type MicLevel = { loudnessLufs: number; peakDbfs: number; recommendedVolumeDb: number }
 export type ModelIDType = string
 export type Mp4ExportSettings = { fps: number; resolution_base: XY<number>; compression: ExportCompression }
 export type MultipleSegment = { display: VideoMeta; camera?: VideoMeta | null; mic?: AudioMeta | null; system_audio?: AudioMeta | null; cursor?: string | null }
 export type MultipleSegments = { segments: MultipleSegment[]; cursors: Cursors; status?: StudioRecordingStatus | null }
+export type NavigateSettings = { page: string }
 export type NewNotification = { title: string; body: string; is_error: boolean }
 export type NewScreenshotAdded = { path: string }
 export type NewStudioRecordingAdded = { path: string }
@@ -488,6 +555,7 @@ export type RecordingSettingsStore = { target: ScreenCaptureTarget | null; micNa
 export type RecordingStarted = null
 export type RecordingStopped = null
 export type RecordingTargetMode = "display" | "window" | "area"
+export type ReleaseNote = { version: string; title: string; publishedAt: string | null; bodyHtml: string; url: string; prerelease: boolean }
 export type RenderFrameEvent = { frame_number: number; fps: number; resolution_base: XY<number> }
 export type RequestOpenRecordingPicker = { target_mode: RecordingTargetMode | null }
 export type RequestOpenSettings = { page: string }
@@ -503,10 +571,14 @@ export type ShadowConfiguration = { size: number; opacity: number; blur: number 
 export type SharingMeta = { id: string; link: string }
 export type ShowCapWindow = "Setup" | { Main: { init_target_mode: RecordingTargetMode | null } } | { Settings: { page: string | null } } | { Editor: { project_path: string } } | "RecordingsOverlay" | { WindowCaptureOccluder: { screen_id: DisplayId } } | { TargetSelectOverlay: { display_id: DisplayId } } | { CaptureArea: { screen_id: DisplayId } } | "Camera" | { InProgressRecording: { countdown: number | null } } | "Upgrade" | "ModeSelect"
 export type SingleSegment = { display: VideoMeta; camera?: VideoMeta | null; audio?: AudioMeta | null; cursor?: string | null }
+export type SpeechActivity = { frame_ms: number; noise_floor_db: number; speech_db: number; regions: SpeechRegion[] }
+export type SpeechRegion = { segment_index: number; start: number; end: number }
 export type StartRecordingInputs = { capture_target: ScreenCaptureTarget; capture_system_audio?: boolean }
 export type StereoMode = "stereo" | "monoL" | "monoR"
+export type StoryboardEntry = { segment_index: number; time_secs: number; change_score: number; text: string[] }
 export type StudioRecordingMeta = { segment: SingleSegment } | { inner: MultipleSegments }
 export type StudioRecordingStatus = { status: "InProgress" } | { status: "Failed"; error: string } | { status: "Complete" }
+export type SystemDiagnostics = { appVersion: string; osVersion: string; chip: string; model: string; locale: string }
 export type TargetUnderCursor = { display_id: DisplayId | null; window: WindowUnderCursor | null }
 export type TimelineConfiguration = { segments: TimelineSegment[]; zoomSegments: ZoomSegment[]; sceneSegments?: SceneSegment[] }
 export type TimelineSegment = { recordingSegment?: number; timescale: number; start: number; end: number }
@@ -523,6 +595,7 @@ export type VideoMeta = { path: string; fps?: number;
 start_time?: number | null }
 export type VideoRecordingMetadata = { duration: number; size: number }
 export type VideoUploadInfo = { id: string; link: string; config: S3UploadMeta }
+export type VisualActivity = { resolution_ms: number; regions: ActivityRegion[] }
 export type WindowExclusion = { bundleIdentifier?: string | null; ownerName?: string | null; windowTitle?: string | null }
 export type WindowId = string
 export type WindowUnderCursor = { id: WindowId; app_name: string; bounds: LogicalBounds }

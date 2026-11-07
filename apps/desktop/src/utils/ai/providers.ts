@@ -27,7 +27,12 @@ export const APIMODELS_BASE_URL = "https://api.apimodels.app";
 export const APIMODELS_SITE_URL = "https://apimodels.app";
 
 const OPUS_MODEL_ID = "claude-opus-5-5";
+const HAIKU_MODEL_ID = "claude-haiku-5-5";
 const OPENAI_DEFAULT_MODEL_ID = "gpt-6.1-sol";
+const OPENAI_HELPER_MODEL_ID = "gpt-6-luna";
+const HELPER_ONLY_MODEL_IDS: Partial<Record<AIProviderId, string[]>> = {
+	apimodels: [HAIKU_MODEL_ID],
+};
 
 export const TAPLE_IDENTITY: ClientIdentity = {
 	attribution: { name: "Taple", url: "https://taple.app" },
@@ -93,19 +98,22 @@ export function isAIProviderId(value: unknown): value is AIProviderId {
 	);
 }
 
-function apimodelsOpusModel(
+function apimodelsModel(
 	catalog: readonly Model<"anthropic-messages">[],
+	id: string,
+	name: string,
+	cost: Model<"anthropic-messages">["cost"],
 ): Model<"anthropic-messages"> {
-	const builtin = catalog.find((m) => m.id === OPUS_MODEL_ID);
+	const builtin = catalog.find((m) => m.id === id);
 	return {
-		id: OPUS_MODEL_ID,
-		name: "Claude Opus 5.5",
+		id,
+		name,
 		api: "anthropic-messages",
 		provider: "apimodels",
 		baseUrl: APIMODELS_BASE_URL,
 		reasoning: false,
 		input: ["text", "image"],
-		cost: { input: 2.4, output: 12, cacheRead: 0.12, cacheWrite: 3 },
+		cost,
 		contextWindow: builtin?.contextWindow ?? 200000,
 		maxTokens: builtin?.maxTokens ?? 32000,
 		...(builtin?.inputLimits ? { inputLimits: builtin.inputLimits } : {}),
@@ -126,7 +134,20 @@ export function getAIModels(): MutableModels {
 		auth: {
 			apiKey: envApiKeyAuth("apimodels.app API key", ["APIMODELS_API_KEY"]),
 		},
-		models: [apimodelsOpusModel(anthropic.getModels())],
+		models: [
+			apimodelsModel(anthropic.getModels(), OPUS_MODEL_ID, "Claude Opus 5.5", {
+				input: 2.4,
+				output: 12,
+				cacheRead: 0.12,
+				cacheWrite: 3,
+			}),
+			apimodelsModel(
+				anthropic.getModels(),
+				HAIKU_MODEL_ID,
+				"Claude Haiku 5.5",
+				{ input: 0.09, output: 0.45, cacheRead: 0.009, cacheWrite: 0.1125 },
+			),
+		],
 		api: anthropicMessagesApi(),
 	});
 
@@ -179,11 +200,35 @@ function sortModels(
 }
 
 export function listProviderModels(provider: AIProviderId): Model<Api>[] {
+	const helperOnly = HELPER_ONLY_MODEL_IDS[provider] ?? [];
 	const models = getAIModels()
 		.getModels(provider)
 		.filter((m) => m.input.includes("image"))
+		.filter((m) => !helperOnly.includes(m.id))
 		.filter((m) => !/-(\d{8}|\d{4}-\d{2}-\d{2})$/.test(m.id));
 	return sortModels(provider, models);
+}
+
+function blendedPrice(model: Model<Api>) {
+	return model.cost.input + model.cost.output;
+}
+
+function canTurnOffReasoning(model: Model<Api>) {
+	return !model.reasoning || model.thinkingLevelMap?.off !== null;
+}
+
+export function resolveVisionHelperModel(
+	provider: AIProviderId,
+): Model<Api> | undefined {
+	const models = getAIModels();
+	const preferredId =
+		provider === "openai" ? OPENAI_HELPER_MODEL_ID : HAIKU_MODEL_ID;
+	const preferred = models.getModel(provider, preferredId);
+	if (preferred) return preferred;
+	return models
+		.getModels(provider)
+		.filter((m) => m.input.includes("image") && canTurnOffReasoning(m))
+		.sort((a, b) => blendedPrice(a) - blendedPrice(b))[0];
 }
 
 export function defaultModelId(provider: AIProviderId): string {

@@ -68,6 +68,7 @@ const createDefaultGeneralSettings = (): ExtendedGeneralSettingsStore => ({
 	enableNativeCameraPreview: false,
 	enableNewRecordingFlow: true,
 	autoZoomOnClicks: false,
+	autoEnhanceAudio: true,
 	custom_cursor_capture2: true,
 	excludedWindows: [],
 });
@@ -334,6 +335,18 @@ function Inner(props: { initialStore: GeneralSettingsStore | null }) {
 				)}
 
 				<SettingGroup title={L("录制", "Recording")}>
+					<ToggleSettingItem
+						label={L(
+							"录制后自动降噪并调整音量",
+							"Clean Up Audio After Recording",
+						)}
+						description={L(
+							"打开新录制时自动去除背景噪音，并把人声调到网络视频的标准音量。原始声音会保留，随时可以在「音频」标签恢复。",
+							"When a new recording opens, remove background noise and set the voice to standard online-video loudness. The original audio is kept and can be restored from the Audio tab.",
+						)}
+						value={settings.autoEnhanceAudio !== false}
+						onChange={(v) => handleChange("autoEnhanceAudio", v)}
+					/>
 					<SelectSettingItem
 						label={L("录制倒计时", "Recording Countdown")}
 						description={L(

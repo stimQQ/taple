@@ -6,6 +6,21 @@ import {
 	type MultipleSegment,
 } from "~/utils/tauri";
 import {
+	analyzeAudioLevels,
+	describeAudioLevels,
+	detectPauses,
+} from "./audio-levels";
+import {
+	buildSpeechMap,
+	type CaptionWord,
+	loadSpeechActivity,
+	readCaptionWords,
+	type SpeechBase,
+	speechBaseFromActivity,
+	speechBaseFromWaveforms,
+	speechGaps,
+} from "./speech";
+import {
 	captionToSource,
 	clickToSource,
 	createRecordingLayout,
@@ -24,6 +39,7 @@ export type TranscriptLine = {
 	start: number;
 	end: number;
 	text: string;
+	words?: CaptionWord[];
 };
 
 export type AudioSource = "microphone" | "system audio" | "none";
@@ -33,10 +49,11 @@ export type VideoActivity = {
 	ignoredClicks: number;
 	pauses: PauseRange[];
 	audioSource: AudioSource;
+	audioNote: string;
+	speechBase: SpeechBase;
 };
 
-const WAVEFORM_STEP_SECONDS = 0.1;
-export const MIN_REPORTED_PAUSE_SECONDS = 0.5;
+export const MIN_REPORTED_PAUSE_SECONDS = 0.3;
 
 export function segmentClockOffsets(
 	segments: MultipleSegment[] | null,
@@ -65,6 +82,11 @@ export function transcriptFromCaptions(
 			start: captionToSource(layout, s.start),
 			end: captionToSource(layout, s.end),
 			text: s.text.trim(),
+			words: readCaptionWords(s).map((w) => ({
+				text: w.text,
+				start: captionToSource(layout, w.start),
+				end: captionToSource(layout, w.end),
+			})),
 		}))
 		.sort((a, b) => a.start - b.start);
 }
@@ -107,51 +129,13 @@ export function validClicks(
 	return { clicks: valid, ignored };
 }
 
-function quantile(sorted: number[], q: number) {
-	return sorted[
-		Math.min(sorted.length - 1, Math.floor(q * (sorted.length - 1)))
-	];
-}
-
-export function silenceThreshold(values: number[]): number | null {
-	const finite = values.filter(Number.isFinite).sort((a, b) => a - b);
-	if (finite.length === 0) return null;
-	const floor = quantile(finite, 0.1);
-	const loud = quantile(finite, 0.9);
-	if (loud < -50) return Number.POSITIVE_INFINITY;
-	if (loud - floor < 6) return null;
-	return floor + 0.35 * (loud - floor);
-}
-
-export function detectPauses(
-	waveform: number[],
-	minPauseSeconds: number,
-): TimeRange[] {
-	const threshold = silenceThreshold(waveform);
-	if (threshold === null) return [];
-	const ranges: TimeRange[] = [];
-	let runStart: number | null = null;
-	for (let i = 0; i <= waveform.length; i++) {
-		const value = waveform[i];
-		const quiet =
-			i < waveform.length && (!Number.isFinite(value) || value < threshold);
-		if (quiet && runStart === null) runStart = i;
-		if (!quiet && runStart !== null) {
-			const start = runStart * WAVEFORM_STEP_SECONDS;
-			const end = i * WAVEFORM_STEP_SECONDS;
-			if (end - start >= minPauseSeconds) ranges.push({ start, end });
-			runStart = null;
-		}
-	}
-	return ranges;
-}
-
 export function collectPauses(
 	layout: RecordingLayout,
 	micWaveforms: number[][] | undefined,
 	systemWaveforms: number[][] | undefined,
-): { pauses: PauseRange[]; audioSource: AudioSource } {
+): { pauses: PauseRange[]; audioSource: AudioSource; audioNote: string } {
 	const pauses: PauseRange[] = [];
+	const notes: string[] = [];
 	let audioSource: AudioSource = "none";
 	for (let i = 0; i < layout.durations.length; i++) {
 		const mic = micWaveforms?.[i] ?? [];
@@ -160,7 +144,14 @@ export function collectPauses(
 		if (waveform.length === 0) continue;
 		if (mic.length > 0) audioSource = "microphone";
 		else if (audioSource === "none") audioSource = "system audio";
-		for (const range of detectPauses(waveform, MIN_REPORTED_PAUSE_SECONDS)) {
+		const levels = analyzeAudioLevels(waveform);
+		const prefix = layout.durations.length > 1 ? `segment ${i}: ` : "";
+		notes.push(`${prefix}${describeAudioLevels(levels)}`);
+		for (const range of detectPauses(
+			waveform,
+			MIN_REPORTED_PAUSE_SECONDS,
+			levels,
+		)) {
 			const end = Math.min(range.end, layout.durations[i]);
 			if (end - range.start < MIN_REPORTED_PAUSE_SECONDS) continue;
 			const start = segmentToSource(layout, i, range.start);
@@ -168,7 +159,7 @@ export function collectPauses(
 			pauses.push({ start, end: sourceEnd, duration: sourceEnd - start });
 		}
 	}
-	return { pauses, audioSource };
+	return { pauses, audioSource, audioNote: notes.join("; ") };
 }
 
 export async function loadVideoActivity(input: {
@@ -186,12 +177,45 @@ export async function loadVideoActivity(input: {
 		input.clockOffsets,
 		rawClicks,
 	);
-	const { pauses, audioSource } = collectPauses(
+	const waveformPauses = collectPauses(
 		input.layout,
 		input.micWaveforms,
 		input.systemWaveforms,
 	);
-	return { clicks, ignoredClicks: ignored, pauses, audioSource };
+	const voice = await loadSpeechActivity(input.projectPath);
+	const speechBase = voice
+		? speechBaseFromActivity(input.layout, voice)
+		: speechBaseFromWaveforms(
+				input.layout,
+				input.micWaveforms,
+				input.systemWaveforms,
+			);
+	const pauses =
+		speechBase.source === "voice activity"
+			? pausesFromSpeechBase(input.layout, speechBase)
+			: waveformPauses.pauses;
+	return {
+		clicks,
+		ignoredClicks: ignored,
+		pauses,
+		audioSource: waveformPauses.audioSource,
+		audioNote:
+			speechBase.source === "voice activity"
+				? speechBase.note
+				: waveformPauses.audioNote,
+		speechBase,
+	};
+}
+
+export function pausesFromSpeechBase(
+	layout: RecordingLayout,
+	base: SpeechBase,
+): PauseRange[] {
+	const map = buildSpeechMap({ base, words: [], firstSentence: null });
+	return speechGaps(map, layout, MIN_REPORTED_PAUSE_SECONDS).map((g) => ({
+		...g,
+		duration: g.end - g.start,
+	}));
 }
 
 export type WhisperModel = { name: string; path: string };
@@ -256,38 +280,6 @@ if (import.meta.vitest) {
 				{ time: 15, x: 0, y: 1 },
 			]);
 			expect(result.ignored).toBe(3);
-		});
-	});
-
-	describe("detectPauses", () => {
-		it("finds quiet runs in a waveform", () => {
-			const speech = Array.from({ length: 20 }, () => -20);
-			const silence = Array.from({ length: 15 }, () => -60);
-			const waveform = [
-				...speech,
-				...silence,
-				...speech,
-				...silence.slice(0, 3),
-			];
-			const pauses = detectPauses(waveform, 0.5);
-			expect(pauses.length).toBe(1);
-			expect(pauses[0].start).toBeCloseTo(2);
-			expect(pauses[0].end).toBeCloseTo(3.5);
-		});
-
-		it("treats an all-quiet recording as one pause and flat speech as none", () => {
-			expect(
-				detectPauses(
-					Array.from({ length: 10 }, () => -58),
-					0.5,
-				),
-			).toEqual([{ start: 0, end: 1 }]);
-			expect(
-				detectPauses(
-					Array.from({ length: 10 }, () => -20),
-					0.5,
-				),
-			).toEqual([]);
 		});
 	});
 

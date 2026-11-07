@@ -4,6 +4,10 @@ use taple_desktop_lib::DynLoggingLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 fn main() {
+    if taple_desktop_lib::mcp_bridge::requested() {
+        taple_desktop_lib::mcp_bridge::run();
+    }
+
     unsafe {
         std::env::set_var("RUST_LOG", "trace");
     }

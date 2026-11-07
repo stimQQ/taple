@@ -1,78 +1,88 @@
-use bytemuck::{Pod, Zeroable};
+use std::{
+    collections::HashSet,
+    f32::consts::TAU,
+    path::PathBuf,
+    sync::{PoisonError, RwLock},
+    time::SystemTime,
+};
+
 use cap_project::XY;
 use glyphon::{
-    Attrs, Buffer, Cache, Color, Family, FontSystem, Metrics, Resolution, Shaping, Style,
-    SwashCache, TextArea, TextAtlas, TextBounds, TextRenderer, Viewport, Weight,
+    Attrs, Buffer, Cache, Color, ContentType, CustomGlyph, Family, FontSystem, Metrics,
+    RasterizedCustomGlyph, Resolution, Shaping, Style, SwashCache, TextArea, TextAtlas, TextBounds,
+    TextRenderer, Viewport, Weight, Wrap, cosmic_text::Align, fontdb,
 };
-use log::{debug, info, warn};
-use wgpu::{Device, Queue, util::DeviceExt};
+use log::warn;
+use wgpu::{Device, Queue};
 
 use crate::{DecodedSegmentFrames, ProjectUniforms, RenderVideoConstants, parse_color_component};
 
-/// Represents a caption segment with timing and text
-#[derive(Debug, Clone)]
-pub struct CaptionSegment {
-    pub id: String,
-    pub start: f32,
-    pub end: f32,
-    pub text: String,
+const REFERENCE_HEIGHT: f32 = 1080.0;
+const MAX_WIDTH_RATIO: f32 = 0.86;
+const EDGE_MARGIN_RATIO: f32 = 0.07;
+const LINE_HEIGHT_EM: f32 = 1.25;
+const OUTLINE_EM: f32 = 0.08;
+const BOX_PADDING_X_EM: f32 = 0.45;
+const BOX_PADDING_Y_EM: f32 = 0.2;
+const BOX_RADIUS_RATIO: f32 = 0.22;
+
+static CAPTION_FONT_DIR: RwLock<Option<PathBuf>> = RwLock::new(None);
+
+pub fn set_caption_font_dir(dir: PathBuf) {
+    *CAPTION_FONT_DIR
+        .write()
+        .unwrap_or_else(PoisonError::into_inner) = Some(dir);
 }
 
-/// Settings for caption rendering
-#[repr(C)]
-#[derive(Copy, Clone, Pod, Zeroable, Debug)]
-pub struct CaptionSettings {
-    pub enabled: u32, // 0 = disabled, 1 = enabled
-    pub font_size: f32,
-    pub color: [f32; 4],
-    pub background_color: [f32; 4],
-    pub position: u32, // 0 = top, 1 = middle, 2 = bottom
-    pub outline: u32,  // 0 = disabled, 1 = enabled
-    pub outline_color: [f32; 4],
-    pub font: u32,          // 0 = SansSerif, 1 = Serif, 2 = Monospace
-    pub _padding: [f32; 1], // for alignment
+fn caption_font_dir() -> Option<PathBuf> {
+    CAPTION_FONT_DIR
+        .read()
+        .unwrap_or_else(PoisonError::into_inner)
+        .clone()
 }
 
-impl Default for CaptionSettings {
-    fn default() -> Self {
-        Self {
-            enabled: 1,
-            font_size: 24.0,
-            color: [1.0, 1.0, 1.0, 1.0],            // white
-            background_color: [0.0, 0.0, 0.0, 0.8], // 80% black
-            position: 2,                            // bottom
-            outline: 1,                             // enabled
-            outline_color: [0.0, 0.0, 0.0, 1.0],    // black
-            font: 0,                                // SansSerif
-            _padding: [0.0],
-        }
-    }
+const SYSTEM_SANS: &[&str] = &[
+    "PingFang SC",
+    "Hiragino Sans GB",
+    "Heiti SC",
+    "Microsoft YaHei",
+    "Noto Sans CJK SC",
+];
+const SYSTEM_SERIF: &[&str] = &["Songti SC", "STSong", "SimSun", "Noto Serif CJK SC"];
+const SYSTEM_MONO: &[&str] = &["Menlo", "SF Mono", "Consolas", "DejaVu Sans Mono"];
+
+struct FaceChoice {
+    family: String,
+    weight: Weight,
+    style: Style,
+    stretch: fontdb::Stretch,
 }
 
-/// Caption layer that renders text using GPU
+#[derive(PartialEq, Clone)]
+struct LayoutKey {
+    text: String,
+    font: String,
+    bold: bool,
+    italic: bool,
+    font_size: u32,
+    width: u32,
+}
+
 pub struct CaptionsLayer {
-    settings_buffer: wgpu::Buffer,
     font_system: FontSystem,
     swash_cache: SwashCache,
     text_atlas: TextAtlas,
     text_renderer: TextRenderer,
     text_buffer: Buffer,
-    current_text: Option<String>,
-    current_segment_time: f32,
+    empty_buffer: Buffer,
     viewport: Viewport,
+    layout_key: Option<LayoutKey>,
+    loaded_fonts: HashSet<PathBuf>,
+    font_dir_stamp: Option<SystemTime>,
 }
 
 impl CaptionsLayer {
     pub fn new(device: &Device, queue: &Queue) -> Self {
-        // Create default settings buffer
-        let settings = CaptionSettings::default();
-        let settings_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Caption Settings Buffer"),
-            contents: bytemuck::cast_slice(&[settings]),
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-        });
-
-        // Initialize glyphon text rendering components
         let font_system = FontSystem::new();
         let swash_cache = SwashCache::new();
         let cache = Cache::new(device);
@@ -85,48 +95,186 @@ impl CaptionsLayer {
             wgpu::MultisampleState::default(),
             None,
         );
-
-        // Create an empty buffer with default metrics
-        let metrics = Metrics::new(24.0, 24.0 * 1.2); // Default font size and line height
-        let text_buffer = Buffer::new_empty(metrics);
+        let metrics = Metrics::new(24.0, 24.0 * LINE_HEIGHT_EM);
 
         Self {
-            settings_buffer,
             font_system,
             swash_cache,
             text_atlas,
             text_renderer,
-            text_buffer,
-            current_text: None,
-            current_segment_time: 0.0,
+            text_buffer: Buffer::new_empty(metrics),
+            empty_buffer: Buffer::new_empty(metrics),
             viewport,
+            layout_key: None,
+            loaded_fonts: HashSet::new(),
+            font_dir_stamp: None,
         }
     }
 
-    /// Update the settings for caption rendering
-    pub fn update_settings(&mut self, queue: &Queue, settings: CaptionSettings) {
-        queue.write_buffer(&self.settings_buffer, 0, bytemuck::cast_slice(&[settings]));
-    }
+    fn refresh_fonts(&mut self) {
+        let Some(dir) = caption_font_dir() else {
+            return;
+        };
 
-    /// Update the current caption text and timing
-    pub fn update_caption(&mut self, text: Option<String>, time: f32) {
-        debug!("Updating caption - Text: {text:?}, Time: {time}");
-        if self.current_text != text {
-            if let Some(content) = &text {
-                info!("Setting new caption text: {content}");
-                // Update the text buffer with new content
-                let metrics = Metrics::new(24.0, 24.0 * 1.2);
-                self.text_buffer = Buffer::new_empty(metrics);
-                self.text_buffer.set_text(
-                    &mut self.font_system,
-                    content,
-                    &Attrs::new(),
-                    Shaping::Advanced,
-                );
+        let stamp = std::fs::metadata(&dir)
+            .and_then(|metadata| metadata.modified())
+            .ok();
+        if stamp.is_none() || stamp == self.font_dir_stamp {
+            return;
+        }
+        self.font_dir_stamp = stamp;
+
+        let Ok(entries) = std::fs::read_dir(&dir) else {
+            return;
+        };
+
+        let mut added = false;
+        for path in entries.flatten().map(|entry| entry.path()) {
+            let is_font = path
+                .extension()
+                .and_then(|extension| extension.to_str())
+                .is_some_and(|extension| {
+                    extension.eq_ignore_ascii_case("ttf") || extension.eq_ignore_ascii_case("otf")
+                });
+            if !is_font || self.loaded_fonts.contains(&path) {
+                continue;
             }
-            self.current_text = text;
+
+            match self.font_system.db_mut().load_font_file(&path) {
+                Ok(()) => {
+                    self.loaded_fonts.insert(path);
+                    added = true;
+                }
+                Err(e) => warn!("Failed to load caption font {}: {e}", path.display()),
+            }
         }
-        self.current_segment_time = time;
+
+        if added {
+            self.layout_key = None;
+        }
+    }
+
+    fn resolve_face(&self, family: &str, bold: bool, italic: bool) -> Option<FaceChoice> {
+        let faces: Vec<&fontdb::FaceInfo> = self
+            .font_system
+            .db()
+            .faces()
+            .filter(|face| {
+                face.families
+                    .iter()
+                    .any(|(name, _)| name.eq_ignore_ascii_case(family))
+            })
+            .collect();
+
+        let has_italic = faces.iter().any(|face| face.style != Style::Normal);
+        let want_italic = italic && has_italic;
+        let target = if bold { 700 } else { 400 };
+
+        faces
+            .into_iter()
+            .filter(|face| (face.style != Style::Normal) == want_italic)
+            .min_by_key(|face| {
+                let heavier_first = if bold {
+                    u16::MAX - face.weight.0
+                } else {
+                    face.weight.0
+                };
+                (face.weight.0.abs_diff(target), heavier_first)
+            })
+            .map(|face| FaceChoice {
+                family: face
+                    .families
+                    .iter()
+                    .find(|(name, _)| name.eq_ignore_ascii_case(family))
+                    .map_or_else(|| family.to_string(), |(name, _)| name.clone()),
+                weight: face.weight,
+                style: face.style,
+                stretch: face.stretch,
+            })
+    }
+
+    fn choose_face(&self, font: &str, bold: bool, italic: bool) -> Option<FaceChoice> {
+        let candidates: &[&str] = match font {
+            "" | "System Sans-Serif" => SYSTEM_SANS,
+            "System Serif" => SYSTEM_SERIF,
+            "System Monospace" => SYSTEM_MONO,
+            name => &[name],
+        };
+
+        candidates
+            .iter()
+            .find_map(|family| self.resolve_face(family, bold, italic))
+    }
+
+    fn layout(&mut self, key: LayoutKey) {
+        if self.layout_key.as_ref() == Some(&key) {
+            return;
+        }
+
+        let font_size = key.font_size as f32 / 10.0;
+        let metrics = Metrics::new(font_size, font_size * LINE_HEIGHT_EM);
+        let mut buffer = Buffer::new(&mut self.font_system, metrics);
+        buffer.set_size(&mut self.font_system, Some(key.width as f32), None);
+        buffer.set_wrap(&mut self.font_system, Wrap::WordOrGlyph);
+
+        let choice = self.choose_face(&key.font, key.bold, key.italic);
+        let attrs = match &choice {
+            Some(choice) => Attrs::new()
+                .family(Family::Name(&choice.family))
+                .weight(choice.weight)
+                .style(choice.style)
+                .stretch(choice.stretch),
+            None => Attrs::new()
+                .family(match key.font.as_str() {
+                    "System Serif" => Family::Serif,
+                    "System Monospace" => Family::Monospace,
+                    _ => Family::SansSerif,
+                })
+                .weight(if key.bold {
+                    Weight::BOLD
+                } else {
+                    Weight::NORMAL
+                })
+                .style(if key.italic {
+                    Style::Italic
+                } else {
+                    Style::Normal
+                }),
+        };
+
+        buffer.set_text(&mut self.font_system, &key.text, &attrs, Shaping::Advanced);
+        for line in buffer.lines.iter_mut() {
+            line.set_align(Some(Align::Center));
+        }
+        buffer.shape_until_scroll(&mut self.font_system, false);
+
+        self.text_buffer = buffer;
+        self.layout_key = Some(key);
+    }
+
+    fn block_size(&self) -> (f32, f32) {
+        self.text_buffer
+            .layout_runs()
+            .fold((0.0_f32, 0.0_f32), |(width, height), run| {
+                (
+                    width.max(run.line_w),
+                    height.max(run.line_top + run.line_height),
+                )
+            })
+    }
+
+    fn clear(&mut self, device: &Device, queue: &Queue) {
+        if let Err(e) = self.text_renderer.prepare(
+            device,
+            queue,
+            &mut self.font_system,
+            &mut self.text_atlas,
+            &self.viewport,
+            std::iter::empty::<TextArea>(),
+            &mut self.swash_cache,
+        ) {
+            warn!("Error clearing captions: {e:?}");
+        }
     }
 
     pub fn prepare(
@@ -136,266 +284,241 @@ impl CaptionsLayer {
         output_size: XY<u32>,
         constants: &RenderVideoConstants,
     ) {
-        // Render captions if there are any caption segments to display
-        if let Some(caption_data) = &uniforms.project.captions
-            && caption_data.settings.enabled
-        {
-            // Find the current caption for this time
-            let current_time = segment_frames.segment_time;
+        let device = &constants.device;
+        let queue = &constants.queue;
+        self.text_atlas.trim();
 
-            if let Some(current_caption) =
-                find_caption_at_time_project(current_time, &caption_data.segments)
-            {
-                // Get caption text and time for use in rendering
-                let caption_text = current_caption.text.clone();
+        let Some(caption_data) = uniforms
+            .project
+            .captions
+            .as_ref()
+            .filter(|captions| captions.settings.enabled)
+        else {
+            self.clear(device, queue);
+            return;
+        };
 
-                // Create settings for the caption
-                let settings = CaptionSettings {
-                    enabled: 1,
-                    font_size: caption_data.settings.size as f32,
-                    color: [
-                        parse_color_component(&caption_data.settings.color, 0),
-                        parse_color_component(&caption_data.settings.color, 1),
-                        parse_color_component(&caption_data.settings.color, 2),
-                        1.0,
-                    ],
-                    background_color: [
-                        parse_color_component(&caption_data.settings.background_color, 0),
-                        parse_color_component(&caption_data.settings.background_color, 1),
-                        parse_color_component(&caption_data.settings.background_color, 2),
-                        caption_data.settings.background_opacity as f32 / 100.0,
-                    ],
-                    position: match caption_data.settings.position.as_str() {
-                        "top" => 0,
-                        "middle" => 1,
-                        _ => 2, // default to bottom
-                    },
-                    outline: if caption_data.settings.outline { 1 } else { 0 },
-                    outline_color: [
-                        parse_color_component(&caption_data.settings.outline_color, 0),
-                        parse_color_component(&caption_data.settings.outline_color, 1),
-                        parse_color_component(&caption_data.settings.outline_color, 2),
-                        1.0,
-                    ],
-                    font: match caption_data.settings.font.as_str() {
-                        "System Serif" => 1,
-                        "System Monospace" => 2,
-                        _ => 0, // Default to SansSerif for "System Sans-Serif" and any other value
-                    },
-                    _padding: [0.0],
-                };
+        let Some(caption) =
+            find_caption_at_time_project(segment_frames.segment_time, &caption_data.segments)
+                .filter(|caption| !caption.text.trim().is_empty())
+        else {
+            self.clear(device, queue);
+            return;
+        };
 
-                self.update_caption(Some(caption_text), current_time);
+        let settings = &caption_data.settings;
+        let (width, height) = (output_size.x as f32, output_size.y as f32);
+        let font_size = (settings.size as f32 * height / REFERENCE_HEIGHT).max(1.0);
+        let text_width = (width * MAX_WIDTH_RATIO).max(1.0);
 
-                if settings.enabled == 0 {
-                    return;
+        self.refresh_fonts();
+        self.layout(LayoutKey {
+            text: caption.text.trim().to_string(),
+            font: settings.font.clone(),
+            bold: settings.bold,
+            italic: settings.italic,
+            font_size: (font_size * 10.0).round() as u32,
+            width: text_width.round() as u32,
+        });
+
+        let (block_width, block_height) = self.block_size();
+        let margin = height * EDGE_MARGIN_RATIO;
+        let text_top = match settings.position.as_str() {
+            "top" => margin,
+            "middle" => (height - block_height) / 2.0,
+            _ => height - margin - block_height,
+        };
+        let text_left = (width - text_width) / 2.0;
+
+        let color = rgba(&settings.color, 1.0);
+        let outline_color = rgba(&settings.outline_color, 1.0);
+        let background_color = rgba(
+            &settings.background_color,
+            settings.background_opacity.min(100) as f32 / 100.0,
+        );
+
+        let background_glyph = (settings.background
+            && settings.background_opacity > 0
+            && block_width > 0.0)
+            .then(|| {
+                let padding_x = font_size * BOX_PADDING_X_EM;
+                let padding_y = font_size * BOX_PADDING_Y_EM;
+                CustomGlyph {
+                    id: 0,
+                    left: text_left + (text_width - block_width) / 2.0 - padding_x,
+                    top: text_top - padding_y,
+                    width: block_width + padding_x * 2.0,
+                    height: block_height + padding_y * 2.0,
+                    color: Some(background_color),
+                    snap_to_physical_pixel: true,
+                    metadata: 0,
                 }
+            });
+        let background_glyphs: Vec<CustomGlyph> = background_glyph.into_iter().collect();
 
-                if self.current_text.is_none() {
-                    return;
-                }
+        let bounds = TextBounds {
+            left: 0,
+            top: 0,
+            right: output_size.x as i32,
+            bottom: output_size.y as i32,
+        };
 
-                if let Some(text) = &self.current_text {
-                    let (width, height) = (output_size.x, output_size.y);
+        let mut text_areas = Vec::new();
 
-                    // Access device and queue from the pipeline's constants
-                    let device = &constants.device;
-                    let queue = &constants.queue;
+        if !background_glyphs.is_empty() {
+            text_areas.push(TextArea {
+                buffer: &self.empty_buffer,
+                left: 0.0,
+                top: 0.0,
+                scale: 1.0,
+                bounds,
+                default_color: background_color,
+                custom_glyphs: &background_glyphs,
+            });
+        }
 
-                    // Find caption position based on settings
-                    let y_position = match settings.position {
-                        0 => height as f32 * 0.1,  // top
-                        1 => height as f32 * 0.5,  // middle
-                        _ => height as f32 * 0.85, // bottom (default)
-                    };
-
-                    // Set up caption appearance
-                    let color = Color::rgb(
-                        (settings.color[0] * 255.0) as u8,
-                        (settings.color[1] * 255.0) as u8,
-                        (settings.color[2] * 255.0) as u8,
-                    );
-
-                    // Get outline color if needed
-                    let outline_color = Color::rgb(
-                        (settings.outline_color[0] * 255.0) as u8,
-                        (settings.outline_color[1] * 255.0) as u8,
-                        (settings.outline_color[2] * 255.0) as u8,
-                    );
-
-                    // Calculate text bounds
-                    let font_size = settings.font_size * (height as f32 / 1080.0); // Scale font size based on resolution
-                    let metrics = Metrics::new(font_size, font_size * 1.2); // 1.2 line height
-
-                    // Create a new buffer with explicit size for this frame
-                    let mut updated_buffer = Buffer::new(&mut self.font_system, metrics);
-
-                    // Set explicit width to enable proper text wrapping and centering
-                    // Set width to 90% of screen width for better appearance
-                    let text_width = width as f32 * 0.9;
-                    updated_buffer.set_size(&mut self.font_system, Some(text_width), None);
-                    updated_buffer.set_wrap(&mut self.font_system, glyphon::Wrap::Word);
-
-                    // Position text in the center horizontally
-                    // The bounds dictate the rendering area
-                    let bounds = TextBounds {
-                        left: ((width as f32 - text_width) / 2.0) as i32, // Center the text horizontally
-                        top: y_position as i32,
-                        right: ((width as f32 + text_width) / 2.0) as i32, // Center + width
-                        bottom: (y_position + font_size * 4.0) as i32, // Increased height for better visibility
-                    };
-
-                    // Apply text styling directly when setting the text
-                    // Create text attributes with or without outline
-                    let font_family = match settings.font {
-                        0 => Family::SansSerif,
-                        1 => Family::Serif,
-                        2 => Family::Monospace,
-                        _ => Family::SansSerif,
-                    };
-                    let weight = if caption_data.settings.bold {
-                        Weight::BOLD
-                    } else {
-                        Weight::NORMAL
-                    };
-                    let style = if caption_data.settings.italic {
-                        Style::Italic
-                    } else {
-                        Style::Normal
-                    };
-                    let attrs = Attrs::new()
-                        .family(font_family)
-                        .color(color)
-                        .weight(weight)
-                        .style(style);
-
-                    // Apply text to buffer
-                    updated_buffer.set_text(&mut self.font_system, text, &attrs, Shaping::Advanced);
-
-                    // Replace the existing buffer
-                    self.text_buffer = updated_buffer;
-
-                    // Update the viewport with explicit resolution
-                    self.viewport.update(queue, Resolution { width, height });
-
-                    // Background color
-                    let bg_color = if settings.background_color[3] > 0.01 {
-                        // Create a new text area with background color
-                        Color::rgba(
-                            (settings.background_color[0] * 255.0) as u8,
-                            (settings.background_color[1] * 255.0) as u8,
-                            (settings.background_color[2] * 255.0) as u8,
-                            (settings.background_color[3] * 255.0) as u8,
-                        )
-                    } else {
-                        Color::rgba(0, 0, 0, 0)
-                    };
-
-                    // Prepare text areas for rendering
-                    let mut text_areas = Vec::new();
-
-                    // Add background if enabled
-                    if settings.background_color[3] > 0.01 {
-                        text_areas.push(TextArea {
-                            buffer: &self.text_buffer,
-                            left: bounds.left as f32, // Match the bounds left for positioning
-                            top: y_position,
-                            scale: 1.0,
-                            bounds,
-                            default_color: bg_color,
-                            custom_glyphs: &[],
-                        });
-                    }
-
-                    // Add outline if enabled (by rendering the text multiple times with slight offsets in different positions)
-                    if settings.outline == 1 {
-                        info!("Rendering with outline");
-                        // Outline is created by drawing the text multiple times with small offsets in different directions
-                        let outline_offsets = [
-                            (-1.0, -1.0),
-                            (0.0, -1.0),
-                            (1.0, -1.0),
-                            (-1.0, 0.0),
-                            (1.0, 0.0),
-                            (-1.0, 1.0),
-                            (0.0, 1.0),
-                            (1.0, 1.0),
-                        ];
-
-                        for (offset_x, offset_y) in outline_offsets.iter() {
-                            text_areas.push(TextArea {
-                                buffer: &self.text_buffer,
-                                left: bounds.left as f32 + offset_x, // Match bounds with small offset for outline
-                                top: y_position + offset_y,
-                                scale: 1.0,
-                                bounds,
-                                default_color: outline_color,
-                                custom_glyphs: &[],
-                            });
-                        }
-                    }
-
-                    // Add main text (rendered last, on top of everything)
-                    text_areas.push(TextArea {
-                        buffer: &self.text_buffer,
-                        left: bounds.left as f32, // Match the bounds left for positioning
-                        top: y_position,
-                        scale: 1.0,
-                        bounds,
-                        default_color: color,
-                        custom_glyphs: &[],
-                    });
-
-                    // Prepare text rendering
-                    match self.text_renderer.prepare(
-                        device,
-                        queue,
-                        &mut self.font_system,
-                        &mut self.text_atlas,
-                        &self.viewport,
-                        text_areas,
-                        &mut self.swash_cache,
-                    ) {
-                        Ok(_) => {}
-                        Err(e) => warn!("Error preparing text: {e:?}"),
-                    }
-                }
+        if settings.outline {
+            for (dx, dy) in outline_offsets((font_size * OUTLINE_EM).max(1.0)) {
+                text_areas.push(TextArea {
+                    buffer: &self.text_buffer,
+                    left: text_left + dx,
+                    top: text_top + dy,
+                    scale: 1.0,
+                    bounds,
+                    default_color: outline_color,
+                    custom_glyphs: &[],
+                });
             }
+        }
+
+        text_areas.push(TextArea {
+            buffer: &self.text_buffer,
+            left: text_left,
+            top: text_top,
+            scale: 1.0,
+            bounds,
+            default_color: color,
+            custom_glyphs: &[],
+        });
+
+        self.viewport.update(
+            queue,
+            Resolution {
+                width: output_size.x,
+                height: output_size.y,
+            },
+        );
+
+        if let Err(e) = self.text_renderer.prepare_with_custom(
+            device,
+            queue,
+            &mut self.font_system,
+            &mut self.text_atlas,
+            &self.viewport,
+            text_areas,
+            &mut self.swash_cache,
+            |request| {
+                Some(RasterizedCustomGlyph {
+                    data: rounded_rect_mask(request.width, request.height),
+                    content_type: ContentType::Mask,
+                })
+            },
+        ) {
+            warn!("Error preparing captions: {e:?}");
         }
     }
 
-    /// Render the current caption to the frame
     pub fn render<'a>(&'a self, pass: &mut wgpu::RenderPass<'a>) {
-        match self
+        if let Err(e) = self
             .text_renderer
             .render(&self.text_atlas, &self.viewport, pass)
         {
-            Ok(_) => {}
-            Err(e) => warn!("Error rendering text: {e:?}"),
+            warn!("Error rendering captions: {e:?}");
         }
     }
 }
 
-/// Function to find the current caption segment based on playback time
-pub fn find_caption_at_time(time: f32, segments: &[CaptionSegment]) -> Option<&CaptionSegment> {
+fn rgba(hex: &str, alpha: f32) -> Color {
+    let channel = |index| (parse_color_component(hex, index) * 255.0).round() as u8;
+    Color::rgba(
+        channel(0),
+        channel(1),
+        channel(2),
+        (alpha.clamp(0.0, 1.0) * 255.0).round() as u8,
+    )
+}
+
+fn outline_offsets(width: f32) -> Vec<(f32, f32)> {
+    let steps = if width <= 1.5 {
+        8
+    } else if width <= 3.0 {
+        12
+    } else {
+        16
+    };
+    let rings: &[f32] = if width > 2.5 { &[1.0, 0.5] } else { &[1.0] };
+
+    rings
+        .iter()
+        .flat_map(|ring| {
+            (0..steps).map(move |step| {
+                let angle = step as f32 / steps as f32 * TAU;
+                (angle.cos() * width * ring, angle.sin() * width * ring)
+            })
+        })
+        .collect()
+}
+
+fn rounded_rect_mask(width: u16, height: u16) -> Vec<u8> {
+    let (w, h) = (width as f32, height as f32);
+    let radius = (h * BOX_RADIUS_RATIO).min(w / 2.0).min(h / 2.0);
+    let mut data = vec![0u8; width as usize * height as usize];
+
+    for y in 0..height as usize {
+        for x in 0..width as usize {
+            let px = x as f32 + 0.5;
+            let py = y as f32 + 0.5;
+            let cx = px.clamp(radius, w - radius);
+            let cy = py.clamp(radius, h - radius);
+            let distance = (px - cx).hypot(py - cy);
+            let coverage = (radius - distance + 0.5).clamp(0.0, 1.0);
+            data[y * width as usize + x] = (coverage * 255.0).round() as u8;
+        }
+    }
+
+    data
+}
+
+pub fn find_caption_at_time_project(
+    time: f32,
+    segments: &[cap_project::CaptionSegment],
+) -> Option<&cap_project::CaptionSegment> {
     segments
         .iter()
         .find(|segment| time >= segment.start && time < segment.end)
 }
 
-// Adding a new version that accepts cap_project::CaptionSegment
-/// Function to find the current caption segment from cap_project::CaptionSegment based on playback time
-pub fn find_caption_at_time_project(
-    time: f32,
-    segments: &[cap_project::CaptionSegment],
-) -> Option<CaptionSegment> {
-    segments
-        .iter()
-        .find(|segment| time >= segment.start && time < segment.end)
-        .map(|segment| CaptionSegment {
-            id: segment.id.clone(),
-            start: segment.start,
-            end: segment.end,
-            text: segment.text.clone(),
-        })
+#[cfg(test)]
+mod tests {
+    use super::{outline_offsets, rounded_rect_mask};
+
+    #[test]
+    fn outline_rings_scale_with_width() {
+        assert_eq!(outline_offsets(1.0).len(), 8);
+        assert_eq!(outline_offsets(4.0).len(), 32);
+        let furthest = outline_offsets(4.0)
+            .iter()
+            .map(|(x, y)| x.hypot(*y))
+            .fold(0.0_f32, f32::max);
+        assert!((furthest - 4.0).abs() < 1e-3);
+    }
+
+    #[test]
+    fn rounded_rect_is_solid_inside_and_clear_in_corners() {
+        let mask = rounded_rect_mask(100, 40);
+        assert_eq!(mask.len(), 4000);
+        assert_eq!(mask[20 * 100 + 50], 255);
+        assert_eq!(mask[0], 0);
+        assert_eq!(mask[20 * 100], 255);
+    }
 }

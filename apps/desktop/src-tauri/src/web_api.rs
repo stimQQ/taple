@@ -85,12 +85,6 @@ pub trait ManagerExt<R: Runtime>: Manager<R> {
         build: impl FnOnce(&reqwest::Client, String) -> reqwest::RequestBuilder,
     ) -> Result<reqwest::Response, AuthedApiError>;
 
-    async fn api_request(
-        &self,
-        path: impl Into<String>,
-        build: impl FnOnce(&reqwest::Client, String) -> reqwest::RequestBuilder,
-    ) -> Result<reqwest::Response, reqwest::Error>;
-
     async fn make_app_url(&self, pathname: impl AsRef<str>) -> String;
 
     async fn is_server_url_custom(&self) -> bool;
@@ -118,18 +112,6 @@ impl<T: Manager<R> + Emitter<R>, R: Runtime> ManagerExt<R> for T {
         }
 
         Ok(response)
-    }
-
-    async fn api_request(
-        &self,
-        path: impl Into<String>,
-        build: impl FnOnce(&reqwest::Client, String) -> reqwest::RequestBuilder,
-    ) -> Result<reqwest::Response, reqwest::Error> {
-        let url = self.make_app_url(path.into()).await;
-
-        apply_env_headers(build(&self.state::<http_client::HttpClient>(), url))
-            .send()
-            .await
     }
 
     async fn make_app_url(&self, pathname: impl AsRef<str>) -> String {

@@ -12,6 +12,7 @@ import {
 	createSignal,
 	onCleanup,
 	onMount,
+	Show,
 } from "solid-js";
 import Tooltip from "~/components/Tooltip";
 import CaptionControlsWindows11 from "~/components/titlebar/controls/CaptionControlsWindows11";
@@ -19,8 +20,8 @@ import { trackEvent } from "~/utils/analytics";
 import { L } from "~/utils/i18n";
 import { commands, events } from "~/utils/tauri";
 import { initializeTitlebar } from "~/utils/titlebar-state";
-import { aiPanelOpen, aiRunBusy, setAIPanelOpen } from "./AIEditPanel";
 import { useEditorContext } from "./context";
+import { mcpActivity } from "./mcpHost";
 import PresetsDropdown from "./PresetsDropdown";
 import { EditorButton } from "./ui";
 
@@ -52,6 +53,7 @@ export function Header() {
 		setExportState,
 		editorState,
 		setEditorState,
+		audioEnhancement,
 	} = useEditorContext();
 
 	let unlistenTitlebar: UnlistenFn | undefined;
@@ -110,6 +112,27 @@ export function Header() {
 					tooltipText={L("删除录制", "Delete recording")}
 					leftIcon={<IconCapTrash class="w-5" />}
 				/>
+				<Show when={mcpActivity()}>
+					{(activity) => (
+						<div class="flex gap-1.5 items-center px-2.5 h-7 text-xs whitespace-nowrap rounded-full bg-blue-3 text-blue-11">
+							<IconLucideSparkles class="size-3.5 shrink-0" />
+							{L(
+								`${activity().client} 正在剪辑`,
+								`${activity().client} is editing`,
+							)}
+							<span class="text-blue-10">· {activity().tool}</span>
+						</div>
+					)}
+				</Show>
+				<Show when={audioEnhancement.state.running}>
+					<div class="flex gap-1.5 items-center px-2.5 h-7 text-xs whitespace-nowrap rounded-full bg-gray-3 text-gray-11">
+						<IconLucideLoaderCircle class="animate-spin size-3.5 shrink-0" />
+						{audioEnhancement.state.status}
+						<Show when={audioEnhancement.state.step === "denoise"}>
+							{` ${Math.round(audioEnhancement.state.progress * 100)}%`}
+						</Show>
+					</div>
+				</Show>
 				<div data-tauri-drag-region class="flex-1 h-full" />
 			</div>
 
@@ -120,26 +143,6 @@ export function Header() {
 					ostype() !== "windows" && "pr-2",
 				)}
 			>
-				<EditorButton
-					onClick={() => {
-						clearTimelineSelection();
-						setAIPanelOpen(!aiPanelOpen());
-					}}
-					class={cx(aiPanelOpen() && "bg-gray-3")}
-					tooltipText={L(
-						"让 AI 帮你剪辑这段录制",
-						"Let AI edit this recording",
-					)}
-					leftIcon={
-						aiRunBusy() ? (
-							<IconLucideLoaderCircle class="w-4 animate-spin text-blue-11" />
-						) : (
-							<IconLucideSparkles class="w-4 text-blue-11" />
-						)
-					}
-				>
-					{L("AI 剪辑", "AI Edit")}
-				</EditorButton>
 				<PresetsDropdown />
 				<Button
 					variant="dark"

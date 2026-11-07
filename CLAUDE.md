@@ -57,11 +57,29 @@ Do not start dev servers or launch the app unless asked.
 - Recordings are `.taple` project directories. The app still opens older `.sparkvideo` and `.cap` projects.
 - The setup window only appears when screen recording or accessibility permission is missing.
 
+## AI Agents (MCP)
+
+- Taple serves MCP on a Unix socket in the app data directory (`mcp.sock`, mode 0600) from `apps/desktop/src-tauri/src/mcp.rs`. Clients launch the app binary with `--mcp --socket <path>` (`mcp_bridge.rs`), which pipes stdio to the socket and starts Taple when it is not running.
+- `list_recordings` and `open_recording` run in Rust; every other tool runs in the open editor (`apps/desktop/src/routes/editor/mcpHost.ts`) with the same tool code as the built-in AI Edit, so the editing rules, live timeline and undo behave the same. `view_frames` returns the contact sheet image when there is no vision helper.
+- Rust lists tools from `apps/desktop/src-tauri/mcp-catalog.json`, generated from the TypeScript tool definitions. After changing a tool, run `UPDATE_MCP_CATALOG=1 pnpm --filter @taple/desktop exec vitest run src/utils/ai/mcp.ts`; the test fails while the file is stale.
+- Settings → AI connects Claude Code (via the `claude` CLI, else `~/.claude.json`), Codex (`~/.codex/config.toml`), Claude Desktop and Cursor in one click (`mcp_install.rs`); each edited file is backed up as `*.taple-backup`.
+
+## Feedback & Changelog
+
+- Settings → Send Feedback posts to `https://taple.app/api/feedback` (`apps/desktop/src-tauri/src/feedback.rs`). The Pages Function `apps/website/functions/api/feedback.js` validates it, applies a 30-second per-IP cooldown and sends a plain-text email through Resend (`reply_to` is the user's address; optional log tail attached as `taple.log` with the home folder replaced by `~`).
+- Settings → Changelog shows GitHub Release notes (`changelog.rs`): it reads `https://taple.app/api/releases` (`apps/website/functions/api/releases.js`, cached 10 minutes) and falls back to the GitHub API, whose anonymous limit is 60 requests per hour per IP. Release notes are written in the GitHub Release body. The app strips remote HTML down to basic tags (`apps/desktop/src/utils/releaseNotes.ts`).
+- Pages environment: `RESEND_API_KEY` (secret), `FEEDBACK_TO` (comma-separated recipients), optional `FEEDBACK_FROM` (default `Taple Feedback <feedback@taple.app>`, the domain must be verified in Resend) and optional `GITHUB_TOKEN`.
+- Cloudflare Pages project `taple` (https://taple-yw4.pages.dev until taple.app is attached). Environment changes only apply to new deployments, so deploy again after setting a secret.
+- Run `wrangler pages dev .` from `apps/website`: Wrangler only picks up the `functions` folder in the current directory. To deploy, copy `apps/website` without `.wrangler` and `node_modules` (local dev state that would otherwise be uploaded) and run `wrangler pages deploy . --project-name taple --branch main` inside the copy. Set `TAPLE_SITE_URL` (for example `http://localhost:8788` or the pages.dev address) when running the desktop app to use another site.
+
 ## Audio: Known Decisions
 
 - Mono microphone samples are mixed at `gain × 1.0` into both channels (`crates/audio/src/renderer.rs`); the old `0.707` factor made recordings too quiet.
 - `mic_volume_db` defaults to `20.0` dB (`crates/project/src/configuration.rs`).
-- Editor mic and system audio sliders range from -30 dB to +20 dB (`apps/desktop/src/routes/editor/ConfigSidebar.tsx`).
+- Editor mic volume slider ranges from -30 dB to +30 dB and system audio from -30 dB to +20 dB (`apps/desktop/src/routes/editor/ConfigSidebar.tsx`); raw mic files are quiet, so +20 dB or more is normal.
+- The final mix goes through a stateless soft limiter (threshold -1 dBFS, ceiling 0.995) in `crates/editor/src/audio.rs`, shared by preview playback and export.
+- Audio cleanup (`apps/desktop/src/routes/editor/audioEnhancement.ts`): noise reduction first, then loudness. Loudness is measured per ITU-R BS.1770 on the (denoised) mic and the mic volume is set to reach -16 LUFS, capped so robust peaks stay under +3 dBFS before the limiter. New recordings get `audio.enhancePending` when the "Clean Up Audio After Recording" setting is on, and the editor runs the cleanup on open; AI Edit runs the same cleanup before transcription. `audio.autoLevelDb` marks an applied auto level and `audio.keepOriginalAudio` records that the user restored the original, so neither is redone automatically.
+- Noise reduction (`apps/desktop/src-tauri/src/noise_reduction.rs`, `patches/libDF/src/ort_impl.rs`) keeps the untouched mic as `*.original.ogg`, always processes from that original, normalizes the speech level to about -24 dBFS before DeepFilterNet (the model treats very quiet speech as noise) and aligns the model output with its 2-frame lookahead. The editor swaps the new audio in place (`EditorInstance::reload_microphone_audio`) without reloading the window.
 
 ## Troubleshooting
 

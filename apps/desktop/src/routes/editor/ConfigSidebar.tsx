@@ -58,6 +58,13 @@ import IconLucideMonitor from "~icons/lucide/monitor";
 import IconLucideMousePointerClick from "~icons/lucide/mouse-pointer-click";
 import IconLucideSparkles from "~icons/lucide/sparkles";
 import IconLucideTimer from "~icons/lucide/timer";
+import {
+	AIEditPanel,
+	aiPanelOpen,
+	aiRunBusy,
+	setAIPanelOpen,
+} from "./AIEditPanel";
+import { formatVolumeDb } from "./audioEnhancement";
 import { CaptionsTab } from "./CaptionsTab";
 import { useEditorContext } from "./context";
 import {
@@ -229,6 +236,17 @@ const TAB_IDS = {
 	hotkeys: "hotkeys",
 } as const;
 
+function AITabIcon(props: { class?: string }) {
+	return (
+		<Show
+			when={aiRunBusy()}
+			fallback={<IconLucideSparkles class={props.class} />}
+		>
+			<IconLucideLoaderCircle class={cx(props.class, "animate-spin")} />
+		</Show>
+	);
+}
+
 export function ConfigSidebar() {
 	const {
 		project,
@@ -238,43 +256,52 @@ export function ConfigSidebar() {
 		editorInstance,
 		editorState,
 		meta,
+		audioEnhancement,
 	} = useEditorContext();
 
-	const [isDenoising, setIsDenoising] = createSignal(false);
-	const [denoiseProgress, setDenoiseProgress] = createSignal(0);
-	const [denoiseStatus, setDenoiseStatus] = createSignal("");
+	const enhance = audioEnhancement;
+	const errorText = (error: unknown) =>
+		typeof error === "string" ? error : String(error);
 
 	const runDenoise = async () => {
-		if (!editorInstance) return;
-		setIsDenoising(true);
-		setDenoiseProgress(0);
-		setDenoiseStatus(L("正在准备...", "Preparing..."));
-
-		const unlisten = await events.denoiseProgress.listen((event) => {
-			setDenoiseProgress(event.payload.progress * 100);
-			setDenoiseStatus(event.payload.status);
-		});
-
 		try {
-			await commands.denoiseRecordingAudio(editorInstance.path);
-			toast.success(
-				L(
-					"降噪处理完成，正在刷新...",
-					"Noise reduction complete. Refreshing...",
-				),
-			);
-			setTimeout(() => window.location.reload(), 500);
-			return;
+			await enhance.runDenoise();
+			toast.success(L("降噪完成", "Noise reduction complete"));
 		} catch (error) {
 			toast.error(
-				L("降噪失败：", "Noise reduction failed: ") +
-					(typeof error === "string" ? error : String(error)),
+				L("降噪失败：", "Noise reduction failed: ") + errorText(error),
 			);
-		} finally {
-			unlisten();
-			setIsDenoising(false);
-			setDenoiseProgress(0);
-			setDenoiseStatus("");
+		}
+	};
+
+	const restoreOriginalAudio = async () => {
+		try {
+			await enhance.restoreOriginal();
+			toast.success(L("已恢复原始声音", "Original audio restored"));
+		} catch (error) {
+			toast.error(L("恢复失败：", "Restore failed: ") + errorText(error));
+		}
+	};
+
+	const autoLevel = async () => {
+		try {
+			const result = await enhance.autoLevel();
+			if (!result) {
+				toast.error(
+					L("没有检测到人声，无法自动调整", "No voice found to measure"),
+				);
+				return;
+			}
+			toast.success(
+				L(
+					`已把人声调到标准音量（麦克风 ${formatVolumeDb(result.volumeDb)}）`,
+					`Voice set to standard loudness (microphone ${formatVolumeDb(result.volumeDb)})`,
+				),
+			);
+		} catch (error) {
+			toast.error(
+				L("自动调整音量失败：", "Auto volume failed: ") + errorText(error),
+			);
 		}
 	};
 
@@ -294,7 +321,8 @@ export function ConfigSidebar() {
 			| "audio"
 			| "cursor"
 			| "hotkeys"
-			| "captions",
+			| "captions"
+			| "ai",
 	});
 
 	let scrollRef!: HTMLDivElement;
@@ -306,18 +334,24 @@ export function ConfigSidebar() {
 			selection &&
 			(selection.type === "zoom" || selection.type === "scene")
 		) {
+			setAIPanelOpen(false);
 			setState("selectedTab", "segments");
 		}
 	});
 
 	return (
 		<KTabs
-			value={state.selectedTab}
+			value={aiPanelOpen() ? "ai" : state.selectedTab}
 			class="flex flex-col min-h-0 shrink-0 flex-1 max-w-[26rem] overflow-hidden rounded-xl z-10 relative bg-gray-1 dark:bg-gray-2 border border-gray-3"
 		>
-			<KTabs.List class="flex overflow-hidden sticky top-0 z-[60] flex-row items-center h-12 text-sm border-b border-gray-3 shrink-0 bg-gray-1 dark:bg-gray-2">
+			<KTabs.List class="flex overflow-hidden sticky top-0 z-[60] flex-row items-center h-14 text-sm border-b border-gray-3 shrink-0 bg-gray-1 dark:bg-gray-2">
 				<For
 					each={[
+						{
+							id: "ai" as const,
+							icon: AITabIcon,
+							label: L("AI 剪辑", "AI Edit"),
+						},
 						{
 							id: TAB_IDS.segments,
 							icon: IconLucideLayers,
@@ -359,12 +393,16 @@ export function ConfigSidebar() {
 					{(item) => (
 						<KTabs.Trigger
 							value={item.id}
-							class="flex relative z-10 flex-1 justify-center items-center gap-1 px-1.5 py-2 transition-colors group disabled:opacity-50 focus:outline-none rounded-lg mx-0.5 text-gray-11 hover:bg-gray-3 ui-selected:text-blue-11 ui-selected:bg-blue-3 whitespace-nowrap"
+							class="flex relative z-10 flex-col flex-1 justify-center items-center gap-0.5 px-1 py-1.5 transition-colors group disabled:opacity-50 focus:outline-none rounded-lg mx-0.5 text-gray-11 hover:bg-gray-3 ui-selected:text-blue-11 ui-selected:bg-blue-3 whitespace-nowrap"
 							onClick={() => {
-								// Clear selection when switching away from segments tab
 								if (item.id !== "segments" && editorState.timeline.selection) {
 									setEditorState("timeline", "selection", null);
 								}
+								if (item.id === "ai") {
+									setAIPanelOpen(true);
+									return;
+								}
+								setAIPanelOpen(false);
 								setState("selectedTab", item.id);
 								scrollRef.scrollTo({
 									top: 0,
@@ -372,8 +410,10 @@ export function ConfigSidebar() {
 							}}
 							disabled={item.disabled}
 						>
-							<Dynamic component={item.icon} class="size-3.5 shrink-0" />
-							<span class="text-xs font-medium">{item.label}</span>
+							<Dynamic component={item.icon} class="size-4 shrink-0" />
+							<span class="text-[11px] font-medium leading-none">
+								{item.label}
+							</span>
 						</KTabs.Trigger>
 					)}
 				</For>
@@ -383,7 +423,10 @@ export function ConfigSidebar() {
 				style={{
 					"--margin-top-scroll": "5px",
 				}}
-				class="p-4 custom-scroll overflow-x-hidden overflow-y-scroll text-[0.875rem] flex-1 min-h-0"
+				class={cx(
+					"p-4 custom-scroll overflow-x-hidden overflow-y-scroll text-[0.875rem] flex-1 min-h-0",
+					aiPanelOpen() && "hidden",
+				)}
 			>
 				<BackgroundConfig scrollRef={scrollRef} />
 				<CameraConfig scrollRef={scrollRef} />
@@ -467,13 +510,32 @@ export function ConfigSidebar() {
               </ComingSoonTooltip> */}
 					</Field>
 					{meta().hasMicrophone && (
-						<Field name={L("麦克风音量", "Microphone Volume")} inline>
+						<Field
+							name={L("麦克风音量", "Microphone Volume")}
+							inline
+							value={
+								<button
+									type="button"
+									class="text-xs whitespace-nowrap text-blue-11 hover:underline disabled:opacity-50 disabled:no-underline"
+									disabled={enhance.state.running || project.audio.mute}
+									onClick={autoLevel}
+									title={L(
+										"测量人声响度，自动调到网络视频的标准音量（-16 LUFS）",
+										"Measure the voice and set it to standard online-video loudness (-16 LUFS)",
+									)}
+								>
+									{enhance.state.step === "level"
+										? L("测量中…", "Measuring…")
+										: L("自动", "Auto")}
+								</button>
+							}
+						>
 							<Slider
 								disabled={project.audio.mute}
 								value={[project.audio.micVolumeDb ?? 0]}
 								onChange={(v) => setProject("audio", "micVolumeDb", v[0])}
 								minValue={-30}
-								maxValue={20}
+								maxValue={30}
 								step={0.1}
 								formatTooltip={(v) =>
 									v <= -30
@@ -504,22 +566,49 @@ export function ConfigSidebar() {
 						<Field name={L("音频降噪", "Noise Reduction")}>
 							<div class="flex flex-col gap-3">
 								<Show
-									when={isDenoising()}
+									when={
+										enhance.state.running &&
+										(enhance.state.step === "denoise" ||
+											enhance.state.step === "restore")
+									}
 									fallback={
-										<Button class="w-full" onClick={runDenoise}>
-											{L("开始降噪", "Reduce Noise")}
-										</Button>
+										<div class="flex flex-row gap-2">
+											<Button
+												class="flex-1"
+												disabled={enhance.state.running}
+												onClick={runDenoise}
+											>
+												{enhance.denoised()
+													? L("重新降噪", "Reduce Noise Again")
+													: L("开始降噪", "Reduce Noise")}
+											</Button>
+											<Show when={enhance.denoised()}>
+												<Button
+													variant="gray"
+													class="flex-1"
+													disabled={enhance.state.running}
+													onClick={restoreOriginalAudio}
+												>
+													{L("恢复原声", "Restore Original")}
+												</Button>
+											</Show>
+										</div>
 									}
 								>
 									<div class="space-y-2">
 										<div class="w-full bg-gray-100 rounded-full h-2">
 											<div
 												class="bg-blue-500 h-2 rounded-full transition-all duration-300"
-												style={{ width: `${denoiseProgress()}%` }}
+												style={{
+													width: `${Math.round(enhance.state.progress * 100)}%`,
+												}}
 											/>
 										</div>
 										<p class="text-xs text-center text-gray-500">
-											{denoiseStatus()} — {Math.round(denoiseProgress())}%
+											{enhance.state.status}
+											{enhance.state.step === "denoise"
+												? ` — ${Math.round(enhance.state.progress * 100)}%`
+												: ""}
 										</p>
 									</div>
 								</Show>
@@ -795,6 +884,7 @@ export function ConfigSidebar() {
 					<CaptionsTab />
 				</KTabs.Content>
 			</div>
+			<AIEditPanel />
 		</KTabs>
 	);
 }

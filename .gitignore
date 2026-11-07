@@ -45,3 +45,5 @@ tauri.windows.conf.json
 .env*.local
 
 app.config.timestamp_*.js
+
+.wrangler

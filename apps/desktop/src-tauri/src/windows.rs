@@ -222,6 +222,11 @@ impl ShowCapWindow {
         }
 
         if let Some(window) = self.id(app).get(app) {
+            if let Self::Settings { page: Some(page) } = self {
+                crate::NavigateSettings { page: page.clone() }
+                    .emit_to(app, window.label())
+                    .ok();
+            }
             window.set_focus().ok();
             return Ok(window);
         }

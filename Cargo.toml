@@ -102,6 +102,12 @@ opt-level = 3
 [profile.dev.package.tract-pulse]
 opt-level = 3
 
+[profile.dev.package.whisper-rs-sys]
+opt-level = 3
+
+[profile.dev.package.whisper-rs]
+opt-level = 3
+
 [profile.dev.package.tract-nnef]
 opt-level = 3
 

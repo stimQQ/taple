@@ -1,8 +1,14 @@
-use crate::{ArcLock, web_api::ManagerExt};
-use std::{fs, path::PathBuf};
+use crate::ArcLock;
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 use tauri::{AppHandle, Manager};
 
-async fn get_latest_log_file(app: &AppHandle) -> Option<PathBuf> {
+const LOG_FILE_PREFIX: &str = "taple-desktop.log";
+const LOG_TAIL_BYTES: usize = 512 * 1024;
+
+async fn latest_log_file(app: &AppHandle) -> Option<PathBuf> {
     let logs_dir = app
         .state::<ArcLock<crate::App>>()
         .read()
@@ -10,73 +16,56 @@ async fn get_latest_log_file(app: &AppHandle) -> Option<PathBuf> {
         .logs_dir
         .clone();
 
-    let entries = fs::read_dir(&logs_dir).ok()?;
-    let mut log_files: Vec<_> = entries
+    fs::read_dir(&logs_dir)
+        .ok()?
         .filter_map(|entry| {
-            let entry = entry.ok()?;
-            let path = entry.path();
-            if path.is_file() && path.file_name()?.to_str()?.contains("cap-desktop.log") {
-                let metadata = fs::metadata(&path).ok()?;
-                let modified = metadata.modified().ok()?;
-                Some((path, modified))
-            } else {
-                None
-            }
+            let path = entry.ok()?.path();
+            let is_log = path.is_file() && path.file_name()?.to_str()?.starts_with(LOG_FILE_PREFIX);
+            is_log.then_some(())?;
+            Some((fs::metadata(&path).ok()?.modified().ok()?, path))
         })
-        .collect();
-
-    log_files.sort_by(|a, b| b.1.cmp(&a.1));
-    log_files.first().map(|(path, _)| path.clone())
+        .max_by_key(|(modified, _)| *modified)
+        .map(|(_, path)| path)
 }
 
-pub async fn upload_log_file(app: &AppHandle) -> Result<(), String> {
-    let log_file = get_latest_log_file(app).await.ok_or("No log file found")?;
+pub async fn recent_log(app: &AppHandle) -> Option<String> {
+    let bytes = fs::read(latest_log_file(app).await?).ok()?;
+    let log = log_tail(&bytes, LOG_TAIL_BYTES, dirs::home_dir().as_deref());
+    (!log.trim().is_empty()).then_some(log)
+}
 
-    let metadata =
-        fs::metadata(&log_file).map_err(|e| format!("Failed to read log file metadata: {e}"))?;
-    let file_size = metadata.len();
-
-    const MAX_SIZE: u64 = 1024 * 1024;
-
-    let log_content = if file_size > MAX_SIZE {
-        let content =
-            fs::read_to_string(&log_file).map_err(|e| format!("Failed to read log file: {e}"))?;
-
-        let header = format!(
-            "⚠️ Log file truncated (original size: {file_size} bytes, showing last ~1MB)\n\n"
-        );
-        let max_content_size = (MAX_SIZE as usize) - header.len();
-
-        if content.len() > max_content_size {
-            let start_pos = content.len() - max_content_size;
-            let truncated = &content[start_pos..];
-            if let Some(newline_pos) = truncated.find('\n') {
-                format!("{}{}", header, &truncated[newline_pos + 1..])
-            } else {
-                format!("{header}{truncated}")
-            }
-        } else {
-            content
-        }
+fn log_tail(bytes: &[u8], limit: usize, home: Option<&Path>) -> String {
+    let start = bytes.len().saturating_sub(limit);
+    let text = String::from_utf8_lossy(&bytes[start..]);
+    let text = if start > 0 {
+        text.split_once('\n').map_or(&*text, |(_, rest)| rest)
     } else {
-        fs::read_to_string(&log_file).map_err(|e| format!("Failed to read log file: {e}"))?
+        &text
     };
-
-    let form = reqwest::multipart::Form::new()
-        .text("log", log_content)
-        .text("os", std::env::consts::OS)
-        .text("version", env!("CARGO_PKG_VERSION"));
-
-    let response = app
-        .api_request("/api/desktop/logs", |client, url| {
-            client.post(url).multipart(form)
-        })
-        .await
-        .map_err(|e| format!("Failed to upload logs: {e}"))?;
-
-    if !response.status().is_success() {
-        return Err(format!("Upload failed with status: {}", response.status()));
+    match home.and_then(Path::to_str).filter(|home| home.len() > 1) {
+        Some(home) => text.replace(home, "~"),
+        None => text.to_string(),
     }
+}
 
-    Ok(())
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn keeps_whole_lines_and_hides_the_home_folder() {
+        let log = b"first line\nsecond /Users/alex/Movies/a.mov\nthird /Users/alex\n";
+        let home = Path::new("/Users/alex");
+
+        assert_eq!(
+            log_tail(log, log.len(), Some(home)),
+            "first line\nsecond ~/Movies/a.mov\nthird ~\n"
+        );
+        assert_eq!(
+            log_tail(log, 30, Some(home)),
+            "third ~\n",
+            "a cut-off first line is dropped"
+        );
+        assert_eq!(log_tail(log, 4, None), "");
+    }
 }

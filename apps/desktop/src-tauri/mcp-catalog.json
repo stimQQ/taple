@@ -1,0 +1,365 @@
+{
+	"instructions": "Taple is a macOS screen recorder for product demos and tutorials. These tools edit a recording in the Taple editor: the user watches the timeline change live, and every change can be undone with the undo tool.\n\nHow to work:\n1. Call list_recordings, then open_recording (pass \"latest\" for the most recent recording). Taple opens it in its editor, and all other tools work on the recording you opened last.\n2. Call prepare_audio once. It removes background noise and sets the voice to standard loudness, skipping anything already done.\n3. Call get_overview. If it reports no transcript, call transcribe before editing speech.\n4. Read get_transcript (lines, word timings, filler words, repeated phrases, retakes), get_activity (clicks and pauses) and get_storyboard (what happens on screen every second, with on-screen text). Use view_frames to look at the screen at specific source times; it returns one contact sheet image.\n5. Plan the whole edit, then apply it with fine-grained edits: one cut per filler, retake or idle stretch.\n6. Call review_edit, fix every warning it lists and call it again.\n7. Tell the user what you changed in a few short bullet points, by content rather than timestamps.\n\nTime base: every time you pass to or read from a tool is in seconds of the ORIGINAL recording (\"source time\"). Cuts and speed changes never shift source times, so transcript, word, click, pause and storyboard times stay valid. Tool results also show \"final\" times in the edited video for reference; never pass final times to tools.\n\nEdit tools enforce the rules below: they keep visually active parts automatically and report what they kept, snap boundaries to speech-free points with 0.12–0.2 s of breathing room, refuse boundaries deep inside speech or inside the opening sentence, refuse speed-ups over speech, user activity or stretches without progress on screen, and merge kept pieces shorter than 1.5 s without removing activity. Read every result for the adjusted ranges. When a tool refuses, change your plan instead of forcing it. Only pass allow_split_speech (a filler, repeated phrase or false start inside a sentence, using word timings) with a reason; pass allow_cut_activity or allow_speed_activity only when the user explicitly asked.\n\nWrite every \"reason\" you pass to an edit tool in the user's language; the user sees them in the editor.\n\nEditing rules for demos and tutorials (the result must be tight):\n- Cut only where it is both speech-free (or a filler you target) and visually idle. Moments where the cursor moves, the user clicks or types, or the screen changes are never cut, even when nobody speaks.\n- Tight pacing by default: remove idle silent pauses longer than about 0.3 s, keeping 0.12–0.2 s of breathing room next to speech. tighten_pauses does this for a whole window in one step; run it early, then handle the rest.\n- Remove every filler word (嗯, 啊, 呃, 额, 那个, 就是, 然后 when used as fillers, um, uh, and like/you know when they are only fillers), false starts, repeated phrases and repeated takes, using word timings from get_transcript. If the screen is idle during a filler, cut it with cut_range and allow_split_speech (it snaps to word edges with about 0.05 s padding). If the screen is active during a filler, do not cut it: mute it with mute_range (audio only, the picture stays). Keep the last clean take, and keep sentences intact otherwise.\n- Waiting: silent stretches where the screen only shows automatic progress (loading, generating, uploading, rendering, per the storyboard text) and the cursor does nothing may be sped up with set_speed (2x to 8x, faster for longer waits). Never speed up user operations, including typing. Silent stretches with user activity stay at 1x. Static dead air with no information is cut.\n- Never cut into the opening sentence of the recording unless the user asked for it, and keep every step a viewer must follow in a tutorial.\n- Zoom in when the viewer needs to read small UI details: around clicks on small buttons, menus, form fields and code. Start about 0.5 s before the action and end 1 to 2 s after it, keep each zoom at least 1.5 s long on the final timeline, use 1.5x to 2.2x, and merge actions that happen close together into one zoom. Use focus \"auto\" to follow the cursor, or \"manual\" with x/y (0..1 of the frame) for a fixed area. Do not zoom on content that is already large, and keep zooms to roughly a third of the video or less.\n- If the overview or get_transcript says the transcript looks unreliable, ignore its text and timing and work from speech activity, pauses, visual activity and the storyboard. If there is no transcript, cut more conservatively.\n- When the user's request differs from these defaults, follow the user.\n- If a tool returns an error, fix the input instead of repeating the same call. Do not ask the user questions; make reasonable choices and explain them in the summary.",
+	"tools": [
+		{
+			"name": "get_overview",
+			"description": "Current state of the edit: original and edited length, clips in playback order (source → final ranges and speed), zooms with their indices, transcript and audio availability, click count. All times are source seconds unless labelled final.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {},
+				"additionalProperties": false
+			}
+		},
+		{
+			"name": "get_transcript",
+			"description": "Speech transcript lines with id, source start–end and whether each line is still kept, already cut, or sped up. Optionally limit to a source time window. Cut between lines or inside pauses so sentences stay intact.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"start": {
+						"type": "number",
+						"description": "Only lines ending after this source second."
+					},
+					"end": {
+						"type": "number",
+						"description": "Only lines starting before this source second."
+					}
+				},
+				"additionalProperties": false
+			}
+		},
+		{
+			"name": "get_activity",
+			"description": "Mouse clicks inside the recorded area (source time, x/y as 0..1 of the frame) and pauses/silences detected from the audio waveform (source ranges, with kept/cut status). Clicks made outside the recording are already removed.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"start": {
+						"type": "number",
+						"description": "Window start, source seconds."
+					},
+					"end": {
+						"type": "number",
+						"description": "Window end, source seconds."
+					},
+					"min_pause": {
+						"type": "number",
+						"description": "Only list pauses at least this long, in seconds. Default 0.4."
+					}
+				},
+				"additionalProperties": false
+			}
+		},
+		{
+			"name": "get_storyboard",
+			"description": "Text timeline of what happens on screen, sampled every second: big changes (new page or dialog), content changes, small motion (cursor, typing, spinners), static stretches, and new on-screen text (OCR) at each change, with kept/cut status. Use it before view_frames to find waits, idle stretches and the steps of the tutorial.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"start": {
+						"type": "number",
+						"description": "Window start, source seconds."
+					},
+					"end": {
+						"type": "number",
+						"description": "Window end, source seconds."
+					}
+				},
+				"additionalProperties": false
+			}
+		},
+		{
+			"name": "view_frames",
+			"description": "Look at the raw screen recording. Up to 9 source timestamps are combined into one labelled contact sheet image (#1, #2, … in time order) that is returned to you. Frames show the captured screen without zoom, background or captions. Batch timestamps into one call instead of many calls. The question parameter is not needed.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"times": {
+						"type": "array",
+						"items": {
+							"type": "number",
+							"description": "Source second of the original recording."
+						},
+						"description": "1 to 9 timestamps in source seconds."
+					},
+					"question": {
+						"type": "string",
+						"description": "What you need to know about these frames, e.g. 'Is the app loading or waiting in #2–#4?' or 'Where is the Save button in #3 (x/y)?'."
+					}
+				},
+				"required": [
+					"times"
+				],
+				"additionalProperties": false
+			}
+		},
+		{
+			"name": "cut_range",
+			"description": "Remove a source time range from the edited video, but only its parts that are both speech-free (or the words you target with allow_split_speech) and visually idle. Parts with cursor movement, clicks or screen changes are kept automatically and the result says what was kept. Boundaries snap to speech-free points with 0.12–0.2 s of breathing room; boundaries deep inside speech or inside the opening sentence are refused. With allow_split_speech (and a reason) boundaries snap to word edges with ~0.05 s padding, for removing a filler, repeated phrase or false start. Kept pieces shorter than 1.5 s are merged automatically without removing activity. Zooms move with their content.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"start": {
+						"type": "number",
+						"description": "Start, in seconds of the original recording (source time)."
+					},
+					"end": {
+						"type": "number",
+						"description": "End, in seconds of the original recording (source time)."
+					},
+					"reason": {
+						"type": "string",
+						"description": "Very short note on why you make this edit, shown to the user (e.g. 'long pause', 'false start')."
+					},
+					"allow_split_speech": {
+						"type": "boolean",
+						"description": "Set only to cut or speed up inside speech on purpose (a filler word, a repeated phrase, a false start mid-sentence, or the user asked to cut the opening). Boundaries then snap to word gaps. Requires reason."
+					},
+					"allow_cut_activity": {
+						"type": "boolean",
+						"description": "Set only when the user explicitly asked to remove a stretch with visible activity (cursor moving, clicks, screen changes). Without it, active parts are kept automatically. Requires reason."
+					}
+				},
+				"required": [
+					"start",
+					"end"
+				],
+				"additionalProperties": false
+			}
+		},
+		{
+			"name": "tighten_pauses",
+			"description": "Cut every speech-free, visually idle silence longer than min_pause (default 0.3 s) in a source window in one step, keeping 0.12–0.2 s of breathing room next to speech. Pauses inside the opening sentence and any part with cursor movement, clicks or screen changes are kept. Use it for the tight default pacing, then handle fillers and retakes with cut_range.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"start": {
+						"type": "number",
+						"description": "Window start, source seconds. Default 0."
+					},
+					"end": {
+						"type": "number",
+						"description": "Window end, source seconds. Default the end."
+					},
+					"min_pause": {
+						"type": "number",
+						"description": "Only tighten silences longer than this, in seconds. Default 0.3."
+					},
+					"reason": {
+						"type": "string",
+						"description": "Very short note on why you make this edit, shown to the user (e.g. 'long pause', 'false start')."
+					}
+				},
+				"additionalProperties": false
+			}
+		},
+		{
+			"name": "set_speed",
+			"description": "Speed up an automatic wait (loading, generating, uploading, rendering) that the storyboard shows with progress on screen, while nobody speaks and the user does nothing. The tool refuses ranges with speech, with cursor movement or clicks (user operations, including typing, stay at 1x) and ranges without progress on screen (cut idle dead air instead). Boundaries snap to speech-free points. Speed 1 restores normal speed without these checks.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"start": {
+						"type": "number",
+						"description": "Start, in seconds of the original recording (source time)."
+					},
+					"end": {
+						"type": "number",
+						"description": "End, in seconds of the original recording (source time)."
+					},
+					"speed": {
+						"type": "number",
+						"description": "Playback speed, 1 to 8. 1 restores normal speed. Automatic waits usually 2–8."
+					},
+					"reason": {
+						"type": "string",
+						"description": "Very short note on why you make this edit, shown to the user (e.g. 'long pause', 'false start')."
+					},
+					"allow_split_speech": {
+						"type": "boolean",
+						"description": "Set only to cut or speed up inside speech on purpose (a filler word, a repeated phrase, a false start mid-sentence, or the user asked to cut the opening). Boundaries then snap to word gaps. Requires reason."
+					},
+					"allow_speed_activity": {
+						"type": "boolean",
+						"description": "Set only when the user explicitly asked to speed up a stretch with user activity or without progress on screen. Requires reason."
+					}
+				},
+				"required": [
+					"start",
+					"end",
+					"speed"
+				],
+				"additionalProperties": false
+			}
+		},
+		{
+			"name": "mute_range",
+			"description": "Silence the audio of a short source range (at most 3 s) without cutting the picture. Use it for a filler word that falls inside visual activity, where cutting is not allowed. Boundaries snap to word edges with ~0.05 s padding.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"start": {
+						"type": "number",
+						"description": "Start, in seconds of the original recording (source time)."
+					},
+					"end": {
+						"type": "number",
+						"description": "End, in seconds of the original recording (source time)."
+					},
+					"reason": {
+						"type": "string",
+						"description": "Very short note on why you make this edit, shown to the user (e.g. 'long pause', 'false start')."
+					}
+				},
+				"required": [
+					"start",
+					"end"
+				],
+				"additionalProperties": false
+			}
+		},
+		{
+			"name": "add_zoom",
+			"description": "Add a zoom over a source time range. It is placed on the final timeline where that content plays now and moves with later cuts. Must last at least 1 s on the final timeline (1.5 s or more looks best) and must not overlap an existing zoom (remove that one first).",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"start": {
+						"type": "number",
+						"description": "Start, in seconds of the original recording (source time)."
+					},
+					"end": {
+						"type": "number",
+						"description": "End, in seconds of the original recording (source time)."
+					},
+					"amount": {
+						"type": "number",
+						"description": "Zoom factor 1.1–4.5. Default 1.8. Typical 1.5–2.2."
+					},
+					"focus": {
+						"enum": [
+							"auto",
+							"manual"
+						],
+						"description": "\"auto\" follows the cursor (default). \"manual\" zooms on the fixed point x, y."
+					},
+					"x": {
+						"type": "number",
+						"description": "Manual focus x, 0 (left) to 1 (right) of the frame."
+					},
+					"y": {
+						"type": "number",
+						"description": "Manual focus y, 0 (top) to 1 (bottom) of the frame."
+					},
+					"reason": {
+						"type": "string",
+						"description": "Very short note on why you make this edit, shown to the user (e.g. 'long pause', 'false start')."
+					}
+				},
+				"required": [
+					"start",
+					"end"
+				],
+				"additionalProperties": false
+			}
+		},
+		{
+			"name": "remove_zoom",
+			"description": "Delete one zoom by index. Indices of later zooms shift down by one.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"index": {
+						"type": "integer",
+						"description": "Zoom index from get_overview or add_zoom."
+					}
+				},
+				"required": [
+					"index"
+				],
+				"additionalProperties": false
+			}
+		},
+		{
+			"name": "set_captions",
+			"description": "Turn burned-in captions on or off and fix caption text by transcript line id. Timing is unchanged; captions follow cuts automatically.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"enabled": {
+						"type": "boolean",
+						"description": "Show captions burned into the video, or hide them."
+					},
+					"fixes": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"id": {
+									"type": "string",
+									"description": "Transcript line id."
+								},
+								"text": {
+									"type": "string",
+									"description": "Corrected caption text."
+								}
+							},
+							"required": [
+								"id",
+								"text"
+							],
+							"additionalProperties": false
+						},
+						"description": "Corrections for misheard words, names or punctuation. Keep the meaning and language."
+					}
+				},
+				"additionalProperties": false
+			}
+		},
+		{
+			"name": "review_edit",
+			"description": "Check the whole edit: every cut and speed change with 0.5 s of speech or word context on each side, kept piece lengths, and warnings (cut inside speech, too little breathing room, pieces that are too short, the opening sentence partly cut, cuts that remove visual activity, speed-ups over speech or cursor activity, captions that no longer match). Also suggests idle pauses that are still kept. Call it after your edits, fix every warning, and call it again before the final summary.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {},
+				"additionalProperties": false
+			}
+		},
+		{
+			"name": "prepare_audio",
+			"description": "Clean up the microphone audio of the open recording: remove background noise, then set the voice to standard online-video loudness (-16 LUFS). Steps that were already done are skipped, and the user's choice to keep the original audio is respected. Call it once before reading the transcript or editing speech.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {},
+				"additionalProperties": false
+			}
+		},
+		{
+			"name": "transcribe",
+			"description": "Transcribe the open recording on this Mac with Whisper and store the captions with word timings, so get_transcript can return lines, filler words and retakes. Skips work when captions already exist. Long recordings take a while.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {},
+				"additionalProperties": false
+			}
+		},
+		{
+			"name": "undo",
+			"description": "Undo the last change to the open recording's timeline, captions or audio settings in the Taple editor.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {},
+				"additionalProperties": false
+			}
+		},
+		{
+			"name": "redo",
+			"description": "Redo the last change that undo reverted.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {},
+				"additionalProperties": false
+			}
+		}
+	]
+}

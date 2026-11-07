@@ -4,6 +4,7 @@ import type { AssistantMessage } from "@earendil-works/pi-ai";
 import { createEventListener } from "@solid-primitives/event-listener";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { ask } from "@tauri-apps/plugin-dialog";
+import * as shell from "@tauri-apps/plugin-shell";
 import { cx } from "cva";
 import {
 	createEffect,
@@ -17,6 +18,7 @@ import {
 	Switch,
 } from "solid-js";
 import { createStore, produce, reconcile, unwrap } from "solid-js/store";
+import toast from "solid-toast";
 import { aiSettingsStore } from "~/store";
 import {
 	assistantText,
@@ -25,25 +27,31 @@ import {
 	isAssistantMessage,
 	MAX_TOOL_CALLS,
 } from "~/utils/ai/agent";
-import { formatCost, providerInfo, resolveModel } from "~/utils/ai/providers";
-import { getApiKey, resolveAISettings } from "~/utils/ai/settings";
-import { layoutFromSegmentDurations } from "~/utils/ai/timebase";
+import {
+	formatCost,
+	providerInfo,
+	resolveModel,
+	resolveVisionHelperModel,
+} from "~/utils/ai/providers";
+import { getApiKey, resolveAISettings, saveApiKey } from "~/utils/ai/settings";
 import { createEditorTools, EDIT_TOOL_NAMES } from "~/utils/ai/tools";
+import { assessTranscript } from "~/utils/ai/transcript-check";
 import {
 	findDownloadedWhisperModel,
-	loadVideoActivity,
-	segmentClockOffsets,
 	transcribeRecording,
 } from "~/utils/ai/video-context";
+import { createVisionHelper } from "~/utils/ai/vision";
 import { L } from "~/utils/i18n";
 import {
 	type CaptionSettings,
 	commands,
-	type MultipleSegment,
 	type ProjectConfiguration,
 } from "~/utils/tauri";
+import { formatVolumeDb } from "./audioEnhancement";
 import { MODEL_FOLDER, MODEL_OPTIONS } from "./CaptionsTab";
+import { HIDDEN_CAPTION_SETTINGS } from "./captionDefaults";
 import { useEditorContext } from "./context";
+import { analyzeRecording, startScreenAnalysis } from "./editAnalysis";
 
 export const [aiPanelOpen, setAIPanelOpen] = createSignal(false);
 export const [aiRunBusy, setAIRunBusy] = createSignal(false);
@@ -69,20 +77,10 @@ type RunStatus =
 	| "error"
 	| "stopped";
 
-const HIDDEN_CAPTION_SETTINGS: CaptionSettings = {
-	enabled: false,
-	font: "System Sans-Serif",
-	size: 24,
-	color: "#FFFFFF",
-	backgroundColor: "#000000",
-	backgroundOpacity: 80,
-	position: "bottom",
-	bold: true,
-	italic: false,
-	outline: true,
-	outlineColor: "#000000",
-	exportWithSubtitles: false,
-};
+type KeyState =
+	| { state: "saved" }
+	| { state: "missing" }
+	| { state: "error"; message: string };
 
 const PRESETS = [
 	{
@@ -107,6 +105,10 @@ const PRESETS = [
 		),
 	},
 ];
+
+function issueMessage(issue: KeyState): string | undefined {
+	return issue.state === "error" ? issue.message : undefined;
+}
 
 function asTextStep(step: Step): TextStep | undefined {
 	return step.kind === "text" ? step : undefined;
@@ -181,6 +183,14 @@ function describeToolCall(name: string, args: unknown): string {
 			);
 		case "set_captions":
 			return L("调整字幕", "Update captions");
+		case "tighten_pauses":
+			return withReason(L("收紧所有停顿", "Tighten all pauses"));
+		case "mute_range":
+			return withReason(L(`静音 ${seconds} 秒`, `Mute ${seconds}s`));
+		case "get_storyboard":
+			return L("查看画面变化时间线", "Reading the screen timeline");
+		case "review_edit":
+			return L("检查剪辑结果", "Reviewing the edit");
 		default:
 			return name;
 	}
@@ -202,12 +212,6 @@ function toolResultText(result: unknown): string {
 		.trim();
 }
 
-function multipleSegments(meta: unknown): MultipleSegment[] | null {
-	if (typeof meta !== "object" || meta === null) return null;
-	const segments = (meta as { segments?: unknown }).segments;
-	return Array.isArray(segments) ? (segments as MultipleSegment[]) : null;
-}
-
 export function AIEditPanel() {
 	const {
 		project,
@@ -220,6 +224,7 @@ export function AIEditPanel() {
 		micWaveforms,
 		systemAudioWaveforms,
 		meta,
+		audioEnhancement,
 	} = useEditorContext();
 
 	const settingsQuery = aiSettingsStore.createQuery();
@@ -228,22 +233,37 @@ export function AIEditPanel() {
 		resolveModel(settings().provider, settings().modelId),
 	);
 
-	const [hasKey, { refetch: refetchKey }] = createResource(
-		() =>
-			aiPanelOpen() && settingsQuery.isSuccess
-				? { provider: settings().provider, stamp: settings().keysUpdatedAt }
-				: false,
-		(source) =>
-			getApiKey(source.provider, source.stamp)
-				.then((key) => key !== null)
-				.catch(() => false),
-	);
+	const [keyState, { refetch: refetchKey, mutate: setKeyState }] =
+		createResource(
+			() =>
+				aiPanelOpen() && settingsQuery.isSuccess
+					? { provider: settings().provider, stamp: settings().keysUpdatedAt }
+					: false,
+			(source): Promise<KeyState> =>
+				getApiKey(source.provider, source.stamp)
+					.then(
+						(key): KeyState =>
+							key ? { state: "saved" } : { state: "missing" },
+					)
+					.catch(
+						(error): KeyState => ({ state: "error", message: String(error) }),
+					),
+		);
+	const keyIssue = () => {
+		const value = keyState();
+		return value && value.state !== "saved" ? value : undefined;
+	};
 
 	const hasAudio = () =>
 		editorInstance.recordings.segments.some(
 			(s) => s.mic !== null || s.system_audio !== null,
 		);
 	const hasTranscript = () => (project.captions?.segments.length ?? 0) > 0;
+	const transcriptUnreliable = createMemo(
+		() =>
+			hasTranscript() &&
+			!assessTranscript(project.captions?.segments ?? []).reliable,
+	);
 
 	const [whisperModel, { refetch: refetchWhisper }] = createResource(
 		() => aiPanelOpen() && hasAudio() && !hasTranscript(),
@@ -265,11 +285,24 @@ export function AIEditPanel() {
 	});
 
 	const [prompt, setPrompt] = createSignal("");
+	const [presetFilled, setPresetFilled] = createSignal<number | null>(null);
+	let promptInput: HTMLTextAreaElement | undefined;
+	const applyPreset = (index: number) => {
+		setPrompt(PRESETS[index].prompt);
+		setPresetFilled(index);
+		requestAnimationFrame(() => {
+			if (!promptInput) return;
+			promptInput.focus();
+			const end = promptInput.value.length;
+			promptInput.setSelectionRange(end, end);
+		});
+	};
 	const [run, setRun] = createStore({
 		status: "idle" as RunStatus,
 		phase: "",
 		steps: [] as Step[],
 		cost: 0,
+		helperCost: 0,
 		summary: "",
 		error: "",
 		undoAvailable: false,
@@ -382,6 +415,79 @@ export function AIEditPanel() {
 	const openAISettings = () =>
 		commands.showWindow({ Settings: { page: "ai" } });
 
+	const openAgentSettings = () =>
+		commands.showWindow({ Settings: { page: "ai#agents" } });
+
+	const [keyInput, setKeyInput] = createSignal("");
+	const [savingKey, setSavingKey] = createSignal(false);
+	const saveInlineKey = async () => {
+		const value = keyInput().trim();
+		if (!value || savingKey()) return;
+		setSavingKey(true);
+		try {
+			await saveApiKey(settings().provider, value);
+			setKeyInput("");
+			setKeyState({ state: "saved" });
+			await settingsQuery.refetch();
+			toast.success(L("API 密钥已保存到钥匙串", "API key saved to Keychain"));
+		} catch (error) {
+			toast.error(
+				L("保存 API 密钥失败：", "Failed to save the API key: ") +
+					(typeof error === "string" ? error : String(error)),
+			);
+		} finally {
+			setSavingKey(false);
+		}
+	};
+
+	const prepareAudio = async () => {
+		if (!meta().hasMicrophone) return;
+		setRun("phase", L("正在优化声音…", "Preparing the audio…"));
+		try {
+			const outcome = await audioEnhancement.prepare();
+			if (outcome.denoise === "done")
+				pushStep({
+					id: "denoise",
+					kind: "tool",
+					name: "denoise",
+					label: L("已降噪", "Reduced background noise"),
+					status: "done",
+				});
+			if (typeof outcome.level === "object")
+				pushStep({
+					id: "level",
+					kind: "tool",
+					name: "level",
+					label: L(
+						`已把人声调到标准音量（麦克风 ${formatVolumeDb(outcome.level.volumeDb)}）`,
+						`Set the voice to standard loudness (microphone ${formatVolumeDb(outcome.level.volumeDb)})`,
+					),
+					status: "done",
+				});
+			if (outcome.errors.length > 0)
+				pushStep({
+					id: "audio-error",
+					kind: "tool",
+					name: "audio",
+					label: L(
+						"声音优化失败，继续剪辑",
+						"Audio cleanup failed; continuing",
+					),
+					status: "error",
+					error: outcome.errors.join("; "),
+				});
+		} catch (error) {
+			pushStep({
+				id: "audio-error",
+				kind: "tool",
+				name: "audio",
+				label: L("声音优化失败，继续剪辑", "Audio cleanup failed; continuing"),
+				status: "error",
+				error: String(error),
+			});
+		}
+	};
+
 	const ensureTranscript = async (): Promise<string> => {
 		if (hasTranscript()) return "";
 		if (!hasAudio())
@@ -445,14 +551,20 @@ export function AIEditPanel() {
 		const selectedModel = model();
 		if (!instruction || busy() || !selectedModel) return;
 
-		const apiKey = await getApiKey(
-			settings().provider,
-			settings().keysUpdatedAt,
-		).catch(() => null);
-		if (!apiKey) {
-			refetchKey();
+		let apiKey: string | null = null;
+		try {
+			apiKey = await getApiKey(settings().provider, settings().keysUpdatedAt);
+		} catch (error) {
+			setKeyState({ state: "error", message: String(error) });
 			return;
 		}
+		if (!apiKey) {
+			setKeyState({ state: "missing" });
+			return;
+		}
+		setKeyState({ state: "saved" });
+		const helperModel =
+			resolveVisionHelperModel(settings().provider) ?? selectedModel;
 
 		stopRequested = false;
 		lastAssistant = null;
@@ -464,6 +576,7 @@ export function AIEditPanel() {
 			phase: L("正在分析录制内容…", "Analyzing the recording…"),
 			steps: [],
 			cost: 0,
+			helperCost: 0,
 			summary: "",
 			error: "",
 			undoAvailable: false,
@@ -475,6 +588,12 @@ export function AIEditPanel() {
 		}
 
 		try {
+			const screen = startScreenAnalysis(editorInstance.path);
+			await prepareAudio();
+			if (stopRequested) {
+				setRun({ status: "stopped", phase: "" });
+				return;
+			}
 			const transcriptHint = await ensureTranscript();
 			if (stopRequested) {
 				setRun({ status: "stopped", phase: "" });
@@ -482,31 +601,20 @@ export function AIEditPanel() {
 			}
 			setRun("phase", L("正在分析录制内容…", "Analyzing the recording…"));
 
-			const recordingDurations = editorInstance.recordings.segments.map((s) =>
-				Math.max(
-					s.display.duration,
-					s.camera?.duration ?? 0,
-					s.mic?.duration ?? 0,
-				),
-			);
-			const layout = layoutFromSegmentDurations(
-				recordingDurations,
-				project.timeline?.segments,
-			);
-			const [mic, system] = await Promise.all([
-				micWaveforms.state === "ready"
-					? micWaveforms()
-					: commands.getMicWaveforms().catch(() => []),
-				systemAudioWaveforms.state === "ready"
-					? systemAudioWaveforms()
-					: commands.getSystemAudioWaveforms().catch(() => []),
-			]);
-			const activity = await loadVideoActivity({
-				projectPath: editorInstance.path,
-				layout,
-				clockOffsets: segmentClockOffsets(multipleSegments(meta())),
-				micWaveforms: mic,
-				systemWaveforms: system,
+			const analysis = await analyzeRecording({
+				editorInstance,
+				meta: meta(),
+				timelineSegments: project.timeline?.segments,
+				micWaveforms: async () =>
+					micWaveforms.state === "ready"
+						? (micWaveforms() ?? [])
+						: commands.getMicWaveforms().catch(() => []),
+				systemWaveforms: async () =>
+					systemAudioWaveforms.state === "ready"
+						? (systemAudioWaveforms() ?? [])
+						: commands.getSystemAudioWaveforms().catch(() => []),
+				screen,
+				onPhase: (phase) => setRun("phase", phase),
 			});
 			if (stopRequested) {
 				setRun({ status: "stopped", phase: "" });
@@ -514,13 +622,14 @@ export function AIEditPanel() {
 			}
 
 			const toolkit = createEditorTools({
+				...analysis,
 				project,
 				setProject,
 				onEdited,
-				layout,
 				projectPath: editorInstance.path,
-				activity,
 				transcriptHint,
+				vision: createVisionHelper(helperModel, apiKey),
+				onHelperCost: (cost) => setRun("helperCost", (c) => c + cost),
 			});
 
 			beforeSnapshot = structuredClone(unwrap(project));
@@ -620,63 +729,155 @@ export function AIEditPanel() {
 	return (
 		<div
 			class={cx(
-				"flex flex-col min-h-0 shrink-0 flex-1 max-w-[26rem] overflow-hidden rounded-xl z-10 relative bg-gray-1 dark:bg-gray-2 border border-gray-3",
+				"flex flex-col flex-1 min-h-0 overflow-hidden",
 				!aiPanelOpen() && "hidden",
 			)}
 		>
-			<div class="flex flex-row gap-2 items-center px-4 h-12 border-b border-gray-3 shrink-0">
-				<IconLucideSparkles class="size-4 text-blue-11" />
-				<span class="text-sm font-medium text-gray-12">
-					{L("AI 剪辑", "AI Edit")}
-				</span>
+			<div class="flex flex-row gap-2 items-center px-4 h-9 border-b border-gray-3 shrink-0">
 				<Show when={model()}>
 					{(m) => (
-						<span class="truncate text-xs text-gray-11">
+						<span class="min-w-0 text-xs truncate text-gray-11">
 							{providerName()} · {m().name}
 						</span>
 					)}
 				</Show>
 				<button
 					type="button"
-					class="flex justify-center items-center ml-auto rounded-md transition-colors size-7 text-gray-11 hover:bg-gray-3 hover:text-gray-12"
-					onClick={() => setAIPanelOpen(false)}
-					title={L("关闭", "Close")}
+					class="flex gap-1 items-center px-2 ml-auto h-6 text-xs whitespace-nowrap rounded-md transition-colors shrink-0 text-blue-11 hover:bg-gray-3"
+					onClick={openAgentSettings}
+					title={L(
+						"连接 Claude Code、Codex，用你自己的订阅剪辑，免 API 费用",
+						"Connect Claude Code or Codex and edit with your own subscription, no API cost",
+					)}
 				>
-					<IconCapX class="size-3.5" />
+					<IconLucidePlug class="size-3.5" />
+					{L("一键连接", "Connect")}
+				</button>
+				<button
+					type="button"
+					class="flex justify-center items-center rounded-md transition-colors size-6 shrink-0 text-gray-11 hover:bg-gray-3 hover:text-gray-12"
+					onClick={openAISettings}
+					title={L("AI 设置", "AI settings")}
+				>
+					<IconCapSettings class="size-3.5" />
 				</button>
 			</div>
 
 			<div class="flex overflow-y-auto flex-col flex-1 gap-4 p-4 min-h-0 text-sm custom-scroll">
 				<Switch>
-					<Match when={hasKey.loading && hasKey() === undefined}>
+					<Match when={keyState.loading && keyState() === undefined}>
 						<div class="flex gap-2 items-center text-xs text-gray-11">
 							<IconLucideLoaderCircle class="animate-spin size-3.5" />
 							{L("正在读取钥匙串…", "Reading Keychain…")}
 						</div>
 					</Match>
-					<Match when={hasKey() === false}>
-						<div class="flex flex-col gap-3 p-4 rounded-xl border border-gray-3 bg-gray-2 dark:bg-gray-3">
-							<div class="flex gap-2 items-center font-medium text-gray-12">
-								<IconCapSettings class="size-4" />
-								{L("先连接一个 AI 模型", "Connect an AI model first")}
+					<Match when={keyIssue()}>
+						{(issue) => (
+							<div class="flex flex-col gap-3 p-4 rounded-xl border border-gray-3 bg-gray-2 dark:bg-gray-3">
+								<div class="flex gap-2 items-center font-medium text-gray-12">
+									<IconLucideKeyRound class="size-4" />
+									{issue().state === "error"
+										? L("重新填写 API 密钥", "Enter your API key again")
+										: L(
+												`添加 ${providerName()} API 密钥`,
+												`Add your ${providerName()} API key`,
+											)}
+								</div>
+								<p class="text-xs leading-relaxed text-gray-11">
+									{issue().state === "error"
+										? L(
+												`读不到之前保存的 ${providerName()} 密钥，重新粘贴一次就能替换。`,
+												`The saved ${providerName()} key couldn't be read. Paste it again to replace it.`,
+											)
+										: L(
+												`粘贴 ${providerName()} 的 API 密钥就能开始 AI 剪辑。密钥只保存在本机钥匙串里。`,
+												`Paste your ${providerName()} API key to start editing with AI. The key stays in this Mac's Keychain.`,
+											)}
+								</p>
+								<input
+									type="password"
+									autocomplete="off"
+									spellcheck={false}
+									class="w-full h-9 px-3 text-sm rounded-lg border outline-none transition-colors border-gray-4 bg-gray-1 text-gray-12 placeholder:text-gray-9 focus:border-blue-9"
+									placeholder={providerInfo(settings().provider).keyPlaceholder}
+									value={keyInput()}
+									onInput={(e) => setKeyInput(e.currentTarget.value)}
+									onKeyDown={(e) => {
+										if (e.key === "Enter") void saveInlineKey();
+									}}
+								/>
+								<div class="flex flex-row flex-wrap gap-2 items-center">
+									<Button
+										variant="dark"
+										size="sm"
+										class="whitespace-nowrap"
+										disabled={!keyInput().trim() || savingKey()}
+										onClick={saveInlineKey}
+									>
+										{savingKey()
+											? L("正在保存…", "Saving…")
+											: L("保存密钥", "Save key")}
+									</Button>
+									<button
+										type="button"
+										class="flex flex-row gap-1 items-center ml-auto text-xs whitespace-nowrap text-blue-11 hover:underline"
+										onClick={() =>
+											shell.open(providerInfo(settings().provider).keyUrl)
+										}
+									>
+										{providerInfo(settings().provider).keyLinkLabel}
+										<IconLucideArrowUpRight class="size-3" />
+									</button>
+								</div>
+								<Show when={issueMessage(issue())}>
+									{(message) => (
+										<p class="text-[11px] leading-snug text-gray-10 break-all">
+											{message()}
+										</p>
+									)}
+								</Show>
+								<div class="flex flex-row flex-wrap gap-3 text-xs text-gray-11">
+									<button
+										type="button"
+										class="hover:text-gray-12 hover:underline"
+										onClick={openAISettings}
+									>
+										{L("换用其他模型服务", "Use another provider")}
+									</button>
+									<button
+										type="button"
+										class="hover:text-gray-12 hover:underline"
+										onClick={openAgentSettings}
+									>
+										{L(
+											"改用 Claude Code / Codex 剪辑（免 API 费用）",
+											"Edit with Claude Code or Codex (no API cost)",
+										)}
+									</button>
+									<Show when={issue().state === "error"}>
+										<button
+											type="button"
+											class="hover:text-gray-12 hover:underline"
+											onClick={() => refetchKey()}
+										>
+											{L("重新读取", "Try reading again")}
+										</button>
+									</Show>
+								</div>
 							</div>
-							<p class="text-xs leading-relaxed text-gray-11">
-								{L(
-									"AI 剪辑需要 API 密钥。在设置 → AI 中添加 apimodels.app、Anthropic 或 OpenAI 的密钥，密钥只保存在本机钥匙串里。",
-									"AI Edit needs an API key. Add an apimodels.app, Anthropic or OpenAI key in Settings → AI. The key stays in this Mac's Keychain.",
-								)}
-							</p>
-							<Button
-								variant="dark"
-								size="sm"
-								class="self-start"
-								onClick={openAISettings}
-							>
-								{L("打开设置 → AI", "Open Settings → AI")}
-							</Button>
-						</div>
+						)}
 					</Match>
 				</Switch>
+
+				<Show when={transcriptUnreliable() && run.status === "idle"}>
+					<div class="flex gap-2 p-3 text-xs leading-relaxed rounded-xl bg-gray-2 dark:bg-gray-3 text-gray-11">
+						<IconCapInfo class="size-4 shrink-0 mt-px" />
+						{L(
+							"字幕里同一句话重复了很多次，语音识别可能出错了。AI 会忽略文字稿，只根据停顿、点击和画面剪辑。可以在「字幕」标签里重新生成字幕。",
+							"The captions repeat the same line many times, so speech recognition probably failed. The AI will ignore the transcript and edit from pauses, clicks and frames. You can regenerate captions in the Captions tab.",
+						)}
+					</div>
+				</Show>
 
 				<Show when={!hasTranscript() && run.status === "idle"}>
 					<div class="flex gap-2 p-3 text-xs leading-relaxed rounded-xl bg-gray-2 dark:bg-gray-3 text-gray-11">
@@ -710,12 +911,17 @@ export function AIEditPanel() {
 				<div class="flex flex-col gap-2">
 					<div class="flex flex-wrap gap-1.5">
 						<For each={PRESETS}>
-							{(preset) => (
+							{(preset, index) => (
 								<button
 									type="button"
 									disabled={busy()}
-									class="px-2.5 py-1 text-xs rounded-full border transition-colors border-gray-4 text-gray-12 hover:bg-gray-3 disabled:opacity-50"
-									onClick={() => setPrompt(preset.prompt)}
+									class={cx(
+										"px-2.5 py-1 text-xs whitespace-nowrap rounded-full border transition-colors text-gray-12 hover:bg-gray-3 disabled:opacity-50",
+										presetFilled() === index() && prompt() === preset.prompt
+											? "border-blue-9 bg-blue-3"
+											: "border-gray-4",
+									)}
+									onClick={() => applyPreset(index())}
 								>
 									{preset.label}
 								</button>
@@ -723,6 +929,7 @@ export function AIEditPanel() {
 						</For>
 					</div>
 					<textarea
+						ref={promptInput}
 						class="w-full min-h-[6rem] resize-none rounded-[0.5rem] bg-gray-2 dark:bg-gray-3 p-2.5 text-[0.8125rem] leading-relaxed text-gray-12 placeholder:text-gray-10 outline-none focus:ring-1 focus:ring-gray-10 transition-shadow disabled:opacity-60"
 						placeholder={L(
 							"描述你想要的剪辑，例如：剪掉开头的等待，在设置页的点击处放大",
@@ -730,7 +937,10 @@ export function AIEditPanel() {
 						)}
 						value={prompt()}
 						disabled={busy()}
-						onInput={(e) => setPrompt(e.currentTarget.value)}
+						onInput={(e) => {
+							setPrompt(e.currentTarget.value);
+							setPresetFilled(null);
+						}}
 						on:keydown={(e) => {
 							e.stopPropagation();
 							if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
@@ -739,6 +949,20 @@ export function AIEditPanel() {
 							}
 						}}
 					/>
+					<Show
+						when={
+							presetFilled() !== null &&
+							prompt() === PRESETS[presetFilled() ?? 0]?.prompt &&
+							!busy()
+						}
+					>
+						<p class="text-xs text-blue-11">
+							{L(
+								"已填入预设。可以先补充要求（例如保留开场白），再点「开始剪辑」或按 ⌘↩。",
+								"Preset added. Add details if you like (for example, keep the intro), then click Run or press ⌘↩.",
+							)}
+						</p>
+					</Show>
 					<div class="flex flex-row gap-2 items-center">
 						<Show
 							when={busy()}
@@ -746,8 +970,12 @@ export function AIEditPanel() {
 								<Button
 									variant="dark"
 									size="sm"
-									class="gap-1.5"
-									disabled={!prompt().trim() || !hasKey() || !model()}
+									class="gap-1.5 whitespace-nowrap shrink-0"
+									disabled={
+										!prompt().trim() ||
+										!model() ||
+										(keyState.loading && keyState() === undefined)
+									}
 									onClick={startRun}
 								>
 									<IconCapPlay class="size-3" />
@@ -758,7 +986,7 @@ export function AIEditPanel() {
 							<Button
 								variant="white"
 								size="sm"
-								class="gap-1.5"
+								class="gap-1.5 whitespace-nowrap shrink-0"
 								onClick={stopRun}
 							>
 								<IconCapStopCircle class="size-3.5" />
@@ -766,8 +994,18 @@ export function AIEditPanel() {
 							</Button>
 						</Show>
 						<Show when={run.status !== "idle"}>
-							<span class="ml-auto text-xs tabular-nums text-gray-11">
-								{L("花费", "Cost")} {formatCost(run.cost)}
+							<span class="flex flex-col items-end ml-auto min-w-0 text-xs tabular-nums text-right text-gray-11">
+								<span class="whitespace-nowrap">
+									{L("花费", "Cost")} {formatCost(run.cost + run.helperCost)}
+								</span>
+								<Show when={run.helperCost > 0}>
+									<span class="text-[11px] text-gray-10">
+										{L(
+											`主模型 ${formatCost(run.cost)} · 识图 ${formatCost(run.helperCost)}`,
+											`editor ${formatCost(run.cost)} · vision ${formatCost(run.helperCost)}`,
+										)}
+									</span>
+								</Show>
 							</span>
 						</Show>
 					</div>
@@ -776,7 +1014,13 @@ export function AIEditPanel() {
 				<Show when={run.phase}>
 					<div class="flex gap-2 items-center text-xs text-gray-11">
 						<IconLucideLoaderCircle class="animate-spin size-3.5 shrink-0" />
-						{run.phase}
+						{audioEnhancement.state.running
+							? `${audioEnhancement.state.status}${
+									audioEnhancement.state.step === "denoise"
+										? ` ${Math.round(audioEnhancement.state.progress * 100)}%`
+										: ""
+								}`
+							: run.phase}
 					</div>
 				</Show>
 
@@ -809,7 +1053,7 @@ export function AIEditPanel() {
 															<IconCapCircleX class="size-3.5 shrink-0 text-red-500" />
 														</Match>
 													</Switch>
-													<span class="truncate">{s().label}</span>
+													<span class="min-w-0 truncate">{s().label}</span>
 												</div>
 												<Show when={s().error}>
 													<span class="pl-5 text-[11px] leading-snug text-gray-10 line-clamp-2">
@@ -856,7 +1100,7 @@ export function AIEditPanel() {
 						<Button
 							variant="white"
 							size="sm"
-							class="gap-1.5"
+							class="gap-1.5 whitespace-nowrap shrink-0"
 							onClick={undoAIEdits}
 						>
 							<IconCapUndo class="size-3.5" />

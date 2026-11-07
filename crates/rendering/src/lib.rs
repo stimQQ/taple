@@ -28,6 +28,8 @@ pub mod decoder;
 mod frame_pipeline;
 mod layers;
 mod project_recordings;
+
+pub use layers::set_caption_font_dir;
 mod scene;
 mod spring_mass_damper;
 mod zoom;

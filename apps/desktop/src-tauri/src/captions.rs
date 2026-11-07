@@ -9,19 +9,27 @@ use serde::{Deserialize, Serialize};
 use specta::Type;
 use std::fs::File;
 use std::io::Read;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager, Window};
 use tempfile::tempdir;
 use tokio::io::AsyncWriteExt;
 use tokio::sync::Mutex;
 use tracing::instrument;
-use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters};
+use whisper_rs::{
+    FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters, WhisperState,
+};
 
 // Re-export caption types from cap_project
 pub use cap_project::{CaptionSegment, CaptionSettings};
 
+use crate::ai::speech::{
+    SPEECH_SAMPLE_RATE, SpeechSource, TRANSCRIPTION_VAD, frame_levels, load_speech_audio,
+    segment_speech_sources, speech_levels, speech_ranges,
+};
 use crate::http_client;
+use crate::i18n::tr;
+use cap_project::{CaptionWord, RecordingMeta};
 
 // Convert the project type's float precision from f32 to f64 for compatibility
 #[derive(Debug, Serialize, Deserialize, Type, Clone)]
@@ -45,7 +53,7 @@ lazy_static::lazy_static! {
 }
 
 // Constants
-const WHISPER_SAMPLE_RATE: u32 = 16000;
+const WHISPER_SAMPLE_RATE: u32 = SPEECH_SAMPLE_RATE;
 
 /// Function to handle creating directories for the model
 #[tauri::command]
@@ -641,6 +649,7 @@ fn process_with_whisper(
                 start: start_time,
                 end: end_time,
                 text: text.trim().to_string(),
+                words: Vec::new(),
             });
         }
     }
@@ -653,85 +662,346 @@ fn process_with_whisper(
     })
 }
 
-fn load_audio_for_whisper(video_path: &str) -> Result<Vec<f32>, String> {
-    let base_path = std::path::Path::new(video_path);
+const WHISPER_TARGET_PEAK: f32 = 0.89;
+const WHISPER_MAX_GAIN: f32 = 31.6;
+const SPEECH_GAP_SAMPLES: usize = 8000;
 
-    if video_path.ends_with(".taple")
-        || video_path.ends_with(".sparkvideo")
-        || video_path.ends_with(".cap")
-    {
-        let meta_path = base_path.join("recording-meta.json");
-        let meta_content = std::fs::read_to_string(&meta_path)
-            .map_err(|e| format!("Failed to read recording metadata: {e}"))?;
-        let meta: serde_json::Value = serde_json::from_str(&meta_content)
-            .map_err(|e| format!("Failed to parse recording metadata: {e}"))?;
+struct WhisperAudio {
+    samples: Vec<f32>,
+    offset: f64,
+}
 
-        let mut audio_path = None;
-        if let Some(segments) = meta["segments"].as_array() {
-            for segment in segments {
-                if let Some(p) = segment["mic"]["path"]
-                    .as_str()
-                    .or_else(|| segment["audio"]["path"].as_str())
-                {
-                    audio_path = Some(base_path.join(p));
-                    break;
-                }
-                if let Some(p) = segment["system_audio"]["path"].as_str() {
-                    audio_path = Some(base_path.join(p));
-                    break;
-                }
+fn whisper_audio_source(project_path: &Path) -> Result<SpeechSource, String> {
+    let meta = RecordingMeta::load_for_project(project_path).map_err(|e| {
+        format!(
+            "{}: {e}",
+            tr("读取录制信息失败", "Failed to read recording metadata")
+        )
+    })?;
+
+    segment_speech_sources(&meta)
+        .into_iter()
+        .flatten()
+        .next()
+        .ok_or_else(|| tr("录制中没有可用的音频", "No audio found in this recording").to_string())
+}
+
+fn normalize_for_whisper(samples: &mut [f32]) -> f32 {
+    let peak = samples
+        .iter()
+        .fold(0.0_f32, |peak, sample| peak.max(sample.abs()));
+
+    if peak <= f32::EPSILON {
+        return 1.0;
+    }
+
+    let gain = (WHISPER_TARGET_PEAK / peak).clamp(1.0, WHISPER_MAX_GAIN);
+
+    if gain > 1.0 {
+        for sample in samples.iter_mut() {
+            *sample *= gain;
+        }
+    }
+
+    gain
+}
+
+fn detect_speech_ranges(samples: &[f32]) -> Vec<(usize, usize)> {
+    let frame_db = frame_levels(samples);
+    let Some(levels) = speech_levels(&frame_db) else {
+        return Vec::new();
+    };
+
+    speech_ranges(
+        &frame_db,
+        levels.threshold_db,
+        samples.len(),
+        &TRANSCRIPTION_VAD,
+    )
+}
+
+struct SpeechRegion {
+    packed_start: usize,
+    packed_end: usize,
+    source_start: usize,
+}
+
+struct PackedSpeech {
+    samples: Vec<f32>,
+    regions: Vec<SpeechRegion>,
+    offset: f64,
+}
+
+impl PackedSpeech {
+    fn new(samples: &[f32], ranges: &[(usize, usize)], offset: f64) -> Self {
+        let mut packed = Vec::new();
+        let mut regions = Vec::with_capacity(ranges.len());
+
+        for (index, (start, end)) in ranges.iter().enumerate() {
+            if index > 0 {
+                packed.resize(packed.len() + SPEECH_GAP_SAMPLES, 0.0);
             }
+
+            let packed_start = packed.len();
+            packed.extend_from_slice(&samples[*start..*end]);
+            regions.push(SpeechRegion {
+                packed_start,
+                packed_end: packed.len(),
+                source_start: *start,
+            });
         }
 
-        let audio_path =
-            audio_path.ok_or_else(|| "No audio sources found in recording metadata".to_string())?;
+        Self {
+            samples: packed,
+            regions,
+            offset,
+        }
+    }
 
-        let audio =
-            AudioData::from_file(&audio_path).map_err(|e| format!("Failed to read audio: {e}"))?;
+    fn packed_samples(packed_centis: i64) -> usize {
+        (packed_centis.max(0) as usize) * WHISPER_SAMPLE_RATE as usize / 100
+    }
 
-        let samples = audio.samples();
-        let channels = audio.channels() as usize;
-        let mono: Vec<f32> = if channels == 1 {
-            samples.to_vec()
-        } else {
-            samples.chunks(channels).map(|ch| ch[0]).collect()
+    fn segment_secs(&self, source_sample: usize) -> f32 {
+        (source_sample as f64 / f64::from(WHISPER_SAMPLE_RATE) - self.offset).max(0.0) as f32
+    }
+
+    fn segment_span(&self, start_centis: i64, end_centis: i64) -> (f32, f32) {
+        let mut start = Self::packed_samples(start_centis);
+        let end = Self::packed_samples(end_centis).max(start);
+
+        let Some(last_index) = self.regions.len().checked_sub(1) else {
+            return (self.segment_secs(start), self.segment_secs(end));
         };
 
-        let ratio = AudioData::SAMPLE_RATE / WHISPER_SAMPLE_RATE;
-        let resampled: Vec<f32> = mono
-            .chunks(ratio as usize)
-            .map(|chunk| chunk.iter().sum::<f32>() / chunk.len() as f32)
-            .collect();
+        let mut start_index = self
+            .regions
+            .iter()
+            .position(|region| region.packed_end > start)
+            .unwrap_or(last_index);
+        let end_index = self
+            .regions
+            .iter()
+            .rposition(|region| region.packed_start < end)
+            .unwrap_or(0)
+            .max(start_index);
 
-        let duration = resampled.len() as f32 / WHISPER_SAMPLE_RATE as f32;
-        log::info!(
-            "Loaded audio: {} samples at {}Hz, {:.1}s",
-            resampled.len(),
-            WHISPER_SAMPLE_RATE,
-            duration
+        if end_index > start_index
+            && start + TRANSCRIPTION_VAD.padding_samples >= self.regions[start_index].packed_end
+        {
+            start_index += 1;
+            start = self.regions[start_index].packed_start;
+        }
+
+        let start_region = &self.regions[start_index];
+        let end_region = &self.regions[end_index];
+        let source_start = start_region.source_start
+            + start
+                .clamp(start_region.packed_start, start_region.packed_end)
+                .saturating_sub(start_region.packed_start);
+        let source_end = end_region.source_start
+            + end
+                .clamp(end_region.packed_start, end_region.packed_end)
+                .saturating_sub(end_region.packed_start);
+
+        (
+            self.segment_secs(source_start),
+            self.segment_secs(source_end.max(source_start)),
+        )
+    }
+}
+
+fn load_audio_for_whisper(video_path: &str) -> Result<WhisperAudio, String> {
+    let base_path = Path::new(video_path);
+
+    let source = if base_path.join("recording-meta.json").exists() {
+        whisper_audio_source(base_path)?
+    } else {
+        SpeechSource {
+            path: base_path.to_path_buf(),
+            offset: 0.0,
+        }
+    };
+
+    let mut samples = load_speech_audio(&source.path)?;
+    let gain = normalize_for_whisper(&mut samples);
+
+    log::info!(
+        "Loaded audio for transcription: {:.1}s, gain {:.1} dB, offset {:.3}s",
+        samples.len() as f32 / WHISPER_SAMPLE_RATE as f32,
+        20.0 * gain.log10(),
+        source.offset
+    );
+
+    Ok(WhisperAudio {
+        samples,
+        offset: source.offset,
+    })
+}
+
+fn whisper_params(language: &str) -> FullParams<'_, '_> {
+    let threads = std::thread::available_parallelism()
+        .map_or(4, |n| n.get())
+        .clamp(1, 8);
+
+    let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 5 });
+    params.set_n_threads(threads as i32);
+    params.set_translate(false);
+    params.set_print_special(false);
+    params.set_print_progress(false);
+    params.set_print_realtime(false);
+    params.set_print_timestamps(false);
+    params.set_token_timestamps(true);
+    params.set_language(Some(language));
+    params.set_max_len(i32::MAX);
+    params.set_no_context(true);
+    params.set_n_max_text_ctx(0);
+    params.set_suppress_blank(true);
+    params.set_suppress_non_speech_tokens(true);
+    params.set_temperature(0.0);
+    params.set_temperature_inc(0.2);
+    params.set_entropy_thold(2.4);
+    params.set_logprob_thold(-1.0);
+    params.set_no_speech_thold(0.6);
+    params
+}
+
+fn whisper_error(e: whisper_rs::WhisperError) -> String {
+    format!(
+        "{}: {e}",
+        tr("读取转写结果失败", "Failed to read transcription result")
+    )
+}
+
+struct PendingWord {
+    bytes: Vec<u8>,
+    start: i64,
+    end: i64,
+}
+
+fn push_word(words: &mut Vec<CaptionWord>, word: Option<PendingWord>, speech: &PackedSpeech) {
+    let Some(word) = word else {
+        return;
+    };
+
+    let text = String::from_utf8_lossy(&word.bytes)
+        .replace('\u{FFFD}', "")
+        .trim()
+        .to_string();
+
+    if !text.chars().any(char::is_alphanumeric) {
+        return;
+    }
+
+    let (start, end) = speech.segment_span(word.start, word.end.max(word.start));
+    words.push(CaptionWord { text, start, end });
+}
+
+fn collect_segment_words(
+    state: &WhisperState,
+    context: &WhisperContext,
+    segment: i32,
+    speech: &PackedSpeech,
+) -> Result<Vec<CaptionWord>, String> {
+    let eot = context.token_eot();
+    let count = state.full_n_tokens(segment).map_err(whisper_error)?;
+    let mut words = Vec::new();
+    let mut pending: Option<PendingWord> = None;
+
+    for token in 0..count {
+        let data = state
+            .full_get_token_data(segment, token)
+            .map_err(whisper_error)?;
+
+        if data.id >= eot {
+            continue;
+        }
+
+        let Ok(text) = context.token_to_cstr(data.id) else {
+            continue;
+        };
+        let bytes = text.to_bytes();
+        let Some(first) = bytes.first() else {
+            continue;
+        };
+
+        let starts_word = first.is_ascii_whitespace() || !bytes.is_ascii();
+        if let Some(current) = &pending
+            && std::str::from_utf8(&current.bytes).is_ok()
+            && (starts_word || !current.bytes.is_ascii())
+        {
+            push_word(&mut words, pending.take(), speech);
+        }
+
+        match &mut pending {
+            Some(current) => {
+                current.bytes.extend_from_slice(bytes);
+                current.end = current.end.max(data.t1);
+            }
+            None => {
+                pending = Some(PendingWord {
+                    bytes: bytes.to_vec(),
+                    start: data.t0,
+                    end: data.t1,
+                })
+            }
+        }
+    }
+
+    push_word(&mut words, pending, speech);
+    Ok(words)
+}
+
+fn collect_caption_segments(
+    state: &WhisperState,
+    context: &WhisperContext,
+    speech: &PackedSpeech,
+) -> Result<Vec<CaptionSegment>, String> {
+    let count = state.full_n_segments().map_err(whisper_error)?;
+    let mut segments: Vec<CaptionSegment> = Vec::new();
+
+    for i in 0..count {
+        let bytes = state.full_get_segment_bytes(i).map_err(whisper_error)?;
+        let text = String::from_utf8_lossy(&bytes)
+            .replace('\u{FFFD}', "")
+            .trim()
+            .to_string();
+
+        if text.is_empty() {
+            continue;
+        }
+
+        let (start, end) = speech.segment_span(
+            state.full_get_segment_t0(i).map_err(whisper_error)?,
+            state.full_get_segment_t1(i).map_err(whisper_error)?,
         );
 
-        Ok(resampled)
-    } else {
-        let audio = AudioData::from_file(base_path)
-            .map_err(|e| format!("Failed to read audio file: {e}"))?;
+        if let Some(last) = segments.last_mut()
+            && last.text == text
+        {
+            last.end = last.end.max(end);
+            continue;
+        }
 
-        let samples = audio.samples();
-        let channels = audio.channels() as usize;
-        let mono: Vec<f32> = if channels == 1 {
-            samples.to_vec()
-        } else {
-            samples.chunks(channels).map(|ch| ch[0]).collect()
-        };
-
-        let ratio = AudioData::SAMPLE_RATE / WHISPER_SAMPLE_RATE;
-        let resampled: Vec<f32> = mono
-            .chunks(ratio as usize)
-            .map(|chunk| chunk.iter().sum::<f32>() / chunk.len() as f32)
+        let words = collect_segment_words(state, context, i, speech)?
+            .into_iter()
+            .map(|word| CaptionWord {
+                start: word.start.clamp(start, end),
+                end: word.end.clamp(start, end),
+                text: word.text,
+            })
             .collect();
 
-        Ok(resampled)
+        segments.push(CaptionSegment {
+            id: format!("segment-{}", segments.len()),
+            start,
+            end,
+            text,
+            words,
+        });
     }
+
+    Ok(segments)
 }
 
 /// Function to transcribe audio from a video file using Whisper
@@ -743,82 +1013,58 @@ pub async fn transcribe_audio(
     model_path: String,
     language: String,
 ) -> Result<CaptionData, String> {
-    if !std::path::Path::new(&video_path).exists() {
+    if !Path::new(&video_path).exists() {
         return Err(format!("Video file not found at path: {video_path}"));
     }
 
-    if !std::path::Path::new(&model_path).exists() {
+    if !Path::new(&model_path).exists() {
         return Err(format!("Model file not found at path: {model_path}"));
     }
-
-    let audio_samples = load_audio_for_whisper(&video_path)?;
 
     let context = get_whisper_context(&model_path)
         .await
         .map_err(|e| format!("Failed to initialize transcription model: {e}"))?;
 
-    let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
-    params.set_translate(false);
-    params.set_print_special(false);
-    params.set_print_progress(false);
-    params.set_print_realtime(false);
-    params.set_token_timestamps(true);
-    params.set_language(Some(if language == "auto" {
-        "auto"
-    } else {
-        &language
-    }));
-    params.set_max_len(i32::MAX);
+    tokio::task::spawn_blocking(move || {
+        let audio = load_audio_for_whisper(&video_path)?;
+        let speech_ranges = detect_speech_ranges(&audio.samples);
 
-    let mut state = context
-        .create_state()
-        .map_err(|e| format!("Failed to create Whisper state: {e}"))?;
-
-    state
-        .full(params, &audio_samples)
-        .map_err(|e| format!("Failed to run Whisper transcription: {e}"))?;
-
-    let num_segments = state
-        .full_n_segments()
-        .map_err(|e| format!("Failed to get number of segments: {e}"))?;
-
-    log::info!("Whisper found {num_segments} segments");
-
-    let mut segments = Vec::new();
-    for i in 0..num_segments {
-        let text = state
-            .full_get_segment_text(i)
-            .map_err(|e| format!("Failed to get segment text: {e}"))?;
-        let start_i64 = state
-            .full_get_segment_t0(i)
-            .map_err(|e| format!("Failed to get segment start time: {e}"))?;
-        let end_i64 = state
-            .full_get_segment_t1(i)
-            .map_err(|e| format!("Failed to get segment end time: {e}"))?;
-
-        let start_time = (start_i64 as f32) / 100.0;
-        let end_time = (end_i64 as f32) / 100.0;
-
-        if !text.trim().is_empty() {
-            segments.push(CaptionSegment {
-                id: format!("segment-{i}"),
-                start: start_time,
-                end: end_time,
-                text: text.trim().to_string(),
-            });
+        if speech_ranges.is_empty() {
+            return Err(tr("音频中没有检测到语音", "No speech detected in the audio").to_string());
         }
-    }
 
-    if segments.is_empty() {
-        return Err("No speech detected in the audio".to_string());
-    }
+        let speech = PackedSpeech::new(&audio.samples, &speech_ranges, audio.offset);
+        drop(audio);
 
-    log::info!("Generated {} caption segments", segments.len());
+        log::info!(
+            "Transcribing {} speech regions, {:.1}s of audio",
+            speech.regions.len(),
+            speech.samples.len() as f32 / WHISPER_SAMPLE_RATE as f32
+        );
 
-    Ok(CaptionData {
-        segments,
-        settings: Some(CaptionSettings::default()),
+        let mut state = context
+            .create_state()
+            .map_err(|e| format!("Failed to create Whisper state: {e}"))?;
+
+        state
+            .full(whisper_params(&language), &speech.samples)
+            .map_err(|e| format!("Failed to run Whisper transcription: {e}"))?;
+
+        let segments = collect_caption_segments(&state, &context, &speech)?;
+
+        if segments.is_empty() {
+            return Err(tr("音频中没有检测到语音", "No speech detected in the audio").to_string());
+        }
+
+        log::info!("Generated {} caption segments", segments.len());
+
+        Ok(CaptionData {
+            segments,
+            settings: Some(CaptionSettings::default()),
+        })
     })
+    .await
+    .map_err(|e| format!("{}: {e}", tr("转写任务失败", "Transcription task failed")))?
 }
 
 /// Function to save caption data to a file
@@ -876,6 +1122,11 @@ pub async fn save_captions(
                     "text".to_string(),
                     serde_json::Value::String(seg.text.clone()),
                 );
+                if !seg.words.is_empty()
+                    && let Ok(words) = serde_json::to_value(&seg.words)
+                {
+                    segment.insert("words".to_string(), words);
+                }
                 segment
             })
             .collect::<Vec<_>>(),
@@ -931,6 +1182,10 @@ pub async fn save_captions(
         serde_json::Value::String(settings.outline_color.clone()),
     );
     settings_obj.insert(
+        "background".to_string(),
+        serde_json::Value::Bool(settings.background),
+    );
+    settings_obj.insert(
         "exportWithSubtitles".to_string(),
         serde_json::Value::Bool(settings.export_with_subtitles),
     );
@@ -977,6 +1232,10 @@ pub fn parse_captions_json(json: &str) -> Result<cap_project::CaptionsData, Stri
                             start: start as f32,
                             end: end as f32,
                             text: text.to_string(),
+                            words: segment
+                                .get("words")
+                                .and_then(|words| serde_json::from_value(words.clone()).ok())
+                                .unwrap_or_default(),
                         });
                     }
                 }
@@ -996,7 +1255,7 @@ pub fn parse_captions_json(json: &str) -> Result<cap_project::CaptionsData, Stri
                     let size = settings_obj
                         .get("size")
                         .and_then(|v| v.as_u64())
-                        .unwrap_or(24) as u32;
+                        .unwrap_or(40) as u32;
                     let color = settings_obj
                         .get("color")
                         .and_then(|v| v.as_str())
@@ -1042,6 +1301,11 @@ pub fn parse_captions_json(json: &str) -> Result<cap_project::CaptionsData, Stri
                         .unwrap_or("#000000")
                         .to_string();
 
+                    let background = settings_obj
+                        .get("background")
+                        .and_then(|v| v.as_bool())
+                        .unwrap_or(false);
+
                     let export_with_subtitles = settings_obj
                         .get("exportWithSubtitles")
                         .or_else(|| settings_obj.get("export_with_subtitles"))
@@ -1060,6 +1324,7 @@ pub fn parse_captions_json(json: &str) -> Result<cap_project::CaptionsData, Stri
                         italic,
                         outline,
                         outline_color,
+                        background,
                         export_with_subtitles,
                     }
                 } else {

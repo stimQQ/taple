@@ -45,49 +45,54 @@ fn calc_norm_alpha(sr: usize, hop_size: usize, tau: f32) -> f32 {
     a
 }
 
-fn high_shelf(samples: &mut [f32], sr: usize, freq: f32, gain_db: f32) {
-    let a = 10f64.powf(gain_db as f64 / 40.0);
-    let w0 = 2.0 * std::f64::consts::PI * freq as f64 / sr as f64;
-    let cos_w0 = w0.cos();
-    let sin_w0 = w0.sin();
-    let alpha = sin_w0 / 2.0 * (2.0f64).sqrt();
-    let sq_a = a.sqrt();
-
-    let b0 = a * ((a + 1.0) + (a - 1.0) * cos_w0 + 2.0 * sq_a * alpha);
-    let b1 = -2.0 * a * ((a - 1.0) + (a + 1.0) * cos_w0);
-    let b2 = a * ((a + 1.0) + (a - 1.0) * cos_w0 - 2.0 * sq_a * alpha);
-    let a0 = (a + 1.0) - (a - 1.0) * cos_w0 + 2.0 * sq_a * alpha;
-    let a1 = 2.0 * ((a - 1.0) - (a + 1.0) * cos_w0);
-    let a2 = (a + 1.0) - (a - 1.0) * cos_w0 - 2.0 * sq_a * alpha;
-
-    let b0 = b0 / a0;
-    let b1 = b1 / a0;
-    let b2 = b2 / a0;
-    let a1 = a1 / a0;
-    let a2 = a2 / a0;
-
-    let mut x1 = 0.0f64;
-    let mut x2 = 0.0f64;
-    let mut y1 = 0.0f64;
-    let mut y2 = 0.0f64;
-
-    for s in samples.iter_mut() {
-        let x0 = *s as f64;
-        let y0 = b0 * x0 + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2;
-        x2 = x1;
-        x1 = x0;
-        y2 = y1;
-        y1 = y0;
-        *s = y0 as f32;
-    }
+fn frame_levels(samples: &[f32], hop_size: usize) -> Vec<f32> {
+    samples
+        .chunks_exact(hop_size)
+        .map(|frame| {
+            let energy: f32 = frame.iter().map(|s| s * s).sum::<f32>() / hop_size as f32;
+            energy.sqrt()
+        })
+        .collect()
 }
 
-fn rms(samples: &[f32]) -> f32 {
-    if samples.is_empty() {
-        return 0.0;
+const TARGET_SPEECH_DB: f32 = -24.0;
+const MAX_INPUT_GAIN_DB: f32 = 40.0;
+
+fn loudest_level(levels: &[f32]) -> f32 {
+    let mut sorted: Vec<f32> = levels.to_vec();
+    sorted.sort_by(|a, b| b.total_cmp(a));
+    let count = (sorted.len() / 20).max(1).min(sorted.len());
+    sorted[..count].iter().sum::<f32>() / count as f32
+}
+
+fn input_normalization_gain(samples: &[f32], hop_size: usize, target_db: f32) -> f32 {
+    let levels = frame_levels(samples, hop_size);
+    if levels.is_empty() {
+        return 1.0;
     }
-    let sum_sq: f64 = samples.iter().map(|&s| (s as f64) * (s as f64)).sum();
-    (sum_sq / samples.len() as f64).sqrt() as f32
+    let level = loudest_level(&levels);
+    if level <= 1e-6 {
+        return 1.0;
+    }
+    let target = 10f32.powf(target_db / 20.0);
+    (target / level).clamp(1.0, 10f32.powf(MAX_INPUT_GAIN_DB / 20.0))
+}
+
+fn speech_level_gain(noisy: &[f32], enhanced: &[f32], hop_size: usize) -> f32 {
+    let noisy_levels = frame_levels(noisy, hop_size);
+    let enhanced_levels = frame_levels(enhanced, hop_size);
+    let mut order: Vec<usize> = (0..noisy_levels.len().min(enhanced_levels.len())).collect();
+    if order.len() < 10 {
+        return 1.0;
+    }
+    order.sort_by(|a, b| noisy_levels[*b].total_cmp(&noisy_levels[*a]));
+    let loudest = &order[..(order.len() / 20).max(1)];
+    let noisy_sum: f32 = loudest.iter().map(|i| noisy_levels[*i]).sum();
+    let enhanced_sum: f32 = loudest.iter().map(|i| enhanced_levels[*i]).sum();
+    if noisy_sum <= 1e-8 || enhanced_sum <= 1e-8 {
+        return 1.0;
+    }
+    (noisy_sum / enhanced_sum).clamp(1.0, 2.0)
 }
 
 impl DfOrt {
@@ -166,17 +171,26 @@ impl DfOrt {
 
     pub fn process_audio(&mut self, noisy_mono: &[f32]) -> Result<Vec<f32>> {
         let n_samples = noisy_mono.len();
-        let n_frames = n_samples / self.hop_size;
-        if n_frames == 0 {
+        let hop_size = self.hop_size;
+        let lookahead = self.lookahead;
+        let delay = self.fft_size - hop_size;
+        if n_samples < hop_size {
             return Ok(noisy_mono.to_vec());
         }
+
+        let input_gain = input_normalization_gain(noisy_mono, hop_size, TARGET_SPEECH_DB);
+        let padded_len =
+            (n_samples + delay + (lookahead + 1) * hop_size).div_ceil(hop_size) * hop_size;
+        let mut padded: Vec<f32> = noisy_mono.iter().map(|s| s * input_gain).collect();
+        padded.resize(padded_len, 0.0);
+        let noisy_mono = padded.as_slice();
+        let n_frames = padded_len / hop_size;
 
         let nb_erb = self.nb_erb;
         let nb_df = self.nb_df;
         let n_freqs = self.n_freqs;
         let df_order = self.df_order;
         let df_lookahead = self.df_lookahead;
-        let hop_size = self.hop_size;
         let sr = self.sr;
         let fft_size = self.fft_size;
         let alpha = self.alpha;
@@ -290,7 +304,8 @@ impl DfOrt {
         let erb_fb = erb_fb(sr, fft_size, nb_erb, 2);
         let mut synth_state = DFState::new(sr, fft_size, hop_size, nb_erb, 2);
 
-        let mut output = vec![0f32; n_frames * hop_size];
+        let out_frames = n_frames - lookahead;
+        let mut output = vec![0f32; out_frames * hop_size];
 
         let gains_per_frame = nb_erb;
         let coefs_per_frame = nb_df * df_order * 2;
@@ -302,8 +317,9 @@ impl DfOrt {
         let mut zero_count = 0usize;
         let mut skip_count = 0usize;
 
-        for t in 0..n_frames {
-            let lsnr = if t < lsnr_flat.len() { lsnr_flat[t] } else { 0.0 };
+        for t in 0..out_frames {
+            let o = t + lookahead;
+            let lsnr = lsnr_flat.get(o).copied().unwrap_or(0.0);
 
             let (apply_gains, apply_zero_mask, apply_df) = if lsnr < min_db_thresh {
                 (false, true, false)
@@ -318,7 +334,7 @@ impl DfOrt {
             let mut spec = all_spec[t].clone();
 
             if apply_gains {
-                let gains_offset = t * gains_per_frame;
+                let gains_offset = o * gains_per_frame;
                 if gains_offset + gains_per_frame <= gains_flat.len() {
                     apply_interp_band_gain(
                         &mut spec,
@@ -335,7 +351,7 @@ impl DfOrt {
             }
 
             if apply_df {
-                let offset = t * coefs_per_frame;
+                let offset = o * coefs_per_frame;
                 if offset + coefs_per_frame <= coefs_flat.len() {
                     for f in 0..nb_df {
                         let mut acc = Complex32::new(0.0, 0.0);
@@ -371,20 +387,22 @@ impl DfOrt {
             synth_state.synthesis(&mut spec, out_frame);
         }
 
-        let input_rms = rms(noisy_mono);
-        let output_rms = rms(&output);
-        if input_rms > 1e-8 && output_rms > 1e-8 {
-            let gain = input_rms / output_rms;
-            for s in output.iter_mut() {
-                *s *= gain;
-            }
+        let mut output = output[delay..delay + n_samples].to_vec();
+        let gain = speech_level_gain(&padded[..n_samples], &output, hop_size) / input_gain;
+        for s in output.iter_mut() {
+            *s *= gain;
         }
 
-        high_shelf(&mut output, sr, 3000.0, 4.0);
-
-        eprintln!("[DfOrt] Done: {} frames (ERB={}, DF={}, zero_mask={}, skip={}), gain_comp={:.2}x, hi_shelf=+4dB@3kHz",
-            n_frames, erb_count, df_count, zero_count, skip_count,
-            if output_rms > 1e-8 { input_rms / output_rms } else { 1.0 });
+        eprintln!(
+            "[DfOrt] Done: {} frames (ERB={}, DF={}, zero_mask={}, skip={}), input gain {:.1} dB, output gain {:.2}x",
+            out_frames,
+            erb_count,
+            df_count,
+            zero_count,
+            skip_count,
+            20.0 * input_gain.log10(),
+            gain
+        );
 
         Ok(output)
     }

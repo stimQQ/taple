@@ -1,33 +1,53 @@
-import { A, type RouteSectionProps } from "@solidjs/router";
+import { A, type RouteSectionProps, useNavigate } from "@solidjs/router";
 import { getVersion } from "@tauri-apps/api/app";
 import {
 	getAllWebviewWindows,
 	WebviewWindow,
 } from "@tauri-apps/api/webviewWindow";
 import { primaryMonitor } from "@tauri-apps/api/window";
-import * as shell from "@tauri-apps/plugin-shell";
 import "@total-typescript/ts-reset/filter-boolean";
 import { createResource, For, Show, Suspense } from "solid-js";
 import { CapErrorBoundary } from "~/components/CapErrorBoundary";
+import { createTauriEventListener } from "~/utils/createEventListener";
 import { L } from "~/utils/i18n";
-import IconLucideArrowUpRight from "~icons/lucide/arrow-up-right";
+import { events } from "~/utils/tauri";
 
-const ISSUES_URL = "https://github.com/stimQQ/taple/issues";
-const RELEASES_URL = "https://github.com/stimQQ/taple/releases";
+const SUPPORT_PAGES = () => [
+	{
+		href: "feedback",
+		name: L("反馈问题", "Send Feedback"),
+		icon: IconLucideMessageSquarePlus,
+	},
+	{
+		href: "changelog",
+		name: L("更新日志", "Changelog"),
+		icon: IconLucideBell,
+	},
+];
 
 export default function Settings(props: RouteSectionProps) {
 	const [version] = createResource(() => getVersion());
+	const navigate = useNavigate();
+
+	createTauriEventListener(events.navigateSettings, (payload) =>
+		navigate(`/settings/${payload.page}`),
+	);
 
 	return (
 		<div class="flex-1 flex flex-row divide-x divide-gray-3 text-[0.875rem] leading-[1.25rem] overflow-y-hidden">
 			<div class="flex flex-col h-full bg-gray-2">
-				<ul class="min-w-[12rem] h-full p-[0.625rem] space-y-1 text-gray-12">
+				<ul class="min-w-[8rem] h-full p-[0.625rem] space-y-1 text-gray-12 whitespace-nowrap">
 					<For
 						each={[
 							{
 								href: "recordings",
 								name: L("历史录制", "Recordings"),
 								icon: IconLucideSquarePlay,
+							},
+							{
+								href: "ai",
+								name: L("AI 剪辑", "AI Edit"),
+								icon: IconLucideSparkles,
 							},
 							{
 								href: "general",
@@ -38,11 +58,6 @@ export default function Settings(props: RouteSectionProps) {
 								href: "hotkeys",
 								name: L("快捷键", "Shortcuts"),
 								icon: IconCapHotkeys,
-							},
-							{
-								href: "ai",
-								name: L("AI 剪辑", "AI Edit"),
-								icon: IconLucideSparkles,
 							},
 						].filter(Boolean)}
 					>
@@ -59,31 +74,17 @@ export default function Settings(props: RouteSectionProps) {
 							</li>
 						)}
 					</For>
-					<For
-						each={[
-							{
-								url: ISSUES_URL,
-								name: L("反馈问题", "Report an Issue"),
-								icon: IconLucideMessageSquarePlus,
-							},
-							{
-								url: RELEASES_URL,
-								name: L("更新日志", "Changelog"),
-								icon: IconLucideBell,
-							},
-						]}
-					>
+					<For each={SUPPORT_PAGES()}>
 						{(item) => (
 							<li>
-								<button
-									type="button"
-									onClick={() => shell.open(item.url)}
-									class="w-full rounded-lg h-[2rem] hover:bg-gray-3 text-[13px] px-2 flex flex-row items-center gap-[0.375rem] transition-colors"
+								<A
+									href={item.href}
+									activeClass="bg-gray-5 pointer-events-none"
+									class="rounded-lg h-[2rem] hover:bg-gray-3 text-[13px] px-2 flex flex-row items-center gap-[0.375rem] transition-colors"
 								>
 									<item.icon class="opacity-60 size-4" />
 									<span>{item.name}</span>
-									<IconLucideArrowUpRight class="ml-auto opacity-40 size-3.5" />
-								</button>
+								</A>
 							</li>
 						)}
 					</For>

@@ -1,5 +1,7 @@
 use std::{
+    collections::HashMap,
     path::{Path, PathBuf},
+    sync::{LazyLock, Mutex, MutexGuard, PoisonError},
     time::Duration,
 };
 
@@ -13,10 +15,18 @@ use tracing::*;
 
 use crate::i18n::tr;
 
+pub mod activity;
+pub mod speech;
+pub mod storyboard;
+
 const FRAME_DECODE_TIMEOUT: Duration = Duration::from_secs(20);
 const JPEG_QUALITY: u8 = 80;
 const KEYCHAIN_SERVICE: &str = "app.taple.desktop.ai";
 const AI_PROVIDERS: [&str; 3] = ["apimodels", "anthropic", "openai"];
+
+static API_KEY_CACHE: LazyLock<Mutex<HashMap<String, Option<String>>>> =
+    LazyLock::new(Default::default);
+static KEYCHAIN_ACCESS: Mutex<()> = Mutex::new(());
 
 #[derive(Serialize, Type, Debug, Clone)]
 pub struct CursorClickInfo {
@@ -228,6 +238,13 @@ pub async fn get_frame_jpeg(
         .map_err(task_error)?
 }
 
+const ON_SCREEN_MARGIN: f64 = 0.01;
+
+fn on_screen(x: f64, y: f64) -> bool {
+    let range = -ON_SCREEN_MARGIN..=1.0 + ON_SCREEN_MARGIN;
+    range.contains(&x) && range.contains(&y)
+}
+
 fn click_position(moves: &[CursorMoveEvent], time_ms: f64) -> Option<(f64, f64)> {
     let mut closest = None;
     let mut closest_diff = f64::MAX;
@@ -282,6 +299,10 @@ fn collect_cursor_clicks(project_path: &Path) -> Result<Vec<CursorClickInfo>, St
                 continue;
             };
 
+            if !on_screen(x, y) {
+                continue;
+            }
+
             clicks.push(CursorClickInfo {
                 segment_index: segment_index as u32,
                 time_secs: click.time_ms / 1000.0,
@@ -328,6 +349,9 @@ mod keychain {
     use crate::i18n::tr;
 
     const ERR_SEC_ITEM_NOT_FOUND: i32 = -25300;
+    const ERR_SEC_AUTH_FAILED: i32 = -25293;
+    const ERR_SEC_INTERACTION_NOT_ALLOWED: i32 = -25308;
+    const ERR_SEC_DUPLICATE_ITEM: i32 = -25299;
 
     pub fn get(account: &str) -> Result<Option<String>, String> {
         match passwords::get_generic_password(KEYCHAIN_SERVICE, account) {
@@ -350,17 +374,30 @@ mod keychain {
     }
 
     pub fn set(account: &str, api_key: &str) -> Result<(), String> {
-        passwords::set_generic_password(KEYCHAIN_SERVICE, account, api_key.as_bytes()).map_err(
-            |e| {
-                format!(
-                    "{}: {e}",
-                    tr(
-                        "保存 API 密钥到钥匙串失败",
-                        "Failed to save API key to Keychain"
-                    )
+        let failed = |e: security_framework::base::Error| {
+            format!(
+                "{}: {e}",
+                tr(
+                    "保存 API 密钥到钥匙串失败",
+                    "Failed to save API key to Keychain"
                 )
-            },
-        )
+            )
+        };
+
+        match passwords::set_generic_password(KEYCHAIN_SERVICE, account, api_key.as_bytes()) {
+            Ok(()) => Ok(()),
+            Err(e)
+                if matches!(
+                    e.code(),
+                    ERR_SEC_AUTH_FAILED | ERR_SEC_INTERACTION_NOT_ALLOWED | ERR_SEC_DUPLICATE_ITEM
+                ) =>
+            {
+                delete(account)?;
+                passwords::set_generic_password(KEYCHAIN_SERVICE, account, api_key.as_bytes())
+                    .map_err(failed)
+            }
+            Err(e) => Err(failed(e)),
+        }
     }
 
     pub fn delete(account: &str) -> Result<(), String> {
@@ -403,15 +440,35 @@ mod keychain {
     }
 }
 
+fn keychain_access() -> MutexGuard<'static, ()> {
+    KEYCHAIN_ACCESS
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+}
+
+fn api_key_cache() -> MutexGuard<'static, HashMap<String, Option<String>>> {
+    API_KEY_CACHE.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
 #[tauri::command]
 #[specta::specta]
 #[instrument]
 pub async fn ai_get_api_key(provider: String) -> Result<Option<String>, String> {
     validate_provider(&provider)?;
 
-    tokio::task::spawn_blocking(move || keychain::get(&provider))
-        .await
-        .map_err(task_error)?
+    tokio::task::spawn_blocking(move || {
+        let _access = keychain_access();
+
+        if let Some(cached) = api_key_cache().get(&provider) {
+            return Ok(cached.clone());
+        }
+
+        let api_key = keychain::get(&provider)?;
+        api_key_cache().insert(provider, api_key.clone());
+        Ok(api_key)
+    })
+    .await
+    .map_err(task_error)?
 }
 
 #[tauri::command]
@@ -425,9 +482,14 @@ pub async fn ai_set_api_key(provider: String, api_key: String) -> Result<(), Str
         return Err(tr("API 密钥不能为空", "API key cannot be empty").to_string());
     }
 
-    tokio::task::spawn_blocking(move || keychain::set(&provider, &api_key))
-        .await
-        .map_err(task_error)?
+    tokio::task::spawn_blocking(move || {
+        let _access = keychain_access();
+        keychain::set(&provider, &api_key)?;
+        api_key_cache().insert(provider, Some(api_key));
+        Ok(())
+    })
+    .await
+    .map_err(task_error)?
 }
 
 #[tauri::command]
@@ -436,7 +498,12 @@ pub async fn ai_set_api_key(provider: String, api_key: String) -> Result<(), Str
 pub async fn ai_delete_api_key(provider: String) -> Result<(), String> {
     validate_provider(&provider)?;
 
-    tokio::task::spawn_blocking(move || keychain::delete(&provider))
-        .await
-        .map_err(task_error)?
+    tokio::task::spawn_blocking(move || {
+        let _access = keychain_access();
+        keychain::delete(&provider)?;
+        api_key_cache().insert(provider, None);
+        Ok(())
+    })
+    .await
+    .map_err(task_error)?
 }

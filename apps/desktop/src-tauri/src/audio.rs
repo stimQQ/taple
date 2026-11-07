@@ -36,14 +36,17 @@ impl AppSounds {
     }
 }
 
-pub fn get_waveform(audio: &AudioData) -> Vec<f32> {
+pub fn get_waveform(audio: &AudioData, offset_secs: f64) -> Vec<f32> {
     const CHUNK_SIZE: usize = (cap_audio::AudioData::SAMPLE_RATE as usize) / 10; // ~100ms
 
     let channels = audio.channels() as usize;
     let samples = audio.samples();
     let mut waveform = Vec::new();
 
-    let mut i = 0;
+    let mut i = ((offset_secs.max(0.0) * f64::from(cap_audio::AudioData::SAMPLE_RATE)).round()
+        as usize
+        * channels)
+        .min(samples.len());
     while i < samples.len() {
         let end = (i + CHUNK_SIZE * channels).min(samples.len());
         let mut sum = 0.0f32;

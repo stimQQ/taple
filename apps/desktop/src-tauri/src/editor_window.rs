@@ -119,11 +119,28 @@ impl EditorInstances {
         }
     }
 
-    pub async fn clear(&self) {
-        let mut instances = self.0.write().await;
-        for (_, instance) in instances.drain() {
-            instance.dispose().await;
-        }
+    pub async fn project_paths(&self) -> Vec<PathBuf> {
+        self.0
+            .read()
+            .await
+            .values()
+            .map(|instance| instance.project_path.clone())
+            .collect()
+    }
+
+    pub async fn for_project(&self, project_path: &std::path::Path) -> Vec<Arc<EditorInstance>> {
+        let target = std::fs::canonicalize(project_path).unwrap_or_else(|_| project_path.into());
+        self.0
+            .read()
+            .await
+            .values()
+            .filter(|instance| {
+                std::fs::canonicalize(&instance.project_path)
+                    .unwrap_or_else(|_| instance.project_path.clone())
+                    == target
+            })
+            .cloned()
+            .collect()
     }
 
     pub async fn remove(window: Window) {

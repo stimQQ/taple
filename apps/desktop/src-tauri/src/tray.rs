@@ -1,5 +1,5 @@
 use crate::windows::ShowCapWindow;
-use crate::{RecordingStarted, RecordingStopped, RequestOpenSettings, recording};
+use crate::{RecordingStarted, RecordingStopped, RequestOpenSettings, i18n::tr, recording};
 
 use std::sync::{
     Arc,
@@ -55,7 +55,13 @@ pub fn create_tray(app: &AppHandle) -> tauri::Result<()> {
     let menu = Menu::with_items(
         app,
         &[
-            &MenuItem::with_id(app, TrayItem::OpenCap, "New Recording", true, None::<&str>)?,
+            &MenuItem::with_id(
+                app,
+                TrayItem::OpenCap,
+                tr("新建录制", "New Recording"),
+                true,
+                None::<&str>,
+            )?,
             &PredefinedMenuItem::separator(app)?,
             // &MenuItem::with_id(
             //     app,
@@ -67,11 +73,17 @@ pub fn create_tray(app: &AppHandle) -> tauri::Result<()> {
             &MenuItem::with_id(
                 app,
                 TrayItem::PreviousRecordings,
-                "Previous Recordings",
+                tr("历史录制", "Previous Recordings"),
                 true,
                 None::<&str>,
             )?,
-            &MenuItem::with_id(app, TrayItem::OpenSettings, "Settings", true, None::<&str>)?,
+            &MenuItem::with_id(
+                app,
+                TrayItem::OpenSettings,
+                tr("设置", "Settings"),
+                true,
+                None::<&str>,
+            )?,
             &PredefinedMenuItem::separator(app)?,
             &MenuItem::with_id(
                 app,
@@ -80,7 +92,13 @@ pub fn create_tray(app: &AppHandle) -> tauri::Result<()> {
                 false,
                 None::<&str>,
             )?,
-            &MenuItem::with_id(app, TrayItem::Quit, "Quit Taple", true, None::<&str>)?,
+            &MenuItem::with_id(
+                app,
+                TrayItem::Quit,
+                tr("退出 Taple", "Quit Taple"),
+                true,
+                None::<&str>,
+            )?,
         ],
     )?;
     let app = app.clone();

@@ -12,7 +12,7 @@
 	"app": {
 		"macOSPrivateApi": true,
 		"security": {
-			"csp": "default-src 'self' ws: ipc: http://ipc.localhost; connect-src 'self' ws: ipc: http://ipc.localhost https://api.apimodels.app https://api.anthropic.com https://api.openai.com; img-src 'self' asset: http://asset.localhost data:; media-src 'self' asset: http://asset.localhost; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'",
+			"csp": "default-src 'self' ws: ipc: http://ipc.localhost; connect-src 'self' ws: ipc: http://ipc.localhost https://api.apimodels.app https://api.anthropic.com https://api.openai.com; img-src 'self' asset: http://asset.localhost data:; media-src 'self' asset: http://asset.localhost; font-src 'self' asset: http://asset.localhost data:; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'",
 			"assetProtocol": {
 				"enable": true,
 				"scope": [

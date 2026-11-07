@@ -1,9 +1,4 @@
-import type {
-	AgentState,
-	AgentTool,
-	AgentToolResult,
-} from "@earendil-works/pi-agent-core";
-import type { ImageContent, TextContent } from "@earendil-works/pi-ai";
+import type { AgentTool } from "@earendil-works/pi-agent-core";
 import {
 	arr,
 	bool,
@@ -15,279 +10,79 @@ import {
 	str,
 } from "@earendil-works/pi-schema";
 import { batch } from "solid-js";
-import { produce, type SetStoreFunction } from "solid-js/store";
+import { produce } from "solid-js/store";
+import { commands, type ZoomMode, type ZoomSegment } from "~/utils/tauri";
 import {
-	commands,
-	type ProjectConfiguration,
-	type SceneSegment,
-	type TimelineSegment,
-	type ZoomMode,
-	type ZoomSegment,
-} from "~/utils/tauri";
+	buildContactSheet,
+	frameFetchWidth,
+	MAX_SHEET_FRAMES,
+	type SheetFrame,
+} from "./contact-sheet";
+import { formatStoryRuns } from "./storyboard";
 import {
-	buildClipSpans,
-	type ClipSpan,
-	cutSourceRange,
-	defaultTimelineSegments,
 	formatSeconds as fmt,
-	formatClock,
-	keptSourceSeconds,
-	outputDuration,
-	outputRangeToSourceRanges,
-	type RecordingLayout,
-	remapOutputRanges,
-	setSpeedInSourceRange,
-	sourceRangeStatus,
 	sourceRangeToOutputRanges,
 	sourceToOutput,
 	sourceToSegment,
-	type TimeRange,
 } from "./timebase";
+import { createTimingTools } from "./timing-tools";
 import {
-	type TranscriptLine,
-	transcriptFromCaptions,
-	type VideoActivity,
-} from "./video-context";
+	createToolContext,
+	type EditorBridge,
+	type EditorTools,
+	MAX_LISTED_ITEMS,
+	rangeEndParam,
+	rangeStartParam,
+	reasonParam,
+	text,
+} from "./tool-context";
+import {
+	describeTranscriptIssue,
+	findFillers,
+	findRepeatedPhrases,
+	findRetakes,
+	hasWordTimings,
+} from "./transcript-check";
+import { errorCost } from "./vision";
+import { activeSpans } from "./visual";
 
-export type EditorBridge = {
-	project: ProjectConfiguration;
-	setProject: SetStoreFunction<ProjectConfiguration>;
-	onEdited: () => void;
-	layout: RecordingLayout;
-	projectPath: string;
-	activity: VideoActivity;
-	transcriptHint: string;
-};
+export { MAX_SPEED, MIN_SPEED } from "./timing-tools";
+export type { EditorBridge, EditorTools } from "./tool-context";
 
-export const FRAME_WIDTH = 1024;
-export const MAX_FRAMES_PER_CALL = 6;
-export const MIN_SPEED = 1;
-export const MAX_SPEED = 8;
+export const MAX_FRAMES_PER_CALL = MAX_SHEET_FRAMES;
 export const MIN_ZOOM_AMOUNT = 1.1;
 export const MAX_ZOOM_AMOUNT = 4.5;
 export const DEFAULT_ZOOM_AMOUNT = 1.8;
 export const MIN_ZOOM_SECONDS = 1;
-const MIN_REMAPPED_ZOOM_SECONDS = 0.5;
-const MIN_REMAPPED_SCENE_SECONDS = 0.3;
-const MIN_EDIT_SECONDS = 0.1;
-const MIN_VIDEO_SECONDS = 1;
-const MAX_LISTED_ITEMS = 400;
 const BOUNDARY_SLACK = 0.5;
-
-type ToolResult = AgentToolResult<undefined>;
-
-export type EditorTools = AgentState["tools"];
 
 export type EditorToolkit = { tools: EditorTools; overview: () => string };
 
-function text(value: string): ToolResult {
-	return { content: [{ type: "text", text: value }], details: undefined };
-}
-
-const reasonParam = opt(
-	str({
-		description:
-			"Short note on why you make this edit, shown to the user (e.g. 'long pause', 'false start').",
-	}),
-);
-
-const rangeStartParam = num({
-	description: "Start, in seconds of the original recording (source time).",
-});
-const rangeEndParam = num({
-	description: "End, in seconds of the original recording (source time).",
-});
-
 export function createEditorTools(bridge: EditorBridge): EditorToolkit {
-	const { layout } = bridge;
-
-	const currentSegments = (): TimelineSegment[] => {
-		const segments = bridge.project.timeline?.segments;
-		if (segments && segments.length > 0) return segments.map((s) => ({ ...s }));
-		return defaultTimelineSegments(layout);
-	};
-	const currentSpans = (): ClipSpan[] =>
-		buildClipSpans(currentSegments(), layout);
-	const currentZooms = (): ZoomSegment[] =>
-		(bridge.project.timeline?.zoomSegments ?? []).map((z) => ({
-			...z,
-			mode:
-				typeof z.mode === "string" ? z.mode : { manual: { ...z.mode.manual } },
-		}));
-	const currentScenes = (): SceneSegment[] | null => {
-		const scenes = bridge.project.timeline?.sceneSegments;
-		return scenes ? scenes.map((s) => ({ ...s })) : null;
-	};
-	const transcript = (): TranscriptLine[] =>
-		transcriptFromCaptions(layout, bridge.project.captions?.segments);
-
-	const validateRange = (start: number, end: number) => {
-		if (!Number.isFinite(start) || !Number.isFinite(end)) {
-			throw new Error("start and end must be numbers of seconds.");
-		}
-		if (start < -BOUNDARY_SLACK || end > layout.total + BOUNDARY_SLACK) {
-			throw new Error(
-				`Range ${fmt(start)}–${fmt(end)} is outside the recording (0.00–${fmt(layout.total)} source seconds).`,
-			);
-		}
-		const s = Math.max(0, start);
-		const e = Math.min(layout.total, end);
-		if (e - s < MIN_EDIT_SECONDS) {
-			throw new Error(
-				`end must be at least ${MIN_EDIT_SECONDS} s after start (got ${fmt(start)}–${fmt(end)}).`,
-			);
-		}
-		return { start: s, end: e };
-	};
-
-	const describeZoomMode = (mode: ZoomMode) =>
-		mode === "auto"
-			? "follows cursor"
-			: `fixed point x=${mode.manual.x.toFixed(2)} y=${mode.manual.y.toFixed(2)}`;
-
-	const sourceHull = (
-		spans: ClipSpan[],
-		range: TimeRange,
-	): TimeRange | null => {
-		const sources = outputRangeToSourceRanges(spans, range.start, range.end);
-		if (sources.length === 0) return null;
-		return { start: sources[0].start, end: sources[sources.length - 1].end };
-	};
-
-	const zoomLines = (spans: ClipSpan[], zooms: ZoomSegment[]) => {
-		if (zooms.length === 0) return ["  (none)"];
-		return zooms.map((zoom, index) => {
-			const source = sourceHull(spans, zoom);
-			const sourceText = source
-				? `source ${fmt(source.start)}–${fmt(source.end)}`
-				: "source (cut)";
-			return `  zoom ${index}: ${sourceText}, final ${fmt(zoom.start)}–${fmt(zoom.end)}, ${zoom.amount.toFixed(1)}x, ${describeZoomMode(zoom.mode)}`;
-		});
-	};
-
-	const clipLines = (spans: ClipSpan[]) => {
-		const lines = spans.slice(0, 60).map((span) => {
-			const speed =
-				span.speed !== 1 ? ` at ${Number(span.speed.toFixed(2))}x` : "";
-			return `  clip ${span.index}: source ${fmt(span.sourceStart)}–${fmt(span.sourceEnd)}${speed} → final ${fmt(span.outputStart)}–${fmt(span.outputEnd)}`;
-		});
-		if (spans.length > 60) lines.push(`  … ${spans.length - 60} more clips`);
-		return lines;
-	};
-
-	const durationLine = (spans: ClipSpan[]) => {
-		const edited = outputDuration(spans);
-		return `Original length ${fmt(layout.total)} s (${formatClock(layout.total)}); edited length ${fmt(edited)} s (${formatClock(edited)}).`;
-	};
-
-	const overview = (): string => {
-		const spans = currentSpans();
-		const lines = transcript();
-		const captions = bridge.project.captions;
-		const { activity } = bridge;
-		const longPauses = activity.pauses.filter((p) => p.duration >= 1).length;
-		return [
-			`Time base: every time you pass to or read from tools is in seconds of the ORIGINAL recording ("source time", 0.00–${fmt(layout.total)}). Cuts and speed changes never shift source times. "final" times are positions in the edited video, for reference only.`,
-			durationLine(spans),
-			`Recording segments: ${layout.durations.length}.`,
-			"Clips in playback order:",
-			...clipLines(spans),
-			"Zooms (final timeline order):",
-			...zoomLines(spans, currentZooms()),
-			`Scene segments: ${currentScenes()?.length ?? 0}.`,
-			lines.length > 0
-				? `Transcript: ${lines.length} lines (captions shown in the video: ${captions?.settings.enabled ? "yes" : "no"}).`
-				: `Transcript: none. ${bridge.transcriptHint}`,
-			activity.audioSource === "none"
-				? "Audio: none."
-				: `Audio: ${activity.audioSource}. Detected pauses of 0.5 s or longer: ${activity.pauses.length} (${longPauses} of them 1 s or longer).`,
-			`Clicks inside the recorded area: ${activity.clicks.length}${activity.ignoredClicks > 0 ? ` (${activity.ignoredClicks} clicks outside the recording were ignored)` : ""}.`,
-		].join("\n");
-	};
-
-	const inWindow = (range: TimeRange, start?: number, end?: number) =>
-		range.end > (start ?? Number.NEGATIVE_INFINITY) &&
-		range.start < (end ?? Number.POSITIVE_INFINITY);
-
-	const statusLabel = (spans: ClipSpan[], range: TimeRange) => {
-		const status = sourceRangeStatus(spans, range.start, range.end);
-		if (status === "cut") return "CUT";
-		const output = sourceToOutput(spans, range.start);
-		const span = spans.find(
-			(s) => range.start >= s.sourceStart && range.start < s.sourceEnd,
+	const ctx = createToolContext(bridge);
+	const {
+		layout,
+		currentSegments,
+		currentSpans,
+		currentZooms,
+		assessment,
+		describeZoomMode,
+		validateRange,
+		zoomLines,
+		inWindow,
+		statusLabel,
+		overview,
+	} = ctx;
+	const timing = createTimingTools(ctx);
+	const fillerAction = (range: { start: number; end: number }) => {
+		const active = activeSpans(
+			bridge.visual,
+			range.start - 0.1,
+			range.end + 0.1,
 		);
-		const speed =
-			span && span.speed !== 1 ? ` ${Number(span.speed.toFixed(2))}x` : "";
-		const final = output !== null ? ` @final ${fmt(output)}` : "";
-		return `${status === "kept" ? "kept" : "partly cut"}${speed}${final}`;
-	};
-
-	const lineWarnings = (
-		boundaries: number[],
-		lines: TranscriptLine[],
-	): string[] => {
-		const warnings: string[] = [];
-		for (const boundary of boundaries) {
-			const line = lines.find(
-				(l) => boundary > l.start + 0.15 && boundary < l.end - 0.15,
-			);
-			if (line) {
-				warnings.push(
-					`Warning: the edit boundary at ${fmt(boundary)} falls inside transcript line ${line.id} (${fmt(line.start)}–${fmt(line.end)}: "${line.text.slice(0, 80)}"). Make sure no words are cut off.`,
-				);
-			}
-		}
-		return warnings;
-	};
-
-	const commitTimeline = (
-		before: ClipSpan[],
-		nextSegments: TimelineSegment[],
-	) => {
-		const after = buildClipSpans(nextSegments, layout);
-		const zooms = remapOutputRanges(
-			before,
-			after,
-			currentZooms(),
-			MIN_REMAPPED_ZOOM_SECONDS,
-		);
-		const existingScenes = currentScenes();
-		const scenes = existingScenes
-			? remapOutputRanges(
-					before,
-					after,
-					existingScenes,
-					MIN_REMAPPED_SCENE_SECONDS,
-				)
-			: null;
-		batch(() => {
-			bridge.setProject(
-				produce((project) => {
-					if (!project.timeline) {
-						project.timeline = {
-							segments: nextSegments,
-							zoomSegments: zooms.items,
-							sceneSegments: scenes?.items ?? [],
-						};
-						return;
-					}
-					project.timeline.segments = nextSegments;
-					project.timeline.zoomSegments = zooms.items;
-					if (scenes) project.timeline.sceneSegments = scenes.items;
-				}),
-			);
-			bridge.onEdited();
-		});
-		const notes: string[] = [];
-		if (zooms.dropped > 0)
-			notes.push(
-				`${zooms.dropped} zoom(s) inside the removed part were deleted.`,
-			);
-		if (zooms.changed > 0)
-			notes.push(`${zooms.changed} zoom(s) moved with their content.`);
-		if (scenes && scenes.dropped > 0)
-			notes.push(`${scenes.dropped} scene segment(s) were removed.`);
-		return { after, notes };
+		if (active.length === 0)
+			return "screen idle: cut it (cut_range + allow_split_speech)";
+		return "screen active: mute it (mute_range), do not cut";
 	};
 
 	const overviewParams = obj({});
@@ -315,10 +110,12 @@ export function createEditorTools(bridge: EditorBridge): EditorToolkit {
 			"Speech transcript lines with id, source start–end and whether each line is still kept, already cut, or sped up. Optionally limit to a source time window. Cut between lines or inside pauses so sentences stay intact.",
 		parameters: transcriptParams,
 		execute: async (_id, params) => {
-			const lines = transcript();
+			const checked = assessment();
+			const lines = checked.lines;
 			if (lines.length === 0) {
 				return text(`No transcript is available. ${bridge.transcriptHint}`);
 			}
+			const issue = describeTranscriptIssue(checked);
 			const spans = currentSpans();
 			const selected = lines.filter((l) =>
 				inWindow(l, params.start, params.end),
@@ -335,10 +132,66 @@ export function createEditorTools(bridge: EditorBridge): EditorToolkit {
 					`… ${selected.length - shown.length} more lines; call again with start/end to read them.`,
 				);
 			}
+			const extras: string[] = [];
+			if (checked.reliable) {
+				const windowed = <T extends { start: number; end: number }>(
+					items: T[],
+				) => items.filter((item) => inWindow(item, params.start, params.end));
+				if (hasWordTimings(selected)) {
+					const fillers = windowed(findFillers(lines));
+					const repeats = windowed(findRepeatedPhrases(lines));
+					extras.push(
+						fillers.length > 0
+							? `Filler words (source start–end | text | line; remove with cut_range + allow_split_speech):\n${fillers
+									.slice(0, 80)
+									.map(
+										(f) =>
+											`  ${fmt(f.start)}–${fmt(f.end)} | ${f.text} | ${f.lineId} | ${fillerAction(f)}${f.weak ? " | often a real word, check context" : ""}`,
+									)
+									.join("\n")}`
+							: "Filler words: none found.",
+					);
+					extras.push(
+						repeats.length > 0
+							? `Repeated phrases (first take; the repeat follows right after, keep the last take):\n${repeats
+									.slice(0, 40)
+									.map(
+										(r) =>
+											`  ${fmt(r.start)}–${fmt(r.end)} | "${r.text}" | ${r.lineId}`,
+									)
+									.join("\n")}`
+							: "Repeated phrases: none found.",
+					);
+				} else {
+					extras.push(
+						"No word timings, so filler words cannot be located precisely; cut only between lines or inside pauses.",
+					);
+				}
+				const retakes = findRetakes(lines).filter((r) =>
+					inWindow(
+						{ start: r.first.start, end: r.second.end },
+						params.start,
+						params.end,
+					),
+				);
+				if (retakes.length > 0) {
+					extras.push(
+						`Possible retakes (a line restarts the previous one; usually keep the last take):\n${retakes
+							.slice(0, 20)
+							.map(
+								(r) =>
+									`  ${r.first.id} (${fmt(r.first.start)}–${fmt(r.first.end)}) → ${r.second.id} (${fmt(r.second.start)}–${fmt(r.second.end)})`,
+							)
+							.join("\n")}`,
+					);
+				}
+			}
 			return text(
 				[
+					...(issue ? [issue] : []),
 					`Transcript lines (source seconds): id | start–end | status | text`,
 					...out,
+					...extras,
 				].join("\n"),
 			);
 		},
@@ -350,7 +203,7 @@ export function createEditorTools(bridge: EditorBridge): EditorToolkit {
 		min_pause: opt(
 			num({
 				description:
-					"Only list pauses at least this long, in seconds. Default 0.7.",
+					"Only list pauses at least this long, in seconds. Default 0.4.",
 			}),
 		),
 	});
@@ -362,7 +215,7 @@ export function createEditorTools(bridge: EditorBridge): EditorToolkit {
 		parameters: activityParams,
 		execute: async (_id, params) => {
 			const spans = currentSpans();
-			const minPause = Math.max(0.3, params.min_pause ?? 0.7);
+			const minPause = Math.max(0.2, params.min_pause ?? 0.4);
 			const clicks = bridge.activity.clicks.filter(
 				(c) =>
 					c.time >= (params.start ?? Number.NEGATIVE_INFINITY) &&
@@ -399,6 +252,49 @@ export function createEditorTools(bridge: EditorBridge): EditorToolkit {
 		},
 	};
 
+	const storyboardParams = obj({
+		start: opt(num({ description: "Window start, source seconds." })),
+		end: opt(num({ description: "Window end, source seconds." })),
+	});
+	const getStoryboard: AgentTool<typeof storyboardParams, undefined> = {
+		name: "get_storyboard",
+		label: "Storyboard",
+		description:
+			"Text timeline of what happens on screen, sampled every second: big changes (new page or dialog), content changes, small motion (cursor, typing, spinners), static stretches, and new on-screen text (OCR) at each change, with kept/cut status. Use it before view_frames to find waits, idle stretches and the steps of the tutorial.",
+		parameters: storyboardParams,
+		execute: async (_id, params) => {
+			const runs = bridge.storyRuns;
+			if (!runs) {
+				return text(
+					`The screen storyboard is unavailable (${bridge.storyboardNote}). Use view_frames instead.`,
+				);
+			}
+			const spans = currentSpans();
+			const lines = formatStoryRuns(
+				runs,
+				(range) =>
+					sourceRangeToOutputRanges(spans, range.start, range.end).length > 0
+						? statusLabel(spans, range)
+						: "CUT",
+				params,
+			);
+			if (lines.length === 0)
+				return text("No storyboard entries in that window.");
+			const shown = lines.slice(0, 200);
+			return text(
+				[
+					"Screen storyboard (source seconds | what happens | status | new on-screen text):",
+					...shown,
+					...(lines.length > shown.length
+						? [
+								`… ${lines.length - shown.length} more; call again with start/end.`,
+							]
+						: []),
+				].join("\n"),
+			);
+		},
+	};
+
 	const framesParams = obj({
 		times: arr(
 			num({ description: "Source second of the original recording." }),
@@ -406,14 +302,25 @@ export function createEditorTools(bridge: EditorBridge): EditorToolkit {
 				description: `1 to ${MAX_FRAMES_PER_CALL} timestamps in source seconds.`,
 			},
 		),
+		question: opt(
+			str({
+				description:
+					"What you need to know about these frames, e.g. 'Is the app loading or waiting in #2–#4?' or 'Where is the Save button in #3 (x/y)?'.",
+			}),
+		),
 	});
 	const viewFrames: AgentTool<typeof framesParams, undefined> = {
 		name: "view_frames",
 		label: "View frames",
-		description: `Look at the raw screen recording at up to ${MAX_FRAMES_PER_CALL} source timestamps per call. Images are the captured screen without zoom, background or captions. Use it to check what is on screen before zooming, or whether a stretch is waiting, typing or loading.`,
+		description: bridge.vision
+			? `Ask a vision assistant about the raw screen recording. Up to ${MAX_FRAMES_PER_CALL} source timestamps are combined into one labelled contact sheet (#1, #2, … in time order) and the assistant answers your question in text. You never see the images, so ask a specific question. Frames show the captured screen without zoom, background or captions. Batch timestamps into one call instead of many calls.`
+			: `Look at the raw screen recording. Up to ${MAX_FRAMES_PER_CALL} source timestamps are combined into one labelled contact sheet image (#1, #2, … in time order) that is returned to you. Frames show the captured screen without zoom, background or captions. Batch timestamps into one call instead of many calls. The question parameter is not needed.`,
 		parameters: framesParams,
 		execute: async (_id, params, signal) => {
-			const times = params.times;
+			const question = params.question?.trim() ?? "";
+			if (bridge.vision && !question)
+				throw new Error("Pass a question about the frames.");
+			const times = [...params.times].sort((a, b) => a - b);
 			if (times.length === 0 || times.length > MAX_FRAMES_PER_CALL) {
 				throw new Error(
 					`Pass between 1 and ${MAX_FRAMES_PER_CALL} timestamps (got ${times.length}).`,
@@ -427,7 +334,8 @@ export function createEditorTools(bridge: EditorBridge): EditorToolkit {
 				}
 			}
 			const spans = currentSpans();
-			const frames = await Promise.all(
+			const width = frameFetchWidth(times.length);
+			const fetched = await Promise.all(
 				times.map(async (t) => {
 					const { recordingSegment, time } = sourceToSegment(layout, t);
 					try {
@@ -435,7 +343,7 @@ export function createEditorTools(bridge: EditorBridge): EditorToolkit {
 							bridge.projectPath,
 							recordingSegment,
 							time,
-							FRAME_WIDTH,
+							width,
 						);
 						return { t, data, error: null };
 					} catch (error) {
@@ -444,138 +352,67 @@ export function createEditorTools(bridge: EditorBridge): EditorToolkit {
 				}),
 			);
 			signal?.throwIfAborted();
-			if (frames.every((f) => f.data === null)) {
+			const usable = fetched.filter(
+				(f): f is { t: number; data: string; error: null } => f.data !== null,
+			);
+			if (usable.length === 0) {
 				throw new Error(
-					`Could not read frames: ${frames.map((f) => f.error).join("; ")}`,
+					`Could not read frames: ${fetched.map((f) => f.error).join("; ")}`,
 				);
 			}
-			const content: (TextContent | ImageContent)[] = [];
-			for (const frame of frames) {
-				const output = sourceToOutput(spans, frame.t);
-				content.push({
-					type: "text",
-					text: `Frame at source ${fmt(frame.t)} (${output === null ? "currently cut" : `final ${fmt(output)}`})${frame.error ? `: unavailable (${frame.error})` : ""}`,
-				});
-				if (frame.data) {
-					content.push({
-						type: "image",
-						data: frame.data,
-						mimeType: "image/jpeg",
-					});
-				}
+			const sheetFrames: SheetFrame[] = usable.map((f, index) => ({
+				label: `#${index + 1}  ${fmt(f.t)}s`,
+				data: f.data,
+			}));
+			const legend = usable.map((f, index) => {
+				const output = sourceToOutput(spans, f.t);
+				return `#${index + 1} = source ${fmt(f.t)} s (${output === null ? "currently cut" : `final ${fmt(output)} s`})`;
+			});
+			const missing = fetched
+				.filter((f) => f.data === null)
+				.map((f) => `${fmt(f.t)} (${f.error})`);
+			const sheet = await buildContactSheet(sheetFrames);
+			signal?.throwIfAborted();
+			const vision = bridge.vision;
+			if (!vision) {
+				return {
+					content: [
+						{
+							type: "text",
+							text: [
+								`Contact sheet of ${usable.length} frame(s):`,
+								...legend,
+								...(missing.length > 0
+									? [`Unavailable frames: ${missing.join("; ")}`]
+									: []),
+							].join("\n"),
+						},
+						{ type: "image", data: sheet.data, mimeType: "image/jpeg" },
+					],
+					details: undefined,
+				};
 			}
-			return { content, details: undefined };
-		},
-	};
-
-	const cutParams = obj({
-		start: rangeStartParam,
-		end: rangeEndParam,
-		reason: reasonParam,
-	});
-	const cutRange: AgentTool<typeof cutParams, undefined> = {
-		name: "cut_range",
-		label: "Cut",
-		description:
-			"Remove a source time range from the edited video. Only currently kept parts inside the range are affected. Zooms move with their content. Times are source seconds; they stay valid after the cut.",
-		parameters: cutParams,
-		executionMode: "sequential",
-		execute: async (_id, params) => {
-			const range = validateRange(params.start, params.end);
-			const before = currentSpans();
-			const removed = keptSourceSeconds(before, range.start, range.end);
-			if (removed < 0.01) {
-				throw new Error(
-					`Nothing to cut: ${fmt(range.start)}–${fmt(range.end)} is already removed.`,
+			try {
+				const answer = await vision.describe(
+					{ image: sheet.data, question, frameLabels: legend },
+					signal,
 				);
-			}
-			const nextSegments = cutSourceRange(
-				currentSegments(),
-				layout,
-				range.start,
-				range.end,
-			);
-			const nextDuration = outputDuration(buildClipSpans(nextSegments, layout));
-			if (nextSegments.length === 0 || nextDuration < MIN_VIDEO_SECONDS) {
-				throw new Error("This cut would remove the whole video.");
-			}
-			const { after, notes } = commitTimeline(before, nextSegments);
-			const warnings = lineWarnings([range.start, range.end], transcript());
-			return text(
-				[
-					`Cut source ${fmt(range.start)}–${fmt(range.end)} (${removed.toFixed(2)} s of kept video removed).`,
-					durationLine(after),
-					...notes,
-					...warnings,
-				].join("\n"),
-			);
-		},
-	};
-
-	const speedParams = obj({
-		start: rangeStartParam,
-		end: rangeEndParam,
-		speed: num({
-			description: `Playback speed, ${MIN_SPEED} to ${MAX_SPEED}. 1 restores normal speed. Typical: 1.5–4.`,
-		}),
-		reason: reasonParam,
-	});
-	const setSpeed: AgentTool<typeof speedParams, undefined> = {
-		name: "set_speed",
-		label: "Speed",
-		description:
-			"Change playback speed for a source time range (only parts still kept). Audio is not time-stretched and sounds choppy when sped up, so only speed up ranges where nobody is speaking. Zooms move with their content.",
-		parameters: speedParams,
-		executionMode: "sequential",
-		execute: async (_id, params) => {
-			const range = validateRange(params.start, params.end);
-			if (
-				!Number.isFinite(params.speed) ||
-				params.speed < MIN_SPEED ||
-				params.speed > MAX_SPEED
-			) {
-				throw new Error(
-					`speed must be between ${MIN_SPEED} and ${MAX_SPEED} (got ${params.speed}).`,
+				bridge.onHelperCost(answer.cost);
+				return text(
+					[
+						`Vision assistant (${vision.model.name}) looked at ${usable.length} frame(s):`,
+						...legend,
+						...(missing.length > 0
+							? [`Unavailable frames: ${missing.join("; ")}`]
+							: []),
+						"",
+						answer.text,
+					].join("\n"),
 				);
+			} catch (error) {
+				bridge.onHelperCost(errorCost(error));
+				throw error;
 			}
-			const speed = Math.round(params.speed * 100) / 100;
-			const before = currentSpans();
-			if (keptSourceSeconds(before, range.start, range.end) < 0.01) {
-				throw new Error(
-					`Nothing to change: ${fmt(range.start)}–${fmt(range.end)} has been cut.`,
-				);
-			}
-			const nextSegments = setSpeedInSourceRange(
-				currentSegments(),
-				layout,
-				range.start,
-				range.end,
-				speed,
-			);
-			const { after, notes } = commitTimeline(before, nextSegments);
-			const speech = transcript().filter(
-				(l) =>
-					Math.min(l.end, range.end) - Math.max(l.start, range.start) > 0.3,
-			);
-			const warnings =
-				speed > 1 && speech.length > 0
-					? [
-							`Warning: ${speech.length} transcript line(s) overlap this range (${speech
-								.slice(0, 3)
-								.map((l) => l.id)
-								.join(
-									", ",
-								)}). Sped-up speech sounds choppy; revert with speed 1 unless that is intended.`,
-						]
-					: [];
-			return text(
-				[
-					`Set source ${fmt(range.start)}–${fmt(range.end)} to ${speed}x.`,
-					durationLine(after),
-					...notes,
-					...warnings,
-				].join("\n"),
-			);
 		},
 	};
 
@@ -829,12 +666,16 @@ export function createEditorTools(bridge: EditorBridge): EditorToolkit {
 			getOverview,
 			getTranscript,
 			getActivity,
+			getStoryboard,
 			viewFrames,
-			cutRange,
-			setSpeed,
+			timing.cutRange,
+			timing.tightenPauses,
+			timing.setSpeed,
+			timing.muteRange,
 			addZoom,
 			removeZoom,
 			setCaptions,
+			timing.reviewEdit,
 		],
 		overview,
 	};
@@ -842,6 +683,8 @@ export function createEditorTools(bridge: EditorBridge): EditorToolkit {
 
 export const EDIT_TOOL_NAMES = new Set([
 	"cut_range",
+	"tighten_pauses",
+	"mute_range",
 	"set_speed",
 	"add_zoom",
 	"remove_zoom",
