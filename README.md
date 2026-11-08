@@ -6,7 +6,7 @@ English | [简体中文](README.zh-CN.md)
 
 Taple is a free, open source screen recorder for product demos and tutorials on macOS. Record your screen, camera and voice, then trim, zoom in, add captions and clean up the audio in the built-in editor before exporting to video or GIF. AI Edit can make the first cut for you, and AI agents like Claude Code and Codex can edit your recordings too. It is a fork of [Cap](https://github.com/CapSoftware/Cap).
 
-**Download for macOS: [GitHub Releases](https://github.com/stimQQ/taple/releases/latest)** (requires macOS 13.1 or later)
+**Download for macOS: [GitHub Releases](https://github.com/stimQQ/taple/releases/latest)** (requires macOS 13.1 or later). See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
 
 ## Features
 
@@ -52,7 +52,7 @@ Desktop UI text follows the system language. Wrap every user-facing string as `L
 
 ## Releasing
 
-Run the `publish` workflow in GitHub Actions. It builds, signs, notarizes and publishes a new release.
+Record every user-facing change under Unreleased in [CHANGELOG.md](CHANGELOG.md) and [CHANGELOG.zh-CN.md](CHANGELOG.zh-CN.md). To release, bump the version in `apps/desktop/src-tauri/Cargo.toml`, move the Unreleased entries under the new version, then run the `publish` workflow in GitHub Actions. It builds, signs, notarizes and publishes a new release.
 
 ## Credits and license
 

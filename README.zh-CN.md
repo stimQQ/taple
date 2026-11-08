@@ -6,7 +6,7 @@
 
 专门录产品演示和教程的开源 Mac 录屏工具，免费使用：录完直接剪辑、放大重点、加字幕、降噪，导出成视频或 GIF。也可以让 AI 先帮你粗剪一遍，或者用 Claude Code、Codex 这类 AI Agent 来剪。
 
-**下载 macOS 版：[GitHub Releases](https://github.com/stimQQ/taple/releases/latest)**（需要 macOS 13.1 或更新版本）
+**下载 macOS 版：[GitHub Releases](https://github.com/stimQQ/taple/releases/latest)**（需要 macOS 13.1 或更新版本）。每个版本的改动见[更新记录](CHANGELOG.zh-CN.md)。
 
 ## 功能
 
@@ -50,7 +50,7 @@ pnpm dev:desktop
 
 ## 发布
 
-在 GitHub Actions 里手动运行 `publish` 工作流，会自动构建、签名、公证并发布新版本。
+每个面向用户的改动都先记到 [CHANGELOG.md](CHANGELOG.md) 和 [CHANGELOG.zh-CN.md](CHANGELOG.zh-CN.md) 的「未发布」下。发布时，先把 `apps/desktop/src-tauri/Cargo.toml` 里的版本号改好，把「未发布」里的内容移到新版本下，再在 GitHub Actions 里手动运行 `publish` 工作流，它会自动构建、签名、公证并发布新版本。
 
 ## 致谢和许可证
 

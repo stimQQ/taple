@@ -93,7 +93,9 @@ Do not start dev servers or launch the app unless asked.
 
 ## Release & Distribution
 
-Releases are built, signed, notarized and published by `.github/workflows/publish.yml` (GitHub Actions → `publish` → Run workflow). It uploads the DMGs, updater bundles and `latest.json` to GitHub Releases.
+Releases are built, signed, notarized and published by `.github/workflows/publish.yml` (GitHub Actions → `publish` → Run workflow). It uploads the DMGs, updater bundles and `latest.json` to GitHub Releases. A full build takes about 2 hours for Apple silicon and 2¾ hours for Intel (cross-compiled); the release goes public as soon as the Apple silicon job finishes, so the Intel download and `latest.json` lag behind until the Intel job and the manifest job are done.
+
+- Keep `CHANGELOG.md` (English) and `CHANGELOG.zh-CN.md` (Chinese) in sync. Add every user-facing change under Unreleased as it lands, grouped as Added / Changed / Fixed. To release, bump `version` in `apps/desktop/src-tauri/Cargo.toml`, move the Unreleased entries under the new version and date, and use them as the GitHub Release notes (English), which the in-app changelog shows.
 
 Required GitHub secrets:
 
