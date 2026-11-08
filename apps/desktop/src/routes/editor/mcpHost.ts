@@ -5,6 +5,7 @@ import { produce } from "solid-js/store";
 import { MCP_SESSION_TOOL_NAMES } from "~/utils/ai/mcp";
 import { createEditorTools } from "~/utils/ai/tools";
 import {
+	downloadDefaultWhisperModel,
 	findDownloadedWhisperModel,
 	transcribeRecording,
 } from "~/utils/ai/video-context";
@@ -126,15 +127,19 @@ export function useMcpHost() {
 				`Captions already exist (${project.captions?.segments.length ?? 0} lines). Use get_transcript.`,
 			);
 		}
-		const model = await findDownloadedWhisperModel(
+		let model = await findDownloadedWhisperModel(
 			MODEL_FOLDER,
 			MODEL_OPTIONS.map((option) => option.name),
 		);
 		if (!model) {
-			return textResult(
-				"No speech model is downloaded. Ask the user to download one in the Captions tab of the Taple editor, then call transcribe again.",
-				true,
-			);
+			try {
+				model = await downloadDefaultWhisperModel(MODEL_FOLDER);
+			} catch (error) {
+				return textResult(
+					`The speech model could not be downloaded (${String(error)}). Ask the user to check the internet connection, then call transcribe again.`,
+					true,
+				);
+			}
 		}
 		const segments = await transcribeRecording(projectPath, model);
 		if (segments.length === 0) {

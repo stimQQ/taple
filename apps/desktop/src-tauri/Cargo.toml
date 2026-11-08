@@ -1,6 +1,6 @@
 [package]
 name = "taple-desktop"
-version = "0.1.0"
+version = "0.1.1"
 description = "Taple - The screen recorder for product demos and tutorials."
 authors = ["SparkInc"]
 edition = "2024"

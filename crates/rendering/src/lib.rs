@@ -679,14 +679,12 @@ impl ProjectUniforms {
             zoom_focus,
         );
 
-        let scene = InterpolatedScene::new(SceneSegmentsCursor::new(
-            frame_time as f64,
-            project
-                .timeline
-                .as_ref()
-                .map(|t| t.scene_segments.as_slice())
-                .unwrap_or(&[]),
-        ));
+        let scene_segments = match project.timeline.as_ref() {
+            Some(timeline) if !project.camera.hide => timeline.scene_segments.as_slice(),
+            _ => &[],
+        };
+        let scene =
+            InterpolatedScene::new(SceneSegmentsCursor::new(frame_time as f64, scene_segments));
 
         let display = {
             let output_size = XY::new(output_size.0 as f64, output_size.1 as f64);

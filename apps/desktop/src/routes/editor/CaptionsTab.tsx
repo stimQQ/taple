@@ -8,6 +8,7 @@ import { batch, createEffect, createSignal, onMount, Show } from "solid-js";
 import { createStore } from "solid-js/store";
 import toast from "solid-toast";
 import { Toggle } from "~/components/Toggle";
+import { DEFAULT_WHISPER_MODEL } from "~/utils/ai/video-context";
 import { L } from "~/utils/i18n";
 import type { CaptionSegment, CaptionSettings } from "~/utils/tauri";
 import { commands, events } from "~/utils/tauri";
@@ -98,7 +99,6 @@ const POSITION_LABELS: Record<string, string> = {
 	bottom: L("底部", "Bottom"),
 };
 
-const DEFAULT_MODEL = "small";
 export const MODEL_FOLDER = "transcription_models";
 
 // Custom flat button component since we can't import it
@@ -282,7 +282,7 @@ export function CaptionsTab() {
 	});
 
 	// Add model selection state
-	const [selectedModel, setSelectedModel] = createSignal(DEFAULT_MODEL);
+	const [selectedModel, setSelectedModel] = createSignal(DEFAULT_WHISPER_MODEL);
 	const [selectedLanguage, setSelectedLanguage] = createSignal("auto");
 	const [downloadedModels, setDownloadedModels] = createSignal<string[]>([]);
 
@@ -349,35 +349,16 @@ export function CaptionsTab() {
 				setHasAudio(hasAudioTrack);
 			}
 
-			// Restore download state if there was an ongoing download
-			const downloadState = localStorage.getItem("modelDownloadState");
-			if (downloadState) {
-				const { model, progress } = JSON.parse(downloadState);
-				if (model && progress < 100) {
-					setDownloadingModel(model);
-					setDownloadProgress(progress);
-					setIsDownloading(true);
-				} else {
-					localStorage.removeItem("modelDownloadState");
-				}
+			const active = await commands.speechModelDownloads().catch(() => []);
+			const ongoing =
+				active.find((download) => download.model === selectedModel()) ??
+				(modelExists() ? undefined : active[0]);
+			if (ongoing) {
+				setSelectedModel(ongoing.model);
+				downloadModel(ongoing.progress);
 			}
 		} catch (error) {
 			console.error("Error checking models:", error);
-		}
-	});
-
-	// Save download state when it changes
-	createEffect(() => {
-		if (isDownloading() && downloadingModel()) {
-			localStorage.setItem(
-				"modelDownloadState",
-				JSON.stringify({
-					model: downloadingModel(),
-					progress: downloadProgress(),
-				}),
-			);
-		} else {
-			localStorage.removeItem("modelDownloadState");
 		}
 	});
 
@@ -432,11 +413,11 @@ export function CaptionsTab() {
 		return await commands.checkModelExists(modelPath);
 	};
 
-	const downloadModel = async () => {
+	const downloadModel = async (startProgress = 0) => {
 		try {
 			const modelToDownload = selectedModel();
 			setIsDownloading(true);
-			setDownloadProgress(0);
+			setDownloadProgress(startProgress);
 			setDownloadingModel(modelToDownload);
 
 			// Create the directory if it doesn't exist
@@ -452,14 +433,16 @@ export function CaptionsTab() {
 
 			// Set up progress listener
 			const unlisten = await events.downloadProgress.listen((event) => {
-				setDownloadProgress(event.payload.progress);
+				if (event.payload.model === modelToDownload) {
+					setDownloadProgress(event.payload.progress);
+				}
 			});
 
-			// Download the model
-			await commands.downloadWhisperModel(modelToDownload, modelPath);
-
-			// Clean up listener
-			unlisten();
+			try {
+				await commands.downloadWhisperModel(modelToDownload, modelPath);
+			} finally {
+				unlisten();
+			}
 
 			// Update downloaded models list
 			setDownloadedModels((prev) => [...prev, modelToDownload]);
@@ -747,7 +730,7 @@ export function CaptionsTab() {
 									fallback={
 										<Button
 											class="w-full"
-											onClick={downloadModel}
+											onClick={() => downloadModel()}
 											disabled={
 												isDownloading() ||
 												downloadedModels().includes(selectedModel())

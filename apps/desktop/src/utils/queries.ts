@@ -105,7 +105,7 @@ export function createOptionsQuery() {
 	const PERSIST_KEY = "recording-options-query-2";
 	const [_state, _setState] = createStore<{
 		captureTarget: ScreenCaptureTarget;
-		micName: string | null;
+		micName?: string | null;
 		captureSystemAudio?: boolean;
 		targetMode?: "display" | "window" | "area" | null;
 		cameraID?: DeviceOrModelID | null;
@@ -114,7 +114,6 @@ export function createOptionsQuery() {
 		cameraLabel: string | null;
 	}>({
 		captureTarget: { variant: "display", id: "0" },
-		micName: null,
 		captureSystemAudio: true,
 		cameraLabel: null,
 		organizationId: null,
@@ -127,7 +126,7 @@ export function createOptionsQuery() {
 	createEffect(() => {
 		recordingSettingsStore.set({
 			target: _state.captureTarget,
-			micName: _state.micName,
+			micName: _state.micName ?? null,
 			cameraId: _state.cameraID,
 			systemAudio: _state.captureSystemAudio,
 			organizationId: _state.organizationId,

@@ -30,7 +30,7 @@ export const MCP_SESSION_TOOLS: McpToolDefinition[] = [
 	{
 		name: "transcribe",
 		description:
-			"Transcribe the open recording on this Mac with Whisper and store the captions with word timings, so get_transcript can return lines, filler words and retakes. Skips work when captions already exist. Long recordings take a while.",
+			"Transcribe the open recording on this Mac with Whisper and store the captions with word timings, so get_transcript can return lines, filler words and retakes. Skips work when captions already exist. The first time, it also downloads the speech model (about 466 MB) once. Long recordings take a while.",
 		inputSchema: NO_ARGUMENTS,
 	},
 	{

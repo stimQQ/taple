@@ -56,6 +56,9 @@ Do not start dev servers or launch the app unless asked.
 - Icons are auto-imported through `unplugin-icons` (`IconCap*` from `packages/ui-solid/icons`, `IconLucide*`); do not import them manually.
 - Recordings are `.taple` project directories. The app still opens older `.sparkvideo` and `.cap` projects.
 - The setup window only appears when screen recording or accessibility permission is missing.
+- Recording options (`createOptionsQuery` in `utils/queries.ts`): `cameraID` and `micName` are `undefined` until the user has chosen, and `null` means the user turned the device off. The main window auto-selects the first camera and microphone only while the value is `undefined`, so an explicit "off" sticks.
+- Scene segments (the timeline row under zooms) switch between the default layout, camera only and hidden camera for a time range; new segments default to hiding the camera. When the camera is hidden for the whole project (`camera.hide`), the renderer ignores scene segments and the row stays visible but disabled so the layout does not shift.
+- Speech models (Whisper) live in `transcription_models` in the app data directory (`speech_model.rs`). On first launch the app downloads the default `small` model in the background and writes `.auto-download` once done; after that it never re-downloads on launch, so a model the user deleted stays deleted. Downloads stream to `*.part`, resume with HTTP ranges and are checked against pinned sizes and SHA-256. AI Edit and the MCP `transcribe` tool download the default model on demand when none is present.
 
 ## AI Agents (MCP)
 

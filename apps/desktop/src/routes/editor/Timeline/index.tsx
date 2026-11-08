@@ -293,8 +293,9 @@ export function Timeline() {
 					}}
 					handleUpdatePlayhead={handleUpdatePlayhead}
 				/>
-				<Show when={meta().hasCamera && !project.camera.hide}>
+				<Show when={meta().hasCamera}>
 					<SceneTrack
+						disabled={project.camera.hide}
 						onDragStateChanged={(v) => {
 							sceneSegmentDragState = v;
 						}}

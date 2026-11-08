@@ -31,6 +31,7 @@ export type SceneSegmentDragState =
 export function SceneTrack(props: {
 	onDragStateChanged: (v: SceneSegmentDragState) => void;
 	handleUpdatePlayhead: (e: MouseEvent) => void;
+	disabled?: boolean;
 }) {
 	const {
 		project,
@@ -84,6 +85,7 @@ export function SceneTrack(props: {
 
 	return (
 		<TrackRoot
+			class={cx(props.disabled && "opacity-40 pointer-events-none")}
 			onMouseEnter={() => setEditorState("timeline", "hoveredTrack", "scene")}
 			onMouseMove={(e) => {
 				if (hoveringSegment()) {
@@ -184,7 +186,7 @@ export function SceneTrack(props: {
 									sceneSegments.splice(index, 0, {
 										start: time,
 										end: time + maxDuration,
-										mode: "cameraOnly",
+										mode: "hideCamera",
 									});
 								}),
 							);
@@ -199,14 +201,14 @@ export function SceneTrack(props: {
 					<div class="text-center text-sm text-[--text-tertiary] flex flex-col justify-center items-center inset-0 w-full bg-gray-3/20 dark:bg-gray-3/10 hover:bg-gray-3/30 dark:hover:bg-gray-3/20 transition-colors rounded-xl pointer-events-none">
 						<div>
 							{L(
-								"点击添加摄像头布局片段",
-								"Click to add a camera layout segment",
+								"点击添加片段，在这段时间隐藏摄像头",
+								"Click to hide the camera for a moment",
 							)}
 						</div>
 						<div class="text-[10px] text-[--text-tertiary]/40 mt-0.5">
 							{L(
-								"（将摄像头全屏显示或隐藏）",
-								"(Show the camera fullscreen or hide it)",
+								"（选中片段后可改成全屏显示摄像头）",
+								"(Select it to show the camera fullscreen instead)",
 							)}
 						</div>
 					</div>

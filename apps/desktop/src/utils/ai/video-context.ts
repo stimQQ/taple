@@ -3,6 +3,7 @@ import {
 	type CaptionSegment,
 	type CursorClickInfo,
 	commands,
+	events,
 	type MultipleSegment,
 } from "~/utils/tauri";
 import {
@@ -244,6 +245,29 @@ export async function findDownloadedWhisperModel(
 		}
 	}
 	return null;
+}
+
+export const DEFAULT_WHISPER_MODEL = "small";
+
+export async function downloadDefaultWhisperModel(
+	modelFolder: string,
+	onProgress?: (percent: number) => void,
+): Promise<WhisperModel> {
+	const folder = await join(await appLocalDataDir(), modelFolder);
+	const path = await join(folder, `${DEFAULT_WHISPER_MODEL}.bin`);
+	const unlisten = onProgress
+		? await events.downloadProgress.listen((event) => {
+				if (event.payload.model === DEFAULT_WHISPER_MODEL) {
+					onProgress(event.payload.progress);
+				}
+			})
+		: undefined;
+	try {
+		await commands.downloadWhisperModel(DEFAULT_WHISPER_MODEL, path);
+	} finally {
+		unlisten?.();
+	}
+	return { name: DEFAULT_WHISPER_MODEL, path };
 }
 
 export async function transcribeRecording(

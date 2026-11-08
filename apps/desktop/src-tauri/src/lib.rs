@@ -31,6 +31,7 @@ mod posthog;
 mod presets;
 mod recording;
 mod recording_settings;
+mod speech_model;
 mod target_select_overlay;
 mod thumbnails;
 mod tray;
@@ -1983,6 +1984,7 @@ pub async fn run(recording_logging_handle: LoggingHandle, logs_dir: PathBuf) {
             captions::load_captions,
             captions::download_whisper_model,
             captions::check_model_exists,
+            speech_model::speech_model_downloads,
             captions::delete_whisper_model,
             captions::export_captions_srt,
             target_select_overlay::open_target_select_overlays,
@@ -2179,12 +2181,14 @@ pub async fn run(recording_logging_handle: LoggingHandle, logs_dir: PathBuf) {
             app.manage(crate::platform::ScreenCapturePrewarmer::default());
             app.manage(http_client::HttpClient::default());
             app.manage(http_client::RetryableHttpClient::default());
+            app.manage(speech_model::SpeechModelDownloads::default());
 
             if let Ok(dir) = fonts::font_dir(&app) {
                 cap_rendering::set_caption_font_dir(dir);
             }
 
             mcp::start(app.clone());
+            speech_model::start_auto_download(app.clone());
 
             tokio::spawn({
                 let camera_feed = camera_feed.clone();

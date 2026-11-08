@@ -37,6 +37,7 @@ import { getApiKey, resolveAISettings, saveApiKey } from "~/utils/ai/settings";
 import { createEditorTools, EDIT_TOOL_NAMES } from "~/utils/ai/tools";
 import { assessTranscript } from "~/utils/ai/transcript-check";
 import {
+	downloadDefaultWhisperModel,
 	findDownloadedWhisperModel,
 	transcribeRecording,
 } from "~/utils/ai/video-context";
@@ -492,12 +493,36 @@ export function AIEditPanel() {
 		if (hasTranscript()) return "";
 		if (!hasAudio())
 			return "The recording has no audio, so there is no transcript.";
-		const found = await findDownloadedWhisperModel(
+		let found = await findDownloadedWhisperModel(
 			MODEL_FOLDER,
 			MODEL_OPTIONS.map((m) => m.name),
 		);
 		if (!found) {
-			return "The user has not generated captions and no speech model is downloaded, so there is no transcript. Rely on pauses, clicks and frames and cut conservatively.";
+			const downloadPhase = (percent: number) =>
+				L(
+					`正在下载语音模型（约 466 MB，只需下载一次）… ${Math.round(percent)}%`,
+					`Downloading the speech model (about 466 MB, only once)… ${Math.round(percent)}%`,
+				);
+			setRun("phase", downloadPhase(0));
+			try {
+				found = await downloadDefaultWhisperModel(MODEL_FOLDER, (percent) =>
+					setRun("phase", downloadPhase(percent)),
+				);
+				refetchWhisper();
+			} catch (error) {
+				pushStep({
+					id: "transcribed",
+					kind: "tool",
+					name: "transcribe",
+					label: L(
+						"语音模型下载失败，将不使用文字稿",
+						"Could not download the speech model; continuing without a transcript",
+					),
+					status: "error",
+					error: String(error),
+				});
+				return "The speech model could not be downloaded, so there is no transcript. Rely on pauses, clicks and frames and cut conservatively.";
+			}
 		}
 		setRun(
 			"phase",
@@ -900,8 +925,8 @@ export function AIEditPanel() {
 							</Match>
 							<Match when={!whisperModel()}>
 								{L(
-									"还没有文字稿，AI 只能根据停顿、点击和画面剪辑。想剪得更准：关闭此面板，打开「字幕」标签，下载一个语音模型（推荐「小型」）并生成字幕，然后再运行 AI 剪辑。",
-									"There is no transcript yet, so the AI can only use pauses, clicks and frames. For better cuts, close this panel, open the Captions tab, download a speech model (Small is a good default) and generate captions, then run AI Edit again.",
+									"还没有文字稿。运行时会先下载语音模型（约 466 MB，只需下载一次），再在本机转录音频，这样剪辑能保持句子完整。",
+									"There is no transcript yet. Before editing, Taple will download the speech model (about 466 MB, only once) and transcribe the audio on this Mac so cuts keep sentences intact.",
 								)}
 							</Match>
 						</Switch>

@@ -436,7 +436,7 @@ function Page() {
 
 	mics.promise.then((mics) => {
 		if (rawOptions.micName && !mics.includes(rawOptions.micName)) {
-			setOptions("micName", null);
+			setOptions("micName", undefined);
 		}
 	});
 
@@ -524,7 +524,7 @@ function Page() {
 			setCamera.mutate({ ModelID: rawOptions.cameraID.ModelID });
 		else if (rawOptions.cameraID && "DeviceID" in rawOptions.cameraID)
 			setCamera.mutate({ DeviceID: rawOptions.cameraID.DeviceID });
-		else setCamera.mutate(null);
+		else if (rawOptions.cameraID === null) setCamera.mutate(null);
 	});
 
 	createEffect(() => {
@@ -534,7 +534,7 @@ function Page() {
 			(cameraPermission === "granted" || cameraPermission === "notNeeded") &&
 			cameraList &&
 			cameraList.length > 0 &&
-			!rawOptions.cameraID
+			rawOptions.cameraID === undefined
 		) {
 			const first = cameraList[0];
 			if (first.model_id) setCamera.mutate({ ModelID: first.model_id });
@@ -549,7 +549,7 @@ function Page() {
 			(micPermission === "granted" || micPermission === "notNeeded") &&
 			micList &&
 			micList.length > 0 &&
-			!rawOptions.micName
+			rawOptions.micName === undefined
 		) {
 			setMicInput.mutate(micList[0]);
 		}
@@ -642,7 +642,9 @@ function Page() {
 						disabled={mics.isPending}
 						options={mics.isPending ? [] : (mics.data ?? [])}
 						value={
-							mics.isPending ? rawOptions.micName : (options.micName() ?? null)
+							mics.isPending
+								? (rawOptions.micName ?? null)
+								: (options.micName() ?? null)
 						}
 						onChange={(v) => setMicInput.mutate(v)}
 					/>

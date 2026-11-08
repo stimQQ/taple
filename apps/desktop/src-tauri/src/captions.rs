@@ -11,9 +11,8 @@ use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use tauri::{AppHandle, Emitter, Manager, Window};
+use tauri::{AppHandle, Manager};
 use tempfile::tempdir;
-use tokio::io::AsyncWriteExt;
 use tokio::sync::Mutex;
 use tracing::instrument;
 use whisper_rs::{
@@ -27,7 +26,6 @@ use crate::ai::speech::{
     SPEECH_SAMPLE_RATE, SpeechSource, TRANSCRIPTION_VAD, frame_levels, load_speech_audio,
     segment_speech_sources, speech_levels, speech_ranges,
 };
-use crate::http_client;
 use crate::i18n::tr;
 use cap_project::{CaptionWord, RecordingMeta};
 
@@ -1411,116 +1409,29 @@ fn app_captions_dir(app: &AppHandle, video_id: &str) -> Result<PathBuf, String> 
     Ok(captions_dir)
 }
 
-// Add new type for download progress
 #[derive(Debug, Serialize, Type, tauri_specta::Event, Clone)]
 pub struct DownloadProgress {
+    pub model: String,
     pub progress: f64,
     pub message: String,
 }
 
-impl DownloadProgress {
-    const EVENT_NAME: &'static str = "download-progress";
-}
-
-/// Helper function to download a Whisper model from Hugging Face Hub
 #[tauri::command]
 #[specta::specta]
-#[instrument(skip(window))]
+#[instrument(skip(app))]
 pub async fn download_whisper_model(
     app: AppHandle,
-    window: Window,
     model_name: String,
     output_path: String,
 ) -> Result<(), String> {
-    // Define model URLs based on model names
-    let model_url = match model_name.as_str() {
-        "tiny" => "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin",
-        "base" => "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin",
-        "small" => "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin",
-        "medium" => "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.bin",
-        "large" => "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3.bin",
-        "large-v3" => "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3.bin",
-        _ => "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin", // Default to tiny
-    };
-
-    // Create the client and download the model
-    let response = app
-        .state::<http_client::HttpClient>()
-        .get(model_url)
-        .send()
-        .await
-        .map_err(|e| format!("Failed to download model: {e}"))?;
-
-    if !response.status().is_success() {
-        return Err(format!(
-            "Failed to download model: HTTP {}",
-            response.status()
-        ));
-    }
-
-    // Get the total size for progress calculation
-    let total_size = response.content_length().unwrap_or(0);
-
-    // Create a file to write to
-    if let Some(parent) = std::path::Path::new(&output_path).parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|e| format!("Failed to create parent directories: {e}"))?;
-    }
-    let mut file = tokio::fs::File::create(&output_path)
-        .await
-        .map_err(|e| format!("Failed to create file: {e}"))?;
-
-    // Download and write in chunks
-    let mut downloaded = 0;
-    let mut bytes = response
-        .bytes()
-        .await
-        .map_err(|e| format!("Failed to get response bytes: {e}"))?;
-
-    // Write the bytes in chunks to show progress
-    const CHUNK_SIZE: usize = 1024 * 1024; // 1MB chunks
-    while !bytes.is_empty() {
-        let chunk_size = std::cmp::min(CHUNK_SIZE, bytes.len());
-        let chunk = bytes.split_to(chunk_size);
-
-        file.write_all(&chunk)
-            .await
-            .map_err(|e| format!("Error while writing to file: {e}"))?;
-
-        downloaded += chunk_size as u64;
-
-        // Calculate and emit progress
-        let progress = if total_size > 0 {
-            (downloaded as f64 / total_size as f64) * 100.0
-        } else {
-            0.0
-        };
-
-        window
-            .emit(
-                DownloadProgress::EVENT_NAME,
-                DownloadProgress {
-                    message: format!("Downloading model: {progress:.1}%"),
-                    progress,
-                },
-            )
-            .map_err(|e| format!("Failed to emit progress: {e}"))?;
-    }
-
-    // Ensure file is properly written
-    file.flush()
-        .await
-        .map_err(|e| format!("Failed to flush file: {e}"))?;
-
-    Ok(())
+    crate::speech_model::download(&app, &model_name, Path::new(&output_path)).await
 }
 
-/// Function to check if a model file exists
 #[tauri::command]
 #[specta::specta]
 #[instrument]
 pub async fn check_model_exists(model_path: String) -> Result<bool, String> {
-    Ok(std::path::Path::new(&model_path).exists())
+    Ok(crate::speech_model::is_ready(Path::new(&model_path)))
 }
 
 /// Function to delete a downloaded model

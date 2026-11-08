@@ -257,17 +257,14 @@ async saveCaptions(videoId: string, captions: CaptionData) : Promise<null> {
 async loadCaptions(videoId: string) : Promise<CaptionData | null> {
     return await TAURI_INVOKE("load_captions", { videoId });
 },
-/**
- * Helper function to download a Whisper model from Hugging Face Hub
- */
 async downloadWhisperModel(modelName: string, outputPath: string) : Promise<null> {
     return await TAURI_INVOKE("download_whisper_model", { modelName, outputPath });
 },
-/**
- * Function to check if a model file exists
- */
 async checkModelExists(modelPath: string) : Promise<boolean> {
     return await TAURI_INVOKE("check_model_exists", { modelPath });
+},
+async speechModelDownloads() : Promise<DownloadProgress[]> {
+    return await TAURI_INVOKE("speech_model_downloads");
 },
 /**
  * Function to delete a downloaded model
@@ -486,7 +483,7 @@ export type DenoiseProgress = { progress: number; status: string }
 export type DeviceOrModelID = { DeviceID: string } | { ModelID: ModelIDType }
 export type DisplayId = string
 export type DisplayInformation = { name: string | null; physical_size: PhysicalSize | null; refresh_rate: string }
-export type DownloadProgress = { progress: number; message: string }
+export type DownloadProgress = { model: string; progress: number; message: string }
 export type EditorStateChanged = { playhead_position: number }
 export type ExportCompression = "Minimal" | "Social" | "Web" | "Potato"
 export type ExportEstimates = { duration_seconds: number; estimated_time_seconds: number; estimated_size_mb: number }
