@@ -110,3 +110,5 @@ Required GitHub secrets:
 
 - Downloads: `https://github.com/stimQQ/taple/releases/latest/download/Taple_{aarch64,x86_64}.dmg`
 - Auto-update endpoint: `https://github.com/stimQQ/taple/releases/latest/download/latest.json` (configured in `tauri.prod.conf.json`)
+- The main window checks for updates every time it opens and shows a banner when a newer version exists; the banner and Settings → Changelog both open the update page (`routes/(window-chrome)/update.tsx`), which downloads, installs and offers a restart.
+- Dev builds have no updater endpoint. To test the banner and update page, build with `TAURI_CONFIG` pointing the updater at a local `latest.json` (with `dangerousInsecureTransportProtocol`) whose download URL fails. Never let a dev binary install a real update: it is not inside an `.app` bundle, so the updater could replace the wrong folder.

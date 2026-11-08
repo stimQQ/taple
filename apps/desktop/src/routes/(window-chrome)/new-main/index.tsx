@@ -1,3 +1,4 @@
+import { useNavigate } from "@solidjs/router";
 import { createMutation, useQuery } from "@tanstack/solid-query";
 import {
 	getAllWebviewWindows,
@@ -247,6 +248,20 @@ function Page() {
 	const [hasOpenedDisplayMenu, setHasOpenedDisplayMenu] = createSignal(false);
 	const [hasOpenedWindowMenu, setHasOpenedWindowMenu] = createSignal(false);
 
+	const navigate = useNavigate();
+	const [availableUpdate, setAvailableUpdate] =
+		createSignal<updater.Update | null>(null);
+	const [updateDismissed, setUpdateDismissed] = createSignal(false);
+	const updateBanner = () =>
+		updateDismissed() || isRecording() ? null : availableUpdate();
+
+	onMount(() => {
+		updater
+			.check()
+			.then((update) => setAvailableUpdate(update))
+			.catch(() => undefined);
+	});
+
 	const displayTargets = useQuery(() => ({
 		...listDisplaysWithThumbnails,
 		refetchInterval: false,
@@ -346,7 +361,9 @@ function Page() {
 		setWindowMenuOpen(false);
 	});
 
-	const getHeight = () => (displayMenuOpen() || windowMenuOpen() ? 504 : 300);
+	const getHeight = () =>
+		(displayMenuOpen() || windowMenuOpen() ? 504 : 300) +
+		(updateBanner() ? 44 : 0);
 
 	createEffect(() => {
 		getCurrentWindow().setSize(new LogicalSize(270, getHeight()));
@@ -626,6 +643,34 @@ function Page() {
 					)}
 				</div>
 			</WindowChromeHeader>
+			<Show when={updateBanner()}>
+				{(update) => (
+					<div class="flex flex-row gap-2 items-center px-2.5 h-9 text-xs rounded-lg shrink-0 bg-blue-3">
+						<IconLucideDownload class="size-4 shrink-0 text-blue-11" />
+						<p class="flex-1 truncate text-gray-12">
+							{L(
+								`新版本 v${update().version} 可用`,
+								`Taple v${update().version} is available`,
+							)}
+						</p>
+						<button
+							type="button"
+							onClick={() => navigate("/update")}
+							class="font-medium transition-colors text-blue-11 hover:text-blue-12"
+						>
+							{L("更新", "Update")}
+						</button>
+						<button
+							type="button"
+							aria-label={L("稍后", "Later")}
+							onClick={() => setUpdateDismissed(true)}
+							class="flex justify-center items-center transition-colors size-4 text-gray-10 hover:text-gray-12"
+						>
+							<IconLucideX class="size-3.5" />
+						</button>
+					</div>
+				)}
+			</Show>
 			<div class="flex flex-col gap-2 w-full">
 				<div class="space-y-2">
 					<CameraSelect
