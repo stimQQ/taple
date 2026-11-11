@@ -6,6 +6,12 @@ All notable changes to Taple are recorded here. The format follows [Keep a Chang
 
 Nothing yet.
 
+## [0.1.2] - 2026-11-11
+
+### Fixed
+
+- Connecting an AI agent in Settings → AI while Taple runs from the disk image or the Downloads folder no longer saves a location that stops working once the disk image is ejected or the app is moved. Taple now asks you to drag it into the Applications folder and open it from there first.
+
 ## [0.1.1] - 2026-11-08
 
 ### Added
@@ -58,6 +64,7 @@ The first release of Taple, a free, open source screen recorder for product demo
 
 - AI Edit sends the transcript, still frames and click timing to the provider you choose. Your video and audio files stay on your Mac. API keys are stored in the macOS Keychain.
 
-[Unreleased]: https://github.com/stimQQ/taple/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/stimQQ/taple/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/stimQQ/taple/releases/tag/v0.1.2
 [0.1.1]: https://github.com/stimQQ/taple/releases/tag/v0.1.1
 [0.1.0]: https://github.com/stimQQ/taple/releases/tag/v0.1.0

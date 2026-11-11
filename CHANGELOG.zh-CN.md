@@ -6,6 +6,12 @@
 
 暂无。
 
+## [0.1.2] - 2026-11-11
+
+### 修复
+
+- 直接从安装盘（DMG）或「下载」文件夹打开 Taple 时，在「设置 → AI」里连接 Agent 不会再写入一个之后会失效的位置（推出安装盘或移动 App 后 Agent 就找不到 Taple）。现在会提示先把 Taple 拖进「应用程序」文件夹，从那里打开后再连接。
+
 ## [0.1.1] - 2026-11-08
 
 ### 新增
@@ -58,6 +64,7 @@ Taple 的第一个版本：一款免费、开源的 macOS 录屏软件，专为�
 
 - AI 剪辑只会把文字稿、静态画面和点击时间发给你选择的 AI 服务商，视频和音频文件始终留在你的 Mac 上。API key 保存在 macOS 钥匙串里。
 
-[未发布]: https://github.com/stimQQ/taple/compare/v0.1.1...HEAD
+[未发布]: https://github.com/stimQQ/taple/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/stimQQ/taple/releases/tag/v0.1.2
 [0.1.1]: https://github.com/stimQQ/taple/releases/tag/v0.1.1
 [0.1.0]: https://github.com/stimQQ/taple/releases/tag/v0.1.0
