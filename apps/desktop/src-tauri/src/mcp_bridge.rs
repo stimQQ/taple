@@ -25,11 +25,14 @@ fn socket_from_args() -> Option<PathBuf> {
         .map(PathBuf::from)
 }
 
-fn app_bundle() -> Option<PathBuf> {
-    let exe = std::env::current_exe().ok()?;
+pub fn bundle_of(exe: &Path) -> Option<&Path> {
     exe.ancestors()
         .find(|path| path.extension().is_some_and(|extension| extension == "app"))
-        .map(Path::to_path_buf)
+}
+
+fn app_bundle() -> Option<PathBuf> {
+    let exe = std::env::current_exe().ok()?;
+    bundle_of(&exe).map(Path::to_path_buf)
 }
 
 fn launch_app() -> bool {

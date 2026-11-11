@@ -9,7 +9,11 @@ use serde_json::{Value, json};
 use specta::Type;
 use tauri::AppHandle;
 
-use crate::{i18n::tr, mcp::socket_path, mcp_bridge::MCP_FLAG};
+use crate::{
+    i18n::tr,
+    mcp::socket_path,
+    mcp_bridge::{MCP_FLAG, bundle_of},
+};
 
 const SERVER_NAME: &str = "taple";
 
@@ -59,6 +63,12 @@ fn server_entry(app: &AppHandle) -> Result<ServerEntry, String> {
 
 fn home() -> Result<PathBuf, String> {
     dirs::home_dir().ok_or_else(|| "No home directory".to_string())
+}
+
+fn outside_applications(exe: &Path, home: &Path) -> bool {
+    bundle_of(exe).is_some_and(|bundle| {
+        !bundle.starts_with("/Applications") && !bundle.starts_with(home.join("Applications"))
+    })
 }
 
 fn login_path() -> &'static str {
@@ -401,6 +411,13 @@ pub async fn mcp_client_statuses(app: AppHandle) -> Result<Vec<McpClientStatus>,
 #[specta::specta]
 pub async fn mcp_connect_client(app: AppHandle, client: McpClient) -> Result<(), String> {
     let entry = server_entry(&app)?;
+    if outside_applications(Path::new(&entry.command), &home()?) {
+        return Err(tr(
+            "请先把 Taple 拖进「应用程序」文件夹，从那里打开后再连接，否则 Agent 之后会找不到 Taple。",
+            "Drag Taple into the Applications folder and open it from there before connecting, otherwise agents can't find Taple later.",
+        )
+        .to_string());
+    }
     tokio::task::spawn_blocking(move || apply(client, Some(&entry)).map_err(failed))
         .await
         .map_err(|e| e.to_string())?
@@ -416,9 +433,11 @@ pub async fn mcp_disconnect_client(client: McpClient) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
+
     use super::{
-        ServerEntry, add_toml_server, json_server, remove_toml_server, toml_server_command,
-        write_json_server,
+        ServerEntry, add_toml_server, json_server, outside_applications, remove_toml_server,
+        toml_server_command, write_json_server,
     };
 
     fn entry() -> ServerEntry {
@@ -451,6 +470,28 @@ mod tests {
         let removed = remove_toml_server(&updated);
         assert!(!removed.contains("taple"));
         assert!(removed.contains("[profiles.fast]"));
+    }
+
+    #[test]
+    fn connects_only_from_an_applications_folder() {
+        let home = Path::new("/Users/me");
+        for exe in [
+            "/Applications/Taple.app/Contents/MacOS/Taple",
+            "/Applications/Utilities/Taple.app/Contents/MacOS/Taple",
+            "/Users/me/Applications/Taple.app/Contents/MacOS/Taple",
+            "/Users/me/code/taple/target/debug/taple-desktop",
+        ] {
+            assert!(!outside_applications(Path::new(exe), home), "{exe}");
+        }
+        for exe in [
+            "/Volumes/Taple/Taple.app/Contents/MacOS/Taple",
+            "/Users/me/Downloads/Taple.app/Contents/MacOS/Taple",
+            "/private/var/folders/ab/xyz/T/AppTranslocation/1234/d/Taple.app/Contents/MacOS/Taple",
+            "/Applications Old/Taple.app/Contents/MacOS/Taple",
+            "/Users/me/code/taple/target/release/bundle/macos/Taple.app/Contents/MacOS/Taple",
+        ] {
+            assert!(outside_applications(Path::new(exe), home), "{exe}");
+        }
     }
 
     #[test]

@@ -65,7 +65,7 @@ Do not start dev servers or launch the app unless asked.
 - Taple serves MCP on a Unix socket in the app data directory (`mcp.sock`, mode 0600) from `apps/desktop/src-tauri/src/mcp.rs`. Clients launch the app binary with `--mcp --socket <path>` (`mcp_bridge.rs`), which pipes stdio to the socket and starts Taple when it is not running.
 - `list_recordings` and `open_recording` run in Rust; every other tool runs in the open editor (`apps/desktop/src/routes/editor/mcpHost.ts`) with the same tool code as the built-in AI Edit, so the editing rules, live timeline and undo behave the same. `view_frames` returns the contact sheet image when there is no vision helper.
 - Rust lists tools from `apps/desktop/src-tauri/mcp-catalog.json`, generated from the TypeScript tool definitions. After changing a tool, run `UPDATE_MCP_CATALOG=1 pnpm --filter @taple/desktop exec vitest run src/utils/ai/mcp.ts`; the test fails while the file is stale.
-- Settings → AI connects Claude Code (via the `claude` CLI, else `~/.claude.json`), Codex (`~/.codex/config.toml`), Claude Desktop and Cursor in one click (`mcp_install.rs`); each edited file is backed up as `*.taple-backup`.
+- Settings → AI connects Claude Code (via the `claude` CLI, else `~/.claude.json`), Codex (`~/.codex/config.toml`), Claude Desktop and Cursor in one click (`mcp_install.rs`); each edited file is backed up as `*.taple-backup`. Connecting is refused while Taple runs from a `.app` outside `/Applications` or `~/Applications` (disk image, Downloads, App Translocation), because the saved path would break later; dev binaries outside a bundle can still connect.
 
 ## Feedback & Changelog
 
