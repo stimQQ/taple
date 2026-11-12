@@ -4,6 +4,10 @@ All notable changes to Taple are recorded here. The format follows [Keep a Chang
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.1.3] - 2026-11-12
+
 ### Fixed
 
 - Taple no longer opens by itself after you quit it. Claude Code, Codex, Claude Desktop and Cursor start Taple's MCP server whenever a new session begins, and that used to launch Taple. Taple now starts only when an AI agent actually calls one of its tools.
@@ -66,7 +70,8 @@ The first release of Taple, a free, open source screen recorder for product demo
 
 - AI Edit sends the transcript, still frames and click timing to the provider you choose. Your video and audio files stay on your Mac. API keys are stored in the macOS Keychain.
 
-[Unreleased]: https://github.com/stimQQ/taple/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/stimQQ/taple/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/stimQQ/taple/releases/tag/v0.1.3
 [0.1.2]: https://github.com/stimQQ/taple/releases/tag/v0.1.2
 [0.1.1]: https://github.com/stimQQ/taple/releases/tag/v0.1.1
 [0.1.0]: https://github.com/stimQQ/taple/releases/tag/v0.1.0

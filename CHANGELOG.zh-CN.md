@@ -4,6 +4,10 @@
 
 ## [未发布]
 
+暂无。
+
+## [0.1.3] - 2026-11-12
+
 ### 修复
 
 - 退出 Taple 后，它不会再自己重新打开。Claude Code、Codex、Claude Desktop 和 Cursor 每开一个新会话都会启动 Taple 的 MCP 服务，以前这会顺带把 Taple 拉起来；现在只有 AI 代理真正调用 Taple 的工具时才会启动它。
@@ -66,7 +70,8 @@ Taple 的第一个版本：一款免费、开源的 macOS 录屏软件，专为�
 
 - AI 剪辑只会把文字稿、静态画面和点击时间发给你选择的 AI 服务商，视频和音频文件始终留在你的 Mac 上。API key 保存在 macOS 钥匙串里。
 
-[未发布]: https://github.com/stimQQ/taple/compare/v0.1.2...HEAD
+[未发布]: https://github.com/stimQQ/taple/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/stimQQ/taple/releases/tag/v0.1.3
 [0.1.2]: https://github.com/stimQQ/taple/releases/tag/v0.1.2
 [0.1.1]: https://github.com/stimQQ/taple/releases/tag/v0.1.1
 [0.1.0]: https://github.com/stimQQ/taple/releases/tag/v0.1.0
