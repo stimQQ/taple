@@ -4,7 +4,9 @@
 
 ## [未发布]
 
-暂无。
+### 修复
+
+- 退出 Taple 后，它不会再自己重新打开。Claude Code、Codex、Claude Desktop 和 Cursor 每开一个新会话都会启动 Taple 的 MCP 服务，以前这会顺带把 Taple 拉起来；现在只有 AI 代理真正调用 Taple 的工具时才会启动它。
 
 ## [0.1.2] - 2026-11-11
 

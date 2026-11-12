@@ -138,14 +138,62 @@ async fn handle_session(app: AppHandle, stream: UnixStream) {
         let writer = writer.clone();
         let client = client.clone();
         tokio::spawn(async move {
-            let response = match handle_request(&app, &client, &method, &params).await {
-                Ok(result) => json!({"jsonrpc": "2.0", "id": id, "result": result}),
-                Err((code, message)) => {
-                    json!({"jsonrpc": "2.0", "id": id, "error": {"code": code, "message": message}})
-                }
-            };
+            let response = envelope(id, handle_request(&app, &client, &method, &params).await);
             send(&writer, response).await;
         });
+    }
+}
+
+fn envelope(id: Value, result: Result<Value, (i64, String)>) -> Value {
+    match result {
+        Ok(result) => json!({"jsonrpc": "2.0", "id": id, "result": result}),
+        Err((code, message)) => {
+            json!({"jsonrpc": "2.0", "id": id, "error": {"code": code, "message": message}})
+        }
+    }
+}
+
+pub(crate) fn local_response(id: Value, method: &str, params: &Value) -> Value {
+    envelope(id, local_result(method, params))
+}
+
+pub(crate) fn tool_error_response(id: Value, message: &str) -> Value {
+    envelope(id, Ok(text_result(message, true)))
+}
+
+fn initialize_result(params: &Value) -> Value {
+    json!({
+        "protocolVersion": params
+            .get("protocolVersion")
+            .and_then(Value::as_str)
+            .unwrap_or(DEFAULT_PROTOCOL_VERSION),
+        "capabilities": {
+            "tools": {"listChanged": false},
+            "prompts": {"listChanged": false}
+        },
+        "serverInfo": {
+            "name": "taple",
+            "title": "Taple",
+            "version": env!("CARGO_PKG_VERSION")
+        },
+        "instructions": CATALOG.instructions
+    })
+}
+
+fn local_result(method: &str, params: &Value) -> Result<Value, (i64, String)> {
+    match method {
+        "initialize" => Ok(initialize_result(params)),
+        "ping" => Ok(json!({})),
+        "tools/list" => {
+            let mut tools = app_tools();
+            tools.extend(CATALOG.tools.iter().cloned());
+            Ok(json!({ "tools": tools }))
+        }
+        "prompts/list" => Ok(json!({ "prompts": [edit_prompt_definition()] })),
+        "prompts/get" => edit_prompt(params),
+        "resources/list" => Ok(json!({ "resources": [] })),
+        "resources/templates/list" => Ok(json!({ "resourceTemplates": [] })),
+        _ => Err((-32601, format!("Method not found: {method}"))),
     }
 }
 
@@ -173,28 +221,7 @@ async fn handle_request(
             {
                 *client.lock().await = name.to_string();
             }
-            Ok(json!({
-                "protocolVersion": params
-                    .get("protocolVersion")
-                    .and_then(Value::as_str)
-                    .unwrap_or(DEFAULT_PROTOCOL_VERSION),
-                "capabilities": {
-                    "tools": {"listChanged": false},
-                    "prompts": {"listChanged": false}
-                },
-                "serverInfo": {
-                    "name": "taple",
-                    "title": "Taple",
-                    "version": env!("CARGO_PKG_VERSION")
-                },
-                "instructions": CATALOG.instructions
-            }))
-        }
-        "ping" => Ok(json!({})),
-        "tools/list" => {
-            let mut tools = app_tools();
-            tools.extend(CATALOG.tools.iter().cloned());
-            Ok(json!({ "tools": tools }))
+            Ok(initialize_result(params))
         }
         "tools/call" => {
             let name = params
@@ -205,11 +232,7 @@ async fn handle_request(
             let client = client.lock().await.clone();
             Ok(call_tool(app, &client, name, arguments).await)
         }
-        "prompts/list" => Ok(json!({ "prompts": [edit_prompt_definition()] })),
-        "prompts/get" => edit_prompt(params),
-        "resources/list" => Ok(json!({ "resources": [] })),
-        "resources/templates/list" => Ok(json!({ "resourceTemplates": [] })),
-        _ => Err((-32601, format!("Method not found: {method}"))),
+        _ => local_result(method, params),
     }
 }
 

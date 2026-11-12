@@ -4,7 +4,9 @@ All notable changes to Taple are recorded here. The format follows [Keep a Chang
 
 ## [Unreleased]
 
-Nothing yet.
+### Fixed
+
+- Taple no longer opens by itself after you quit it. Claude Code, Codex, Claude Desktop and Cursor start Taple's MCP server whenever a new session begins, and that used to launch Taple. Taple now starts only when an AI agent actually calls one of its tools.
 
 ## [0.1.2] - 2026-11-11
 
