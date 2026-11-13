@@ -4,6 +4,10 @@
 
 ## [未发布]
 
+暂无。
+
+## [0.1.4] - 2026-11-13
+
 ### 修复
 
 - 在编辑器里播放录屏时，内存占用大幅下降。现在每段视频最多保留约 64 MB 的已解码画面；以前最多保留 100 张完整大小的画面，录的是高分辨率屏幕时会超过 1 GB。
@@ -73,7 +77,8 @@ Taple 的第一个版本：一款免费、开源的 macOS 录屏软件，专为�
 
 - AI 剪辑只会把文字稿、静态画面和点击时间发给你选择的 AI 服务商，视频和音频文件始终留在你的 Mac 上。API key 保存在 macOS 钥匙串里。
 
-[未发布]: https://github.com/stimQQ/taple/compare/v0.1.3...HEAD
+[未发布]: https://github.com/stimQQ/taple/compare/v0.1.4...HEAD
+[0.1.4]: https://github.com/stimQQ/taple/releases/tag/v0.1.4
 [0.1.3]: https://github.com/stimQQ/taple/releases/tag/v0.1.3
 [0.1.2]: https://github.com/stimQQ/taple/releases/tag/v0.1.2
 [0.1.1]: https://github.com/stimQQ/taple/releases/tag/v0.1.1

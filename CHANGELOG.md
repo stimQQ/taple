@@ -4,6 +4,10 @@ All notable changes to Taple are recorded here. The format follows [Keep a Chang
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.1.4] - 2026-11-13
+
 ### Fixed
 
 - Playing a recording in the editor uses much less memory. Taple now keeps at most about 64 MB of decoded frames per video. Before, it kept up to 100 full-size frames, which took more than 1 GB for a high-resolution screen recording.
@@ -73,7 +77,8 @@ The first release of Taple, a free, open source screen recorder for product demo
 
 - AI Edit sends the transcript, still frames and click timing to the provider you choose. Your video and audio files stay on your Mac. API keys are stored in the macOS Keychain.
 
-[Unreleased]: https://github.com/stimQQ/taple/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/stimQQ/taple/compare/v0.1.4...HEAD
+[0.1.4]: https://github.com/stimQQ/taple/releases/tag/v0.1.4
 [0.1.3]: https://github.com/stimQQ/taple/releases/tag/v0.1.3
 [0.1.2]: https://github.com/stimQQ/taple/releases/tag/v0.1.2
 [0.1.1]: https://github.com/stimQQ/taple/releases/tag/v0.1.1
