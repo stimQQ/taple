@@ -41,6 +41,8 @@ pub fn pts_to_frame(pts: i64, time_base: Rational, fps: u32) -> u32 {
 
 pub const FRAME_CACHE_SIZE: usize = 100;
 
+pub const FRAME_CACHE_BYTES: usize = 64 * 1024 * 1024;
+
 #[derive(Clone)]
 pub struct AsyncVideoDecoderHandle {
     sender: mpsc::Sender<VideoDecoderMessage>,

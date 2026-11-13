@@ -4,7 +4,10 @@ All notable changes to Taple are recorded here. The format follows [Keep a Chang
 
 ## [Unreleased]
 
-Nothing yet.
+### Fixed
+
+- Playing a recording in the editor uses much less memory. Taple now keeps at most about 64 MB of decoded frames per video. Before, it kept up to 100 full-size frames, which took more than 1 GB for a high-resolution screen recording.
+- Scrubbing, stepping backward and jumping around the timeline now show the frame at the playhead. Before, the preview sometimes showed an earlier frame.
 
 ## [0.1.3] - 2026-11-12
 

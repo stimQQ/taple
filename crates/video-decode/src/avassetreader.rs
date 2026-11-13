@@ -78,7 +78,7 @@ impl AVAssetReaderDecoder {
             .map_err(|e| format!("AssetReader::with_asset: {e}"))?;
 
         let time_range = cm::TimeRange {
-            start: cm::Time::with_secs(time as f64, 100),
+            start: cm::Time::with_secs(time as f64, 1_000_000),
             duration: cm::Time::infinity(),
         };
 
